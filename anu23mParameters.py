@@ -13,6 +13,10 @@
 from scipy import constants
 import numpy as np
 
+""" f ratio """
+f_ratio = 18
+efl_mm = 6010 / 700 * 4840	# effective focal length
+
 """ Mirror geometry & thermal properties """
 T = 273 + 10		# telescope temperature (K)
 
