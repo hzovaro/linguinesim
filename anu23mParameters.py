@@ -3,7 +3,7 @@
 # 	File:		anu23mParameters.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		25/05/2016
+#	Edited:		05/06/2016
 #
 #	Description:
 #	Properties of the ANU 2.3 m telescope at Siding Spring Observatory.
@@ -16,6 +16,7 @@ import numpy as np
 """ f ratio """
 f_ratio = 18
 efl_mm = 6010 / 700 * 4840	# effective focal length
+plate_scale_as_mm = 206256/41554.86 * 1e3 
 
 """ Mirror geometry & thermal properties """
 T = 273 + 10		# telescope temperature (K)
@@ -78,7 +79,7 @@ filter_bands_um = {
 }
 
 filter_bands_m = {
-	# [centre wavelength, width]
+	# [centre wavelength, width, min, max]
 	'J' : [1.250e-6, 0.160e-6, 1.170e-6, 1.330e-6],
 	'H' : [1.635e-6, 0.290e-6, 1.490e-6, 1.780e-6],
 	'K' : [2.200e-6, 0.340e-6, 2.030e-6, 2.370e-6]
