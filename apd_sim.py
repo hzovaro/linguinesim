@@ -3,14 +3,12 @@
 # 	File:		apd_sim.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		29/05/2016
+#	Edited:		14/06/2016
 #
 #	Description:
 #	Simulate images of galaxies imaged using the APD detector within the ANU 2.3 m telescope.
 #
 #	TO DO:
-#	- implement cross-correlation
-#	- write shift-and-stack routine
 #	- write routine to generate images 
 #	- multi-thread processing
 #	- simulate tip and tilt distortion.
