@@ -3,7 +3,7 @@
 # 	File:		apd_etc.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		25/05/2016
+#	Edited:		05/06/2016
 #
 #	Description:
 #	An exposure time calculator (ETC) for a telescope-detector system in the near-infrared.
@@ -95,66 +95,27 @@ def exposureTimeCalc(
 	""" Cryostat photon flux """
 	Sigma_cryo = getCryostatTE(plotIt=False)
 
-	""" Other background noise sources """
+	""" Telescope thermal background photon flux """
+	Sigma_tel = getTelescopeTE(plotIt=False)[band]
+
+	""" Sky thermal background photon flux """
+	Sigma_sky_thermal = getSkyTE(plotIt=False)[band]
+
+	""" Empirical sky background flux """
+	F_sky_nu_cgs = np.power(10, -(telescope.sky_brightness[band] + 48.60)/2.5)
+	F_sky_lambda_cgs = F_sky_nu_cgs * constants.c / np.power(wavelength_eff,2)
+	F_sky_lambda = F_sky_lambda_cgs * 1e-7 * 1e4
+	F_sky_total_phot = F_sky_lambda * bandwidth / E_photon
+	Sigma_sky_phot = F_sky_total_phot * np.power(plate_scale_as,2) * telescope.A_collecting	# photons/s/px
+	Sigma_sky_emp = detector.gain_av * detector.qe * telescope.tau * cryo.Tr_win * Sigma_sky_phot # electrons/s/px
+
+	""" Total sky background """
 	if band == 'K':
-		# In the K band, thermal emission from the sky 
-		""" Telescope thermal background photon flux """
-		# # NOTE: the following are in units of photons/s/px
-		# # Mirrors (acting as grey bodies)
-		# I_M1 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = telescope.eps_M1_eff)
-		# I_M2 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M2_total_eff, eps = telescope.eps_M2_eff)
-		# I_M3 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = telescope.eps_M1_eff)
-		# # Spider (acting as a grey body at both the sky temperature and telescope temperature)
-		# I_spider = \
-		# 		thermalEmissionIntensity(T = telescope.T, 	wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = telescope.eps_spider_eff)\
-		# 	  + thermalEmissionIntensity(T = T_sky, 		wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = 1 - telescope.eps_spider_eff)
-		# # Cryostat window (acting as a grey body)
-		# I_window = thermalEmissionIntensity(T = cryo.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = cryo.eps_win)
-
-		# # Multiply by the gain and QE to get units of electrons/s/px.
-		# # We don't multiply by the transmission because the mirrors themselves are emitting.
-		# Sigma_tel = detector.gain_av * detector.qe * (I_M1 + I_M2 + I_M3 + I_spider + I_window)
-		Sigma_tel = getTelescopeTE(plotIt=False)[band]
-
-		""" Sky thermal background photon flux """
-		# Atmospheric properties
-		
-		# f = open('cptrans_zm_23_10.dat','r')
-		# wavelengths_sky = [];
-		# Tr_sky = [];
-		# for line in f:
-		# 	cols = line.split()
-		# 	wavelengths_sky.append(float(cols[0]))
-		# 	Tr_sky.append(float(cols[1]))
-		# Tr_sky = np.asarray(Tr_sky)
-		# wavelengths_sky = np.asarray(wavelengths_sky) * 1e-6
-		# eps_sky = lambda wavelength: np.interp(wavelength, wavelengths_sky, 1 - Tr_sky)
-		# f.close()
-
-		# Sigma_sky_phot = thermalEmissionIntensity(
-		# 	T = T_sky, 
-		# 	wavelength_min = wavelength_min, 
-		# 	wavelength_max = wavelength_max, 
-		# 	Omega = Omega_px_rad, 
-		# 	A = telescope.A_M1_reflective, 
-		# 	eps = eps_sky
-		# 	)
-
-		# # Multiply by the gain, QE and telescope transmission to get units of electrons/s/px.
-		# Sigma_sky = detector.gain_av * detector.qe * telescope.tau * Sigma_sky_phot
-		Sigma_sky = getSkyTE(plotIt=False)[band]
-
-		Sigma_sky = Sigma_sky + Sigma_tel
-
+		# In the K band, thermal emission from the sky is dominated by the telescope and sky thermal emission
+		Sigma_sky = Sigma_sky_thermal + Sigma_tel
 	else:
 		# In the J and H bands, OH emission dominates; hence empirical sky brightness values are used instead.
-		""" Empirical sky background flux """
-		F_sky_nu_cgs = np.power(10, -(telescope.sky_brightness[band] + 48.60)/2.5)
-		F_sky_lambda_cgs = F_sky_nu_cgs * constants.c / np.power(wavelength_eff,2)
-		F_sky_lambda = F_sky_lambda_cgs * 1e-7 * 1e4
-		F_sky_total_phot = F_sky_lambda * bandwidth / E_photon
-		Sigma_sky_phot = F_sky_total_phot * np.power(plate_scale_as,2) * telescope.A_collecting	# photons/s/px
-		Sigma_sky = detector.gain_av * detector.qe * telescope.tau * Sigma_sky_phot # electrons/s/px
+		Sigma_sky = Sigma_sky_emp
 
 	""" Dark current """
 	Sigma_dark = detector.dark_current
@@ -166,6 +127,9 @@ def exposureTimeCalc(
 	N_dark = Sigma_dark * t_exp
 	N_cryo = Sigma_cryo * t_exp
 	N_sky = Sigma_sky * t_exp
+	N_tel = Sigma_tel * t_exp
+	N_sky_emp = Sigma_sky_emp * t_exp
+	N_sky_thermal = Sigma_sky_thermal * t_exp
 	N_RN = detector.read_noise * detector.read_noise
 
 	SNR = N_source / np.sqrt(N_source + N_dark + N_cryo + N_sky + N_RN)
@@ -183,12 +147,17 @@ def exposureTimeCalc(
 		'sigma_dark' : np.sqrt(N_dark),
 		'sigma_cryo' : np.sqrt(N_cryo),
 		'sigma_sky' : np.sqrt(N_sky),
+		'sigma_sky_emp' : np.sqrt(N_sky_emp),
+		'sigma_tel' : np.sqrt(N_tel),
+		'sigma_sky_thermal' : np.sqrt(N_sky_thermal),
 		'sigma_RN' : detector.read_noise,
-		# Noise variances
+		# Total electron counts
 		'N_source' : N_source,
 		'N_dark' : N_dark,
 		'N_cryo' : N_cryo,
-		'N_sky' : N_sky,
+		'N_sky_emp' : N_sky_emp,
+		'N_sky_thermal' : N_sky_thermal,
+		'N_tel' : N_tel,
 		'N_RN' : N_RN,
 		# SNR
 		'SNR' : SNR
@@ -296,7 +265,7 @@ def getSkyTE(T_sky=273, plotIt=True):
 			eps = eps_sky
 			)
 		# Multiply by the gain, QE and telescope transmission to get units of electrons/s/px.
-		I_sky[key] = detector.gain_av * detector.qe * telescope.tau * I_sky[key]
+		I_sky[key] = detector.gain_av * detector.qe * telescope.tau * cryo.Tr_win * I_sky[key]
 
 	if plotIt:
 		D = np.ones(1000)*detector.dark_current
@@ -314,7 +283,7 @@ def getSkyTE(T_sky=273, plotIt=True):
 
 		plt.yscale('log')
 		plt.axis('tight')
-		plt.ylim(ymax=100*I_sky['K'],ymin=1e-15)
+		plt.ylim(ymax=100*I_sky['K'],ymin=1e-5)
 		plt.legend(loc='lower right')
 		plt.xlabel(r'$\lambda$ ($\mu$m)')
 		plt.ylabel(r'Count ($e^{-}$ s$^{-1}$ pixel$^{-1}$)')
@@ -369,7 +338,7 @@ def getTelescopeTE(T_sky=273, plotIt=True):
 
 		plt.yscale('log')
 		plt.axis('tight')
-		plt.ylim(ymax=100*I_tel['K'],ymin=1e-15)
+		plt.ylim(ymax=100*I_tel['K'],ymin=1e-5)
 		plt.legend(loc='lower right')
 		plt.xlabel(r'$\lambda$ ($\mu$m)')
 		plt.ylabel(r'Count ($e^{-}$ s$^{-1}$ pixel$^{-1}$)')
@@ -377,3 +346,40 @@ def getTelescopeTE(T_sky=273, plotIt=True):
 		plt.show()
 
 	return I_tel
+
+########################################################################################
+def plotBackgroundNoiseSources():
+	" Plot the empirical sky brightness, thermal sky emission, thermal telescope emission and dark current as a function of wavelength "
+	counts = {
+		'H' : 0,
+		'J' : 0,
+		'K' : 0
+	}
+	counts['H'] = exposureTimeCalc(band='H', t_exp=1)
+	counts['J'] = exposureTimeCalc(band='J', t_exp=1)
+	counts['K'] = exposureTimeCalc(band='K', t_exp=1)
+	D = np.ones(1000)*detector.dark_current
+	wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
+
+	# Plotting
+
+	# Plotting
+	plotCols = ['darkOrange', 'darkOrchid']
+	plotStyles = ['-', '--', '-.', ':']
+	plt.figure(figsize=(figsize,figsize))
+	plt.plot(wavelengths*1e6, D, 'g--', label=r'Dark current')
+
+	for key in counts:
+		plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_emp'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='o')
+		plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_thermal'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='o')
+		plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_tel'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='o')
+		plt.text(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_emp']*5, key)
+
+	plt.yscale('log')
+	plt.axis('tight')
+	plt.ylim(ymax=100*I_tel['K'],ymin=1e-5)
+	plt.legend(loc='lower right')
+	plt.xlabel(r'$\lambda$ ($\mu$m)')
+	plt.ylabel(r'Count ($e^{-}$ s$^{-1}$ pixel$^{-1}$)')
+	plt.title(r'Estimated count from telescope thermal emission')
+	plt.show()
