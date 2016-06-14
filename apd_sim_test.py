@@ -51,8 +51,8 @@ for k in range(N):
 	plt.subplot(1,3,2)
 	plt.imshow(images[k],origin='lower')	
 	plotcoords = np.ndarray((2))
-	plotcoords[1] = tt_idxs[k,0] + width / 2
-	plotcoords[0] = tt_idxs[k,1] + height / 2
+	plotcoords[1] = img_peak_idxs[k,0] + width / 2
+	plotcoords[0] = img_peak_idxs[k,1] + height / 2
 	scat2.set_offsets(plotcoords)
 
 	plt.subplot(1,3,3)
