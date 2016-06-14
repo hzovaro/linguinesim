@@ -22,6 +22,7 @@ import apdParameters as detector
 import anu23mParameters as telescope
 import cryoParameters as cryo
 from apd_etc import *
+import pdb
 
 import numpy as np
 import numpy.fft
@@ -153,39 +154,73 @@ plt.close('all')
 # # plt.show()
 
 #########################################################################################################
-def getImages(fname, addNoise=False, seeing=False):
+def getImages(fname,
+	returnRawImages=False, 
+	addNoise=False, 
+	seeing=False, 
+	source_plate_scale_as=0.05,
+	detector_size_px=(detector.width_px, detector.height_px),
+	dest_plate_scale_as=206256/telescope.efl_mm * 1e3 * detector.l_px
+	):
 	# 1. Load image from a FITS file (or other source).
+	# fname='sample-images/ngc300_wfc.fits'
+	# fname = 'sample-images/ngc300_wfpc2_1.fits'
+	# fname = 'sample-images/ngc300_wfpc2_2.fits'
+	# fname = 'sample-images/tadpole.fits'
 	hdulist = fits.open(fname)
-	
+
 	images_raw = hdulist[0].data
-	N = images_raw[0].shape[0]
-	source_length_px = images_raw.shape[1]
-	source_width_px = images_raw.shape[2]
-	source_plate_scale_as = 0.2
+
+	if returnRawImages:
+		return images_raw
+
+	if len(images_raw.shape) > 2:
+		N = images_raw[0].shape[0]
+		source_height_px = images_raw.shape[1]
+		source_width_px = images_raw.shape[2]
+	else:
+		N = 1
+		source_height_px = images_raw.shape[0]
+		source_width_px = images_raw.shape[1]
+
+	# source_plate_scale_as = 0.1
 	source_width_as = source_width_px * source_plate_scale_as
-	source_length_as = source_length_px * source_plate_scale_as
+	source_height_as = source_height_px * source_plate_scale_as
 
 	hdulist.close()
 
 	# 2. Simulate seeing conditions and resize to replicate the pixel scale of the detector:
-	
 	#	a. Get the angular extent of the source image:
 	#		size(pixels on our detector) = size(of source, in as) / plate scale
-	dest_plate_scale_as = 206256/telescope.efl_mm * 1e3 * detector.l_px
+	# dest_plate_scale_as = 206256/telescope.efl_mm * 1e3 * detector.l_px
 	# dest_plate_scale_as = 0.5
+	detector_width_px = detector_size_px[0]
+	detector_height_px = detector_size_px[1]
 	dest_width_px = source_width_as / dest_plate_scale_as
-	dest_length_px = source_length_as / dest_plate_scale_as
-	
+	dest_height_px = source_height_as / dest_plate_scale_as
+
 	#	b. Rescale image to the appropriate size for our detector
 	images = np.copy(images_raw)
 	images = scipy.misc.imresize(images, dest_width_px/source_width_px)
-	images.astype(float32)
+	images = np.swapaxes(images,0,2)
+	images = images.astype(np.float32)
 
-	#	c. Resize to detector.length * detector.width, maintaining the format
+	#	c. Resize to detector.length * detector.width, maintaining the format. Padding if necessary
 	if dest_width_px > detector.width_px:
-		images = images[:, images.shape[1]-detector.width_px/2:images.shape[1]+detector.width_px/2+1, :]
-	if dest_length_px > detector.length_px:
-		images = images[:, :, images.shape[2]-detector.length_px/2:images.shape[2]+detector.length_px/2+1]
+		images = images[:, images.shape[1]-detector_width_px/2:images.shape[1]+detector_width_px/2+1, :]
+		pad_width = 0
+	else: 
+		pad_width = np.ceil(detector_width_px - dest_width_px)
+
+	if dest_height_px > detector_height_px:
+		images = images[:, :, images.shape[2]-detector_height_px/2:images.shape[2]+detector_height_px/2+1]
+		pad_height = 0
+	else:
+		pad_height = np.ceil(detector_height_px - dest_height_px)
+
+	pad_width = pad_width.astype(np.int)
+	pad_height = pad_height.astype(np.int)
+	images = np.pad(images, ((0, 0), (pad_width, pad_width), (pad_height, pad_height)), mode='constant')
 
 	#	d. Convolve the resized image(s) with the PSF of the detector, or replicate seeing.
 
@@ -194,6 +229,22 @@ def getImages(fname, addNoise=False, seeing=False):
 		images = addNoise(images)
 
 	return images	
+
+#########################################################################################################
+def addTurbulence(image, N, sigma=10):
+	" Add turbulence to an input `truth' image. Returns N copies of the input image with randomised turbulence added. "
+	# Tip and tilt for now	
+
+	# Shift by some random amount
+	images = np.ndarray((N, image.shape[0], image.shape[1]))
+	tt_idxs = np.ndarray((N, 2))
+	for k in range(N):
+		shift_width = np.ceil(np.random.randn() * sigma).astype(int)
+		shift_height = np.ceil(np.random.randn() * sigma).astype(int)
+		images[k] = np.roll(np.roll(image, shift_width, 0), shift_height, 1)
+		tt_idxs[k] = [shift_width, shift_height]
+
+	return (images, tt_idxs)
 
 #########################################################################################################
 	# The noise sigmas are expressed in units of electrons
@@ -231,16 +282,62 @@ def addNoise(images,band='H',surfaceBrightness=19,magnitudeSystem='AB',t_exp=0.1
 
 
 #########################################################################################################
-def shiftAndStack(images):
-	" Shift and stack N images given in the array of N images imgs."
-	N = images.shape(0)
+def shiftAndStack(images, plotIt=False):
+	" Shift and stack N images given in the array of N images."
+	if (len(images.shape) > 2):
+		N = images.shape[0]-1	# subtract one because we use the first image as a reference
+	else:
+		return -1
 
-	# Convolve each image w.r.t. the first.
-	k = 1
-	# for k in range(N):
-		# Convolve image k with image 1.
-		# Find the peak of the convolution.
+	# For now, we use the first image in the array as the reference: i.e. we align all other images to this image.
+	image_ref = np.copy(images[0])			# 'reference' image
+	image_stacked = np.copy(images[0])		# shifted-and-stacked image
+	images = np.copy(images[1:])	
 
-	# Shift-and-stack each image.
+	width = images[0].shape[0]
+	height = images[0].shape[1]
+	
+	corrs = np.ndarray((N, 2 * width - 1, 2 * height - 1))	# Array to hold x-correlation results
+	corr_peak_idxs = np.ndarray((N, 2))		# indices of the peak value in the x-correlation
+	img_peak_idxs = np.ndarray((N, 2))		# shift in x and y computed from the x-correlation
 
-	return 0
+	for k in range(N):
+		# Cross-correlate image k with the reference image to find the tip and tilt.
+		corrs[k] = scipy.signal.fftconvolve(image_ref, images[k][::-1,::-1])
+		corr_peak_idxs[k] = np.unravel_index(np.argmax(corrs[k]), (2 * width - 1, 2 * height - 1))
+		img_peak_idxs[k][0] = - corr_peak_idxs[k][0] + (width - 1)
+		img_peak_idxs[k][1] = - corr_peak_idxs[k][1] + (height - 1)
+
+		# Shift-and-stack the images.
+		image_stacked += np.roll(np.roll(images[k], -img_peak_idxs[k][0].astype(int), 0), -img_peak_idxs[k][1].astype(int), 1)	
+
+		# Plotting
+		if plotIt:
+			if k == 0:
+				plt.figure()
+				plt.subplot(1,3,1)
+				plt.imshow(images[0],origin='lower')
+				plt.subplot(1,3,2)
+				scat2 = plt.scatter(0.0,0.0,c='r',s=20)
+				plt.subplot(1,3,3)
+				scat3 = plt.scatter(0.0,0.0,c='g',s=40)
+
+			plt.subplot(1,3,2)
+			plt.imshow(images[k],origin='lower')	
+			plotcoords = np.ndarray((2))
+			plotcoords[1] = img_peak_idxs[k,0] + width / 2
+			plotcoords[0] = img_peak_idxs[k,1] + height / 2
+			scat2.set_offsets(plotcoords)
+
+			plt.subplot(1,3,3)
+			plt.imshow(corrs[k],interpolation='nearest',origin='lower')
+			corr_peak_coords = np.ndarray((2))
+			corr_peak_coords[0] = corr_peak_idxs[k][1]
+			corr_peak_coords[1] = corr_peak_idxs[k][0]
+			scat3.set_offsets(corr_peak_coords)
+
+			# plt.scatter([peak_idxs[k][0]], [peak_idxs[k][1]], c='r', s=20)
+			plt.draw()
+			plt.pause(1)
+
+	return image_stacked
