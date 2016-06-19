@@ -3,3 +3,5 @@
 cosmology_calculator.py
 cosmo_calc.py
 sandbox.py
+gemini_nir_noise.py
+plots/
