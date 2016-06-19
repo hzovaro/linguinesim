@@ -9,9 +9,8 @@
 #	Simulate images of galaxies imaged using the APD detector within the ANU 2.3 m telescope.
 #
 #	TO DO:
-#	- write routine to generate images 
-#	- multi-thread processing
-#	- simulate tip and tilt distortion.
+#	- find plate scales for HST images
+#	- tip and tilt: convert the input sigma values to as
 #	- implement poisson noise (not Gaussian)
 #
 ############################################################################################
@@ -89,67 +88,50 @@ plt.close('all')
 # #	2. the angular size of the object we're simulating looking at - e.g. get a high-res image of some galaxy imaged by HST & 
 # #		convolve it with the PSF of the 2.3 m (assume perfect circular aperture for now) to get a fake diffraction-limited
 # #		image of the source. We need to make the plate scales of the truth image and PSF match for this to work
+def getDiffractionLimitedImage(image_truth, band, plotIt=False):
+	# Calculating the diffraction limit
+	wavelength = telescope.filter_bands_m[band][0]
 
-# # Calculating the diffraction limit
-# band = 'J'
-# wavelength = telescope.filter_bands_m[band][0]
-# k = 2 * np.pi / wavelength
+	# Calculating the PSF
+	y = np.arange(-detector.width_px/2, +detector.width_px/2, 1) * detector.l_px
+	x = np.arange(-detector.height_px/2, +detector.height_px/2, 1) * detector.l_px
+	X, Y = np.meshgrid(x, y)
+	# x in units of m
+	r = np.pi / wavelength / telescope.f_ratio * np.sqrt(np.power(X,2) + np.power(Y,2))
+	# Calculating the PSF
+	I_0 = 1
+	psf = I_0 * np.power(2 * scipy.special.jv(1, r) / r, 2)
+	psf[psf.shape[0]/2,psf.shape[1]/2] = I_0
+	psf = np.swapaxes(psf,0,1)
+	psf = psf.astype(np.float32)
 
-# # Calculating the PSF
-# # in pixels
-# x = np.arange(-detector.width/2, +detector.width/2, 1)
-# y = np.arange(-detector.height/2, +detector.height/2, 1)
-# X, Y = np.meshgrid(x, y)
-# R = 2 * k / telescope.f_ratio * detector.l_px * np.sqrt(np.power(X,2) + np.power(Y,2))
-# # Calculating the PSF
-# I_0 = 1
-# psf = I_0 * np.power(2 * scipy.special.jv(1, R) / R, 2)
+	# Convolving the PSF and the truth image to obtain the simulated diffraction-limited image
+	image_difflim = scipy.signal.fftconvolve(image_truth, psf, mode='same')
+	
+	if plotIt:
+		plt.figure()
 
-# plt.figure()
-# plt.imshow(psf)
-# plt.title('PSF of ANU 2.3 m telescope')
-# plt.xlabel('x (pixels)')
-# plt.ylabel('y (pixels)')
+		plt.subplot(1,3,1)
+		plt.imshow(psf)
+		plt.title('Diffraction-limited PSF of telescope')
+		plt.xlabel('x (pixels)')
+		plt.ylabel('y (pixels)')
 
-# # conv_telescope = scipy.singal.convolve2d(img_1, psf)
+		plt.subplot(1,3,2)
+		plt.imshow(image_truth)
+		plt.title('Truth image')
+		plt.xlabel('x (pixels)')
+		plt.ylabel('y (pixels)')
 
-# ##################################################################################
-# f_1 = np.fft.fft2(img_1)
-# f_2 = np.fft.fft2(img_2)
+		plt.subplot(1,3,3)
+		plt.imshow(image_difflim)
+		plt.title('Diffraction-limited image')
+		plt.xlabel('x (pixels)')
+		plt.ylabel('y (pixels)')
 
-# # Finding the maximum
-# idx = np.unravel_index(np.argmax(conv_shift), (2*N-1,2*N-1))
+		plt.show()
 
-# # Let x and y be our two images. 
-# # If x is simply y shifted, then X(u,v) and Y(u,v) will be the same in frequency space, but will be shifted apart in phase space. 
-
-# # plt.figure()
-# # plt.subplot(1,2,1)
-# # plt.imshow(img_1)
-# # plt.title('Image 1')
-# # plt.subplot(1,2,2)
-# # plt.imshow(img_2)
-# # plt.title('Image 2')
-
-# # plt.figure()
-# # plt.subplot(2,2,1)
-# # plt.imshow(np.real(f_1))
-# # plt.title(r'$\mathbb{Re}(\mathcal{F}(img_1))$')
-# # plt.subplot(2,2,2)
-# # plt.imshow(np.imag(f_1))
-# # plt.title(r'$\mathbb{Im}(\mathcal{F}(img_1))$')
-# # plt.subplot(2,2,3)
-# # plt.imshow(np.real(f_2))
-# # plt.title(r'$\mathbb{Re}(\mathcal{F}(img_2))$')
-# # plt.subplot(2,2,4)
-# # plt.imshow(np.imag(f_2))
-# # plt.title(r'$\mathbb{Im}(\mathcal{F}(img_2))$')
-
-# # plt.figure()
-# # plt.imshow(conv_shift)
-# # plt.title('Convolution of shifted images')
-# # # plt.colorbar()
-# # plt.show()
+	return image_difflim
 
 #########################################################################################################
 def getImages(fname,
@@ -157,23 +139,19 @@ def getImages(fname,
 	addNoise=False, 
 	seeing=False, 
 	source_plate_scale_as=0.05,
-	detector_size_px=(detector.width_px, detector.height_px),
+	detector_size_px=(detector.height_px, detector.width_px),
 	dest_plate_scale_as=206256/telescope.efl_mm * 1e3 * detector.l_px
 	):
+	" Load the truth image(s) stored in the FITS file fname and resize them to the detector. "
 	# 1. Load image from a FITS file (or other source).
-	# fname='sample-images/ngc300_wfc.fits'
-	# fname = 'sample-images/ngc300_wfpc2_1.fits'
-	# fname = 'sample-images/ngc300_wfpc2_2.fits'
-	# fname = 'sample-images/tadpole.fits'
 	hdulist = fits.open(fname)
-
 	images_raw = hdulist[0].data
 
 	if returnRawImages:
 		return images_raw
 
 	if len(images_raw.shape) > 2:
-		N = images_raw[0].shape[0]
+		N = images_raw.shape[0]
 		source_height_px = images_raw.shape[1]
 		source_width_px = images_raw.shape[2]
 	else:
@@ -181,46 +159,46 @@ def getImages(fname,
 		source_height_px = images_raw.shape[0]
 		source_width_px = images_raw.shape[1]
 
-	# source_plate_scale_as = 0.1
 	source_width_as = source_width_px * source_plate_scale_as
 	source_height_as = source_height_px * source_plate_scale_as
 
 	hdulist.close()
 
-	# 2. Simulate seeing conditions and resize to replicate the pixel scale of the detector:
+	# 2. Resize the image to replicate the pixel scale of the detector:
 	#	a. Get the angular extent of the source image:
 	#		size(pixels on our detector) = size(of source, in as) / plate scale
-	# dest_plate_scale_as = 206256/telescope.efl_mm * 1e3 * detector.l_px
-	# dest_plate_scale_as = 0.5
-	detector_width_px = detector_size_px[0]
-	detector_height_px = detector_size_px[1]
+	detector_height_px = detector_size_px[0]
+	detector_width_px = detector_size_px[1]
 	dest_width_px = source_width_as / dest_plate_scale_as
 	dest_height_px = source_height_as / dest_plate_scale_as
 
 	#	b. Rescale image to the appropriate size for our detector
 	images = np.copy(images_raw)
-	images = scipy.misc.imresize(images, dest_width_px/source_width_px)
+	# images = scipy.misc.imresize(images, float(dest_width_px)/float(source_width_px))
+	images = scipy.misc.imresize(images, (int(np.ceil(dest_height_px)), int(np.ceil(dest_width_px))))
 	images = np.swapaxes(images,0,2)
-	images = images.astype(np.float32)
+	images = np.swapaxes(images,1,2)
+	images = images.astype(np.float32)	# convert back to single precision floating point format
+
 
 	#	c. Resize to detector.length * detector.width, maintaining the format. Padding if necessary
-	if dest_width_px > detector.width_px:
-		images = images[:, images.shape[1]-detector_width_px/2:images.shape[1]+detector_width_px/2+1, :]
-		pad_width = 0
-	else: 
-		pad_width = np.ceil(detector_width_px - dest_width_px)
-
 	if dest_height_px > detector_height_px:
-		images = images[:, :, images.shape[2]-detector_height_px/2:images.shape[2]+detector_height_px/2+1]
-		pad_height = 0
+		images = images[:, images.shape[1]/2-detector_height_px/2:images.shape[1]/2+detector_height_px/2+1, :]
+		pad_height_top = 0
+		pad_height_bottom = 0
 	else:
-		pad_height = np.ceil(detector_height_px - dest_height_px)
+		pad_height_top = np.floor((detector_height_px - images.shape[1])/2.).astype(np.int)
+		pad_height_bottom = np.ceil((detector_height_px - images.shape[1])/2.).astype(np.int)
 
-	pad_width = pad_width.astype(np.int)
-	pad_height = pad_height.astype(np.int)
-	images = np.pad(images, ((0, 0), (pad_width, pad_width), (pad_height, pad_height)), mode='constant')
+	if dest_width_px > detector.width_px:
+		images = images[:, :, images.shape[2]/2-detector_width_px/2:images.shape[2]/2+detector_width_px/2+1]
+		pad_width_left = 0
+		pad_width_right = 0
+	else: 
+		pad_width_left = np.floor((detector_width_px - images.shape[2])/2.).astype(np.int)
+		pad_width_right = np.ceil((detector_width_px - images.shape[2])/2.).astype(np.int)
 
-	#	d. Convolve the resized image(s) with the PSF of the detector, or replicate seeing.
+	images = np.pad(images, ((0, 0), (pad_height_top, pad_height_bottom), (pad_width_left, pad_width_right)), mode='constant')
 
 	# 3. Add noise.
 	if addNoise:
@@ -229,16 +207,16 @@ def getImages(fname,
 	return images	
 
 #########################################################################################################
-def addTurbulence(image, N, sigma=10):
+def addTurbulence(image, N, sigma_px=10):
 	" Add turbulence to an input `truth' image. Returns N copies of the input image with randomised turbulence added. "
 	# Tip and tilt for now	
-
+	# TODO add rotation
 	# Shift by some random amount
 	images = np.ndarray((N, image.shape[0], image.shape[1]))
 	tt_idxs = np.ndarray((N, 2))
 	for k in range(N):
-		shift_width = np.ceil(np.random.randn() * sigma).astype(int)
-		shift_height = np.ceil(np.random.randn() * sigma).astype(int)
+		shift_width = np.ceil(np.random.randn() * sigma_px).astype(int)
+		shift_height = np.ceil(np.random.randn() * sigma_px).astype(int)
 		images[k] = np.roll(np.roll(image, shift_width, 0), shift_height, 1)
 		tt_idxs[k] = [shift_width, shift_height]
 
