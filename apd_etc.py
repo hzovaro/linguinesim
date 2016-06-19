@@ -3,7 +3,7 @@
 # 	File:		apd_etc.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		05/06/2016
+#	Edited:		19/06/2016
 #
 #	Description:
 #	An exposure time calculator (ETC) for a telescope-detector system in the near-infrared.
@@ -46,7 +46,8 @@ def exposureTimeCalc(
 		band = 'H',
 		t_exp = 0.1,
 		surfaceBrightness = 19,
-		magnitudeSystem = 'AB'
+		magnitudeSystem = 'AB',
+		worstCaseSpider = False
 	):
 
 	wavelength_eff = telescope.filter_bands_m[band][0]
@@ -96,7 +97,7 @@ def exposureTimeCalc(
 	Sigma_cryo = getCryostatTE(plotIt=False)
 
 	""" Telescope thermal background photon flux """
-	Sigma_tel = getTelescopeTE(plotIt=False)[band]
+	Sigma_tel = getTelescopeTE(plotIt=False, worstCaseSpider=worstCaseSpider)[band]
 
 	""" Sky thermal background photon flux """
 	Sigma_sky_thermal = getSkyTE(plotIt=False)[band]
@@ -208,9 +209,8 @@ def getCryostatTE(plotIt=True):
 		wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
 
 		# Plotting
-		plt.figure(figsize=(figsize,figsize))
+		plt.figure(figsize=(figsize*1.25,figsize))
 		plt.rc('text', usetex=True)
-		plt.rc('font', family='serif')
 		plt.plot(T_cryo, I_cryo, 'r', label='Cryostat thermal emission, $\lambda_c = %.1f \mu$m' % (detector.wavelength_cutoff*1e6))
 		plt.plot(T_cryo, I_cryo_h, 'r--', label='Cryostat thermal emission, $\lambda_c = %.1f \mu$m' % (detector.wavelength_cutoff_h*1e6))
 		plt.plot(T_cryo, D, 'g', label=r'Dark current')
@@ -272,8 +272,6 @@ def getSkyTE(T_sky=273, plotIt=True):
 		wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
 
 		# Plotting
-		plotCols = ['darkOrange', 'darkOrchid']
-		plotStyles = ['-', '--', '-.', ':']
 		plt.figure(figsize=(figsize,figsize))
 		plt.plot(wavelengths*1e6, D, 'g--', label=r'Dark current')
 		# Imager mode
@@ -294,7 +292,7 @@ def getSkyTE(T_sky=273, plotIt=True):
 
 #########################################################################################################
 
-def getTelescopeTE(T_sky=273, plotIt=True):
+def getTelescopeTE(T_sky=273, plotIt=True, worstCaseSpider=False):
 	I_tel = {
 		'J' : 0.0,
 		'H' : 0.0,
@@ -308,13 +306,22 @@ def getTelescopeTE(T_sky=273, plotIt=True):
 	for key in I_tel:
 		wavelength_min = telescope.filter_bands_m[key][2]
 		wavelength_max = telescope.filter_bands_m[key][3]
+		
 		I_M1 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = telescope.eps_M1_eff)
 		I_M2 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M2_total_eff, eps = telescope.eps_M2_eff)
 		I_M3 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = telescope.eps_M1_eff)
+		
 		# Spider (acting as a grey body at both the sky temperature and telescope temperature)
-		I_spider = \
+		if worstCaseSpider == False:
+			# BEST CASE: assume the spider has a fresh aluminium coating - so 9.1% emissive at sky temp and 90.1% emissive at telescope temp
+			I_spider = \
 				thermalEmissionIntensity(T = telescope.T, 	wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = telescope.eps_spider_eff)\
 			  + thermalEmissionIntensity(T = T_sky, 		wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = 1 - telescope.eps_spider_eff)
+		else:
+			# WORST CASE: assume the spider is 100% emissive at telescope temperature (i.e. not reflective at all)
+			I_spider = \
+				thermalEmissionIntensity(T = telescope.T, 	wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = 1.0)\
+		
 		# Cryostat window (acting as a grey body)
 		I_window = thermalEmissionIntensity(T = cryo.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = cryo.eps_win)
 
@@ -327,8 +334,6 @@ def getTelescopeTE(T_sky=273, plotIt=True):
 		wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
 
 		# Plotting
-		plotCols = ['darkOrange', 'darkOrchid']
-		plotStyles = ['-', '--', '-.', ':']
 		plt.figure(figsize=(figsize,figsize))
 		plt.plot(wavelengths*1e6, D, 'g--', label=r'Dark current')
 
@@ -358,28 +363,39 @@ def plotBackgroundNoiseSources():
 	counts['H'] = exposureTimeCalc(band='H', t_exp=1)
 	counts['J'] = exposureTimeCalc(band='J', t_exp=1)
 	counts['K'] = exposureTimeCalc(band='K', t_exp=1)
+	N_tel_worstcase = getTelescopeTE(worstCaseSpider=True, plotIt=False)
 	D = np.ones(1000)*detector.dark_current
-	wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
+	wavelengths = np.linspace(1.0, 2.5, 1000)*1e-6
 
 	# Plotting
-
-	# Plotting
-	plotCols = ['darkOrange', 'darkOrchid']
-	plotStyles = ['-', '--', '-.', ':']
-	plt.figure(figsize=(figsize,figsize))
+	plt.figure(figsize=(figsize*1.25,figsize))
 	plt.plot(wavelengths*1e6, D, 'g--', label=r'Dark current')
-
+	plotColors = {
+		'H' : 'orangered',
+		'J' : 'darkorange',
+		'K' : 'darkred'
+	}
 	for key in counts:
-		plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_emp'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='o')
-		plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_thermal'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='o')
-		plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_tel'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='o')
+		if key == 'J':
+			plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_emp'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='o', ecolor=plotColors[key], mfc=plotColors[key], label='Empirical sky background')
+			plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_thermal'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='^', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal sky background')
+			plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_tel'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope background')
+			eb=plt.errorbar(telescope.filter_bands_m[key][0]*1e6, N_tel_worstcase[key], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope background (worst-case)')
+			eb[-1][0].set_linestyle('--')
+		else:
+			plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_emp'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='o', ecolor=plotColors[key], mfc=plotColors[key])
+			plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_thermal'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='^', ecolor=plotColors[key], mfc=plotColors[key])
+			plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_tel'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key])
+			eb=plt.errorbar(telescope.filter_bands_m[key][0]*1e6, N_tel_worstcase[key], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key])
+			eb[-1][0].set_linestyle('--')
+
 		plt.text(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_emp']*5, key)
 
 	plt.yscale('log')
 	plt.axis('tight')
-	plt.ylim(ymax=100*I_tel['K'],ymin=1e-5)
+	plt.ylim(ymax=100*counts['K']['N_tel'],ymin=1e-5)
 	plt.legend(loc='lower right')
 	plt.xlabel(r'$\lambda$ ($\mu$m)')
 	plt.ylabel(r'Count ($e^{-}$ s$^{-1}$ pixel$^{-1}$)')
-	plt.title(r'Estimated count from telescope thermal emission')
+	plt.title(r'Expected background noise levels')
 	plt.show()
