@@ -18,8 +18,8 @@ qe = 0.9					# quantum efficiency (worst-case)
 adu_gain = 1 / 2.9			# electrons/ADU 
 
 """ Geometry """
-width_px = 256					# width (pixels)
-height_px = 320				# height (pixels)
+width_px = 320				# width (pixels)
+height_px = 256				# height (pixels)
 n_px_tot = width_px * height_px	# number of pixels (total)
 l_px = 24e-6				# pixel width (m)
 A_px = l_px * l_px			# pixel area (m^2)
