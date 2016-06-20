@@ -16,7 +16,8 @@ import numpy as np
 """ f ratio """
 f_ratio = 18
 efl_mm = 6010 / 700 * 4840	# effective focal length
-plate_scale_as_mm = 206256/41554.86 * 1e3 
+plate_scale_as_mm = 206256 / efl_mm
+plate_scale_as_m = plate_scale_as_mm * 1e3 
 
 """ Mirror geometry & thermal properties """
 T = 273 + 10		# telescope temperature (K)
