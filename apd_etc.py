@@ -42,9 +42,10 @@ from thermalEmissionIntensity import *
 
 figsize = 7.5
 
+#########################################################################################################
 def exposureTimeCalc(
-		band = 'H',
-		t_exp = 0.1,
+		band,
+		t_exp = 1,
 		surfaceBrightness = 19,
 		magnitudeSystem = 'AB',
 		worstCaseSpider = False
@@ -67,7 +68,8 @@ def exposureTimeCalc(
 
 	""" Telescope-detector system properties """
 	# Calculate the plate scale.
-	plate_scale_as = 206256/41554.86 * 1e3 * detector.l_px
+	# plate_scale_as = 206256/41554.86 * 1e3 * detector.l_px
+	plate_scale_as = telescope.plate_scale_as_m * detector.l_px_m
 	plate_scale_rad = plate_scale_as / 3600 * np.pi / 180
 	Omega_px_rad = plate_scale_rad * plate_scale_rad
 	T_sky = 273
@@ -158,6 +160,7 @@ def exposureTimeCalc(
 		'N_cryo' : N_cryo,
 		'N_sky_emp' : N_sky_emp,
 		'N_sky_thermal' : N_sky_thermal,
+		'N_sky' : N_sky,
 		'N_tel' : N_tel,
 		'N_RN' : N_RN,
 		# SNR
@@ -179,7 +182,7 @@ def getCryostatTE(plotIt=True):
 	for k in range(T_cryo.size):
 		I_cryo[k] = thermalEmissionIntensity(
 			T = T_cryo[k],
-			A = detector.A_px,
+			A = detector.A_px_m2,
 			wavelength_min = 0.0,
 			wavelength_max = detector.wavelength_cutoff,
 			Omega = cryo.Omega,
@@ -188,7 +191,7 @@ def getCryostatTE(plotIt=True):
 			)
 		I_cryo_h[k] = thermalEmissionIntensity(
 			T = T_cryo[k],
-			A = detector.A_px,
+			A = detector.A_px_m2,
 			wavelength_min = 0.0,
 			wavelength_max = detector.wavelength_cutoff_h,
 			Omega = cryo.Omega,
@@ -236,7 +239,8 @@ def getSkyTE(T_sky=273, plotIt=True):
 		'K' : 0.0
 	}
 	
-	plate_scale_as_px = telescope.plate_scale_as_mm * detector.l_px
+	# plate_scale_as_px = telescope.plate_scale_as_mm * detector.l_px
+	plate_scale_as_px = telescope.plate_scale_as_m * detector.l_px_m
 	plate_scale_rad_px = plate_scale_as_px / 3600 * np.pi / 180
 	Omega_px_rad = plate_scale_rad_px * plate_scale_rad_px
 
@@ -299,7 +303,8 @@ def getTelescopeTE(T_sky=273, plotIt=True, worstCaseSpider=False):
 		'K' : 0.0
 	}
 	
-	plate_scale_as_px = telescope.plate_scale_as_mm * detector.l_px
+	# plate_scale_as_px = telescope.plate_scale_as_mm * detector.l_px
+	plate_scale_as_px = telescope.plate_scale_as_m * detector.l_px_m
 	plate_scale_rad_px = plate_scale_as_px / 3600 * np.pi / 180
 	Omega_px_rad = plate_scale_rad_px * plate_scale_rad_px
 
