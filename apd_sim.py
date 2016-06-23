@@ -9,18 +9,17 @@
 #	Simulate images of galaxies imaged using the APD detector within the ANU 2.3 m telescope.
 #
 #	TO DO:
+#	- fix bug in resizing image?
 #	- find plate scales for HST images
 #	- tip and tilt: convert the input sigma values to as
 #	- implement poisson noise (not Gaussian)
 #
 ############################################################################################
 
-# import apdParameters as detector
-# import anu23mParameters as telescope
-# import cryoParameters as cryo
 from apd_etc import *
 import pdb
-
+from scipy.ndimage.interpolation import shift
+from PIL import Image
 import numpy as np
 import numpy.fft
 from astropy.io import fits
@@ -28,20 +27,44 @@ import matplotlib.pyplot as plt
 import scipy.signal
 import scipy.misc
 import matplotlib
-matplotlib.rc('image', interpolation='none', cmap = 'gray')
+matplotlib.rc('image', interpolation='none', cmap = 'binary')
 plt.close('all')
 
 #########################################################################################################
-def getRawImages(fname):
+"""
+	Handy notes for FITS files:
+		- to see the header information: print(repr(hdulist[0].header))
+		- exposure time: hdulist[0].header['EXPTIME']
+		- Other header keys:
+			- ATODGAIN, BANDWID, CENTRWV, INSTRUME, TELESCOP, OBJECT, NAXIS, NAXIS1, NAXIS2,
+"""
+def getRawImages(fname, 
+	plotIt=False,
+	idx=0):
 	" Return an array of the image(s) stored in the FITS file fname. "
 	hdulist = fits.open(fname)
-	images_raw = hdulist[0].data
+	images_raw = hdulist[idx].data
 	hdulist.close()
-	return images_raw	
+
+	if plotIt:
+		if len(images_raw.shape) > 2:
+			N = images_raw.shape[0]
+			for k in range(N):
+				plt.figure()
+				plt.imshow(images_raw[k])
+				plt.title('Raw image %d from FITS file' % k + 1)
+		else:
+			plt.figure()
+			plt.imshow(images_raw)
+			plt.title('Raw image from FITS file')
+		plt.show()
+
+	return images_raw, hdulist	
 
 #########################################################################################################
-def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size_px, dest_plate_scale_as):
-	" Resize the images stored in array images_raw to the detector. "
+def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size_px, dest_plate_scale_as,
+	plotIt=False):
+	" Resize the images stored in array images_raw with a given plate scale to a detector with given dimensions and plate scale. "
 	# 1. Get the original size and shape of the input images.
 	if len(images_raw.shape) > 2:
 		N = images_raw.shape[0]
@@ -55,41 +78,95 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size
 	source_width_as = source_width_px * source_plate_scale_as
 	source_height_as = source_height_px * source_plate_scale_as
 
-	# 2. Resize the image to replicate the pixel scale of the detector:
-	#	a. Get the angular extent of the source image:
-	#		size(pixels on our detector) = size(of source, in as) / plate scale
+	# Getting the angular extent of the source image:
+	# 	size(pixels on our detector) = size(of source, in as) / plate scale
 	detector_height_px = dest_detector_size_px[0]
 	detector_width_px = dest_detector_size_px[1]
 	dest_width_px = source_width_as / dest_plate_scale_as
 	dest_height_px = source_height_as / dest_plate_scale_as
 
-	#	b. Rescale image to the appropriate size for our detector
-	images = np.copy(images_raw)
+	# Rescaling images to the appropriate size for our detector.
+	# images = np.copy(images_raw)
 	# images = scipy.misc.imresize(images, float(dest_width_px)/float(source_width_px))
-	images = scipy.misc.imresize(images, (int(np.ceil(dest_height_px)), int(np.ceil(dest_width_px))))
-	images = np.swapaxes(images,0,2)
-	images = np.swapaxes(images,1,2)
-	images = images.astype(np.float32)	# convert back to single precision floating point format
+	# images = scipy.misc.imresize(images, (int(np.ceil(dest_height_px)), int(np.ceil(dest_width_px))))
+	# images = images.astype(np.float32)	# convert back to single precision floating point format
 
+	# Rescaling images to the appropriate size for our detector.
+	if N > 1:
+		images = np.ndarray([N, int(np.ceil(dest_height_px)), int(np.ceil(dest_width_px))])
+		for k in range(N):
+			im = Image.fromarray(images_raw[k])
+			# NOTE: due to the way the Image package works, height and width indices are swapped
+			im = im.resize((int(np.ceil(dest_width_px)), int(np.ceil(dest_height_px))))
+			images[k] = imageToArray(im)
+	else:
+		images = np.ndarray([int(np.ceil(dest_height_px)), int(np.ceil(dest_width_px))])
+		im = Image.fromarray(images_raw)
+		# NOTE: due to the way the Image package works, height and width indices are swapped
+		im = im.resize((int(np.ceil(dest_width_px)), int(np.ceil(dest_height_px))))
+		images = imageToArray(im)
 
-	#	c. Resize to detector.length * detector.width, maintaining the format. Padding if necessary
+	if N > 1:
+		height_idx = 1	# Array index corresponding to image height.
+		width_idx = 2	# Array index corresponding to image width.
+		# Swapping axes around because imresize does weird things.
+		images = np.swapaxes(images,0,2)
+		images = np.swapaxes(images,1,2)
+	else:
+		height_idx = 0	# Array index corresponding to image height.
+		width_idx = 1	# Array index corresponding to image width.
+		# Swapping axes around because imresize does weird things.
+		# pdb.set_trace()
+		# images = np.fliplr(images)
+		# images = np.swapaxes(images,0,1)
+	
+	# Resizing to the size of the detector.
 	if dest_height_px > detector_height_px:
-		images = images[:, images.shape[1]/2-detector_height_px/2:images.shape[1]/2+detector_height_px/2+1, :]
+		if N > 1:
+			images = images[:, images.shape[height_idx]/2-detector_height_px/2:images.shape[height_idx]/2+detector_height_px/2+1, :]
+		else:
+			images = images[images.shape[height_idx]/2-detector_height_px/2:images.shape[height_idx]/2+detector_height_px/2+1, :]
 		pad_height_top = 0
 		pad_height_bottom = 0
 	else:
-		pad_height_top = np.floor((detector_height_px - images.shape[1])/2.).astype(np.int)
-		pad_height_bottom = np.ceil((detector_height_px - images.shape[1])/2.).astype(np.int)
+		pad_height_top = np.floor((detector_height_px - images.shape[height_idx])/2.).astype(np.int)
+		pad_height_bottom = np.ceil((detector_height_px - images.shape[height_idx])/2.).astype(np.int)
 
-	if dest_width_px > detector.width_px:
-		images = images[:, :, images.shape[2]/2-detector_width_px/2:images.shape[2]/2+detector_width_px/2+1]
+	if dest_width_px > detector_width_px:
+		if N > 1:
+			images = images[:, :, images.shape[width_idx]/2-detector_width_px/2:images.shape[width_idx]/2+detector_width_px/2+1]
+		else:
+			images = images[:, images.shape[width_idx]/2-detector_width_px/2:images.shape[width_idx]/2+detector_width_px/2+1]
 		pad_width_left = 0
 		pad_width_right = 0
 	else: 
-		pad_width_left = np.floor((detector_width_px - images.shape[2])/2.).astype(np.int)
-		pad_width_right = np.ceil((detector_width_px - images.shape[2])/2.).astype(np.int)
+		pad_width_left = np.floor((detector_width_px - images.shape[width_idx])/2.).astype(np.int)
+		pad_width_right = np.ceil((detector_width_px - images.shape[width_idx])/2.).astype(np.int)
 
-	images = np.pad(images, ((0, 0), (pad_height_top, pad_height_bottom), (pad_width_left, pad_width_right)), mode='constant')
+	# Padding the resized images if necessary.
+	if N > 1:
+		images = np.pad(images, ((0, 0), (pad_height_top, pad_height_bottom), (pad_width_left, pad_width_right)), mode='constant')
+	else:
+		images = np.pad(images, ((pad_height_top, pad_height_bottom), (pad_width_left, pad_width_right)), mode='constant')
+
+	if plotIt:
+		plt.figure()
+		if N == 1:
+			plt.subplot(1,2,1)
+			plt.imshow(images_raw)
+			plt.title('Input image')
+			plt.subplot(1,2,2)
+			plt.imshow(images)
+			plt.title('Resized image')
+		else:
+			plt.subplot(1,2,1)
+			plt.imshow(images_raw[0])
+			plt.title('Input image')
+			plt.subplot(1,2,2)
+			plt.imshow(images[0])
+			plt.title('Resized image')
+		plt.suptitle('Resizing truth image to detector')
+		plt.show()
 
 	return images	
 
@@ -119,28 +196,65 @@ def getDiffractionLimitedImage(image_truth, wavelength, f_ratio, detector_size_p
 
 	if plotIt:
 		plt.figure()
-
 		plt.subplot(1,3,1)
 		plt.imshow(psf)
 		plt.title('Diffraction-limited PSF of telescope')
-		plt.xlabel('x (pixels)')
-		plt.ylabel('y (pixels)')
-
 		plt.subplot(1,3,2)
 		plt.imshow(image_truth)
 		plt.title('Truth image')
-		plt.xlabel('x (pixels)')
-		plt.ylabel('y (pixels)')
-
 		plt.subplot(1,3,3)
 		plt.imshow(image_difflim)
 		plt.title('Diffraction-limited image')
-		plt.xlabel('x (pixels)')
-		plt.ylabel('y (pixels)')
-
+		plt.suptitle('Diffraction-limiting image')
 		plt.show()
 
 	return image_difflim
+
+#########################################################################################################
+def getSeeingLimitedImage(image, seeing_diameter_as, plate_scale_as,
+	padFactor=1,
+	plotIt=False):
+	detector_height_px = image.shape[0]
+	detector_width_px = image.shape[1]
+
+	# Padding the source image.
+	pad_ud = detector_height_px / padFactor / 2
+	pad_lr = detector_width_px / padFactor / 2
+	
+	# If the image dimensions are odd, need to ad an extra row/column of zeros.
+	image_padded = np.pad(image, ((pad_ud,pad_ud + detector_height_px % 2),(pad_lr,pad_lr + detector_width_px % 2)), mode='constant')
+	conv_height = image_padded.shape[0]
+	conv_width = image_padded.shape[1]
+
+	# Generate a Gaussian kernel.
+	kernel = np.zeros(image_padded.shape)
+	y_as = np.arange(-conv_width /2, +conv_width/2, 1) * plate_scale_as
+	x_as = np.arange(-conv_height/2, +conv_height/2, 1) * plate_scale_as
+	X, Y = np.meshgrid(x_as, y_as)
+	sigma = seeing_diameter_as / (2 * np.sqrt(2 * np.log(2)))
+	kernel = np.exp(-(np.power(X, 2) + np.power(Y, 2)) / (2 * np.power(sigma,2)))
+	kernel = np.pad(kernel, ((pad_ud, pad_ud + detector_height_px % 2), (pad_lr, pad_lr + detector_width_px % 2)), mode='constant')
+
+	# Convolving the kernal with the image.
+	image_seeing_limited = scipy.signal.fftconvolve(image_padded, kernel, mode='same')
+	image_seeing_limited_cropped = image_seeing_limited[pad_ud : detector_height_px + pad_ud, pad_lr : detector_width_px + pad_lr]
+
+	if plotIt:
+		plt.figure()
+		plt.subplot(2,2,1)
+		plt.imshow(image)
+		plt.title('Input image')
+		plt.subplot(2,2,2)
+		plt.imshow(kernel)
+		plt.title('Kernel')
+		plt.subplot(2,2,3)
+		plt.imshow(image_seeing_limited)
+		plt.title('Convolved image')
+		plt.subplot(2,2,4)
+		plt.imshow(np.log(image_seeing_limited_cropped))
+		plt.title('Cropped, convolved image')
+
+	return image_seeing_limited_cropped
 
 #########################################################################################################
 def addTurbulence(image, N, sigma_tt_px):
@@ -148,15 +262,16 @@ def addTurbulence(image, N, sigma_tt_px):
 	# Tip and tilt for now	
 	# TODO add rotation
 	# Shift by some random amount
-	images = np.ndarray((N, image.shape[0], image.shape[1]))
+	images_tt = np.ndarray((N, image.shape[0], image.shape[1]))
 	tt_idxs = np.ndarray((N, 2))
 	for k in range(N):
-		shift_width = np.ceil(np.random.randn() * sigma_tt_px).astype(int)
 		shift_height = np.ceil(np.random.randn() * sigma_tt_px).astype(int)
-		images[k] = np.roll(np.roll(image, shift_width, 0), shift_height, 1)
-		tt_idxs[k] = [shift_width, shift_height]
+		shift_width = np.ceil(np.random.randn() * sigma_tt_px).astype(int)
+		# images[k] = np.roll(np.roll(image, shift_width, 0), shift_height, 1)
+		images_tt[k] = shift(image, (shift_height, shift_width))
+		tt_idxs[k] = [shift_height, shift_width]
 
-	return (images, tt_idxs)
+	return (images_tt, tt_idxs)
 
 #########################################################################################################
 """
@@ -198,7 +313,7 @@ def addNoise(images,band,t_exp):
 		else:
 			noisyImages += frame_sky + frame_cryo + frame_RN + frame_dark
 
-	return noisyImages
+	return (noisyImages, etc_output)
 
 
 #########################################################################################################
@@ -222,22 +337,23 @@ def shiftAndStack(images,
 	
 	image_stacked = np.copy(image_ref)		# shifted-and-stacked image
 
-	width = images[0].shape[0]
-	height = images[0].shape[1]
+	height = images[0].shape[0]
+	width = images[0].shape[1]
 	
-	corrs = np.ndarray((N, 2 * width - 1, 2 * height - 1))	# Array to hold x-correlation results
+	corrs = np.ndarray((N, 2 * height - 1, 2 * width - 1))	# Array to hold x-correlation results
 	corr_peak_idxs = np.ndarray((N, 2))		# indices of the peak value in the x-correlation
 	img_peak_idxs = np.ndarray((N, 2))		# shift in x and y computed from the x-correlation
 
 	for k in range(N):
 		# Cross-correlate image k with the reference image to find the tip and tilt.
 		corrs[k] = scipy.signal.fftconvolve(image_ref, images[k][::-1,::-1])
-		corr_peak_idxs[k] = np.unravel_index(np.argmax(corrs[k]), (2 * width - 1, 2 * height - 1))
-		img_peak_idxs[k][0] = - corr_peak_idxs[k][0] + (width - 1)
-		img_peak_idxs[k][1] = - corr_peak_idxs[k][1] + (height - 1)
+		corr_peak_idxs[k] = np.unravel_index(np.argmax(corrs[k]), (2 * height - 1, 2 * width - 1))
+		img_peak_idxs[k][0] = - corr_peak_idxs[k][0] + (height - 1)
+		img_peak_idxs[k][1] = - corr_peak_idxs[k][1] + (width - 1)
 
 		# Shift-and-stack the images.
-		image_stacked += np.roll(np.roll(images[k], -img_peak_idxs[k][0].astype(int), 0), -img_peak_idxs[k][1].astype(int), 1)	
+		# image_stacked += np.roll(np.roll(images[k], -img_peak_idxs[k][0].astype(int), 0), -img_peak_idxs[k][1].astype(int), 1)	
+		image_stacked += shift(images[k], (-img_peak_idxs[k][0].astype(int), -img_peak_idxs[k][1].astype(int)))
 
 		# Plotting
 		if plotIt:
@@ -269,3 +385,64 @@ def shiftAndStack(images,
 			plt.pause(1)
 
 	return image_stacked
+
+#########################################################################################################
+def imageToArray(im):
+	" Convert an Image object im into an array. "
+	width, height = im.size
+	image_map = list(im.getdata())
+	image_map = np.array(image_map).reshape(height, width)
+	return image_map
+
+#########################################################################################################
+def rotateAndCrop(image_in_array, angle, cropIdx, 
+	plotIt=False):
+	" Rotate and crop an array of N images stored in ndarray image_in_array counterclockwise by a given 	angle and then crop the image using coordinates (left, upper, right, lower) "
+	if len(image_in_array.shape) > 2:
+		N = image_in_array.shape[0]		
+	else:
+		N = 1
+
+	# Convert to an Image object.
+	if N == 1:
+		image = Image.fromarray(image_in_array)
+		# Rotate.
+		image = image.rotate(angle)
+		# Crop.
+		image = image.crop(cropIdx)
+		# Convert back to an array.
+		image_out_array = imageToArray(image)
+	else:
+		height = image_in_array.shape[1]
+		width = image_in_array.shape[2]
+		image_out_array = np.ndarray((N, height, width))
+		for k in range(N):
+			image = Image.fromarray(image_in_array[k])
+			# Rotate.
+			image = image.rotate(angle)
+			# Crop.
+			image = image.crop(cropIdx)
+			# Convert back to an array.
+			image_out_array[k] = imageToArray(image)
+
+	if plotIt:
+		plt.figure()
+		if N > 1:			
+			plt.subplot(1,2,1)
+			plt.imshow(image_in_array[0])
+			plt.title('Input image')
+			plt.subplot(1,2,2)
+			plt.imshow(image_out_array[0])
+			plt.title('Output image')
+		else:
+			plt.subplot(1,2,1)
+			plt.imshow(image_in_array)
+			plt.title('Input image')
+			plt.subplot(1,2,2)
+			plt.imshow(image_out_array)
+			plt.title('Output image')
+		plt.suptitle('Rotating and cropping image')
+		plt.show()
+
+	return image_out_array
+
