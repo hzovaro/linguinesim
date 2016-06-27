@@ -3,7 +3,7 @@
 # 	File:		apd_sim.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		20/06/2016
+#	Edited:		27/06/2016
 #
 #	Description:
 #	Simulate images of galaxies imaged using the APD detector within the ANU 2.3 m telescope.
@@ -19,6 +19,7 @@
 from apd_etc import *
 import pdb
 from scipy.ndimage.interpolation import shift
+import PIL
 from PIL import Image
 import numpy as np
 import numpy.fft
@@ -27,6 +28,8 @@ import matplotlib.pyplot as plt
 import scipy.signal
 import scipy.misc
 import matplotlib
+from matplotlib.colors import LogNorm 
+
 matplotlib.rc('image', interpolation='none', cmap = 'binary')
 plt.close('all')
 
@@ -86,24 +89,18 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size
 	dest_height_px = source_height_as / dest_plate_scale_as
 
 	# Rescaling images to the appropriate size for our detector.
-	# images = np.copy(images_raw)
-	# images = scipy.misc.imresize(images, float(dest_width_px)/float(source_width_px))
-	# images = scipy.misc.imresize(images, (int(np.ceil(dest_height_px)), int(np.ceil(dest_width_px))))
-	# images = images.astype(np.float32)	# convert back to single precision floating point format
-
-	# Rescaling images to the appropriate size for our detector.
 	if N > 1:
 		images = np.ndarray([N, int(np.ceil(dest_height_px)), int(np.ceil(dest_width_px))])
 		for k in range(N):
 			im = Image.fromarray(images_raw[k])
 			# NOTE: due to the way the Image package works, height and width indices are swapped
-			im = im.resize((int(np.ceil(dest_width_px)), int(np.ceil(dest_height_px))))
+			im = im.resize((int(np.ceil(dest_width_px)), int(np.ceil(dest_height_px))), resample=PIL.Image.LANCZOS)
 			images[k] = imageToArray(im)
 	else:
 		images = np.ndarray([int(np.ceil(dest_height_px)), int(np.ceil(dest_width_px))])
 		im = Image.fromarray(images_raw)
 		# NOTE: due to the way the Image package works, height and width indices are swapped
-		im = im.resize((int(np.ceil(dest_width_px)), int(np.ceil(dest_height_px))))
+		im = im.resize((int(np.ceil(dest_width_px)), int(np.ceil(dest_height_px))), resample=PIL.Image.LANCZOS)
 		images = imageToArray(im)
 
 	if N > 1:
@@ -116,16 +113,15 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size
 		height_idx = 0	# Array index corresponding to image height.
 		width_idx = 1	# Array index corresponding to image width.
 		# Swapping axes around because imresize does weird things.
-		# pdb.set_trace()
 		# images = np.fliplr(images)
 		# images = np.swapaxes(images,0,1)
 	
 	# Resizing to the size of the detector.
 	if dest_height_px > detector_height_px:
 		if N > 1:
-			images = images[:, images.shape[height_idx]/2-detector_height_px/2:images.shape[height_idx]/2+detector_height_px/2+1, :]
+			images = images[:, images.shape[height_idx]/2-detector_height_px/2:images.shape[height_idx]/2+detector_height_px/2, :]
 		else:
-			images = images[images.shape[height_idx]/2-detector_height_px/2:images.shape[height_idx]/2+detector_height_px/2+1, :]
+			images = images[images.shape[height_idx]/2-detector_height_px/2:images.shape[height_idx]/2+detector_height_px/2, :]
 		pad_height_top = 0
 		pad_height_bottom = 0
 	else:
@@ -134,9 +130,9 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size
 
 	if dest_width_px > detector_width_px:
 		if N > 1:
-			images = images[:, :, images.shape[width_idx]/2-detector_width_px/2:images.shape[width_idx]/2+detector_width_px/2+1]
+			images = images[:, :, images.shape[width_idx]/2-detector_width_px/2:images.shape[width_idx]/2+detector_width_px/2]
 		else:
-			images = images[:, images.shape[width_idx]/2-detector_width_px/2:images.shape[width_idx]/2+detector_width_px/2+1]
+			images = images[:, images.shape[width_idx]/2-detector_width_px/2:images.shape[width_idx]/2+detector_width_px/2]
 		pad_width_left = 0
 		pad_width_right = 0
 	else: 
@@ -257,19 +253,43 @@ def getSeeingLimitedImage(image, seeing_diameter_as, plate_scale_as,
 	return image_seeing_limited_cropped
 
 #########################################################################################################
-def addTurbulence(image, N, sigma_tt_px):
+def addTurbulence(image, N, sigma_tt_px,
+	crop_tt=None):
 	" Add turbulence to an input `truth' image. Returns N copies of the input image with randomised turbulence added. "
+
 	# Tip and tilt for now	
-	# TODO add rotation
-	# Shift by some random amount
-	images_tt = np.ndarray((N, image.shape[0], image.shape[1]))
+	height = image.shape[0]
+	width = image.shape[1]
+
+	# Output array of images
+	if crop_tt == None:
+		images_tt = np.ndarray((N, height, width))
+	else:
+		if type(crop_tt) == int:
+			images_tt = np.ndarray((N, height - 2 * crop_tt, width - 2 * crop_tt))	
+		else:
+			images_tt = np.ndarray((N, height - 2 * crop_tt[0], width - 2 * crop_tt[1]))
+
+	# Array to hold the tip/tilt offsets
 	tt_idxs = np.ndarray((N, 2))
+	
 	for k in range(N):
 		shift_height = np.ceil(np.random.randn() * sigma_tt_px).astype(int)
 		shift_width = np.ceil(np.random.randn() * sigma_tt_px).astype(int)
-		# images[k] = np.roll(np.roll(image, shift_width, 0), shift_height, 1)
-		images_tt[k] = shift(image, (shift_height, shift_width))
+		image_tt = shift(image, (shift_height, shift_width))
 		tt_idxs[k] = [shift_height, shift_width]
+
+		# Cropping the image if necessary
+		# (left, upper, right, lower)
+		if crop_tt == None:
+			images_tt[k] = image_tt
+		else:
+			# if type(crop_tt) == int:
+				# cropIdx = (crop_tt, crop_tt, - crop_tt + width, - crop_tt + height)
+			# else:
+				# cropIdx = (crop_tt[1], crop_tt[0], - crop_tt[1] + width, - crop_tt[0] + height)
+			# images_tt[k] = rotateAndCrop(image_tt, angle=0., cropArg=cropIdx)
+			images_tt[k] = rotateAndCrop(image_tt, angle=0., cropArg=crop_tt)
 
 	return (images_tt, tt_idxs)
 
@@ -395,31 +415,46 @@ def imageToArray(im):
 	return image_map
 
 #########################################################################################################
-def rotateAndCrop(image_in_array, angle, cropIdx, 
+def rotateAndCrop(image_in_array, angle, cropArg, 
 	plotIt=False):
 	" Rotate and crop an array of N images stored in ndarray image_in_array counterclockwise by a given 	angle and then crop the image using coordinates (left, upper, right, lower) "
 	if len(image_in_array.shape) > 2:
-		N = image_in_array.shape[0]		
+		N = image_in_array.shape[0]	
+		height = image_in_array.shape[1]
+		width = image_in_array.shape[2]	
 	else:
 		N = 1
+		height = image_in_array.shape[0]
+		width = image_in_array.shape[1]
+
+	# Crop options:
+	#	1. One number given: crop by the same amount on all sides
+	if type(cropArg) == int:
+		cropIdx = (cropArg, cropArg, width - cropArg, height - cropArg)
+	#	2. Two numbers given: crop by the same width and height either side.
+	elif type(cropArg) == tuple and len(cropArg) == 2:
+		cropIdx = (cropArg[1], cropArg[0], width - cropArg[1], height - cropArg[0])
+	#	3. Four numbers given: crop input is given as the (left, top, right, bottom) indices.
+	elif type(cropArg) == tuple and len(cropArg) == 4:
+		cropIdx = cropArg
 
 	# Convert to an Image object.
 	if N == 1:
 		image = Image.fromarray(image_in_array)
 		# Rotate.
-		image = image.rotate(angle)
+		if angle != 0.:
+			image = image.rotate(angle)
 		# Crop.
 		image = image.crop(cropIdx)
 		# Convert back to an array.
 		image_out_array = imageToArray(image)
 	else:
-		height = image_in_array.shape[1]
-		width = image_in_array.shape[2]
 		image_out_array = np.ndarray((N, height, width))
 		for k in range(N):
 			image = Image.fromarray(image_in_array[k])
 			# Rotate.
-			image = image.rotate(angle)
+			if angle != 0.:
+				image = image.rotate(angle)
 			# Crop.
 			image = image.crop(cropIdx)
 			# Convert back to an array.
