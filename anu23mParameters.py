@@ -3,7 +3,7 @@
 # 	File:		anu23mParameters.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		05/06/2016
+#	Edited:		27/06/2016
 #
 #	Description:
 #	Properties of the ANU 2.3 m telescope at Siding Spring Observatory.
@@ -86,8 +86,9 @@ filter_bands_m = {
 	'K' : [2.200e-6, 0.340e-6, 2.030e-6, 2.370e-6]
 }
 
-""" Sky brightness """
+""" Sky brightness (magnitudes per square arcsec) """
 # Source: http://www.mso.anu.edu.au/pfrancis/reference/reference/node4.html
+# Note these are 'full moon' values -- typical values will be better!
 sky_brightness = {
 	'J' : 15,
 	'H' : 13.7,
