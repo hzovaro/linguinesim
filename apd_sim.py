@@ -9,9 +9,6 @@
 #	Simulate images of galaxies imaged using the APD detector within the ANU 2.3 m telescope.
 #
 #	TO DO:
-#	- fix bug in resizing image?
-#	- find plate scales for HST images
-#	- tip and tilt: convert the input sigma values to as
 #	- implement poisson noise (not Gaussian)
 #
 ############################################################################################
@@ -338,18 +335,26 @@ def addNoise(images,band,t_exp):
 
 #########################################################################################################
 def shiftAndStack(images, 
-	image_ref=None, 
+	image_ref=None,
+	N=None, 
 	plotIt=False):
 	" Shift and stack N images given in the array of N images."
+
+	# Error checking
+	if N > images.shape[0]:
+		print 'ERROR: if specified, N must be equal to or less than the length of the first dimension of the images array.'
+
 	if (len(images.shape) > 2):
 		if image_ref == None:
 			# If the reference image is not specified, we use the first image in the array as the reference: 
 			# i.e. we align all other images to images[0].
-			N = images.shape[0]-1
+			if N == None:
+				N = images.shape[0]-1
 			images = np.copy(images[1:])	# Only need to go through images 1:N-1.
 			image_ref = np.copy(images[0])
 		else:
-			N = images.shape[0]			
+			if N == None:
+				N = images.shape[0]			
 	else:
 		# Error: cannot shift and stack a single image!
 		print 'ERROR: cannot shift and stack a single image! Input array must have N > 1.'
@@ -417,7 +422,7 @@ def imageToArray(im):
 #########################################################################################################
 def rotateAndCrop(image_in_array, angle, cropArg, 
 	plotIt=False):
-	" Rotate and crop an array of N images stored in ndarray image_in_array counterclockwise by a given 	angle and then crop the image using coordinates (left, upper, right, lower) "
+	" Rotate and crop an array of N images stored in ndarray image_in_array counterclockwise by a given angle and then crop the image using coordinates (left, upper, right, lower) "
 	if len(image_in_array.shape) > 2:
 		N = image_in_array.shape[0]	
 		height = image_in_array.shape[1]
@@ -478,6 +483,19 @@ def rotateAndCrop(image_in_array, angle, cropArg,
 			plt.title('Output image')
 		plt.suptitle('Rotating and cropping image')
 		plt.show()
+
+	return image_out_array
+
+#########################################################################################################
+def getImageSize(image_in_array):
+	" This function takes as input an image array which is either 2- or 3-dimensional. It returns an new array with dimensions (N, height, width). "
+	if len(image_in_array.shape) > 2:
+		image_out_array = image_in_array
+	else:
+		height = image_in_array.shape[0]
+		width = image_in_array.shape[1]
+		image_out_array = np.ndarray((1, height, width), dtype=type(image_in_array[0,0]))
+		image_out_array[0,:,:] = image_in_array
 
 	return image_out_array
 
