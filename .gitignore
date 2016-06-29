@@ -1,7 +1,5 @@
 .DS_Store
 *.pyc
-cosmology_calculator.py
-cosmo_calc.py
-sandbox.py
-gemini_nir_noise.py
-plots/
+scripts/sample-images/
+scripts/gemini_nir_noise.py
+scripts/cosmo_calc.py
