@@ -1,5 +1,10 @@
 .DS_Store
+
+# File extensions
 *.pyc
-scripts/sample-images/
+*.fits
+
+# Directories
+scripts/sample-images/*
 scripts/gemini_nir_noise.py
 scripts/cosmo_calc.py
