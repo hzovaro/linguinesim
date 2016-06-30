@@ -3,30 +3,12 @@
 # 	File:		obssim.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		29/06/2016
 #
 #	Description:
 #	A module for simulating imaging of objects using a given telescope and detector system.
 #
 ############################################################################################
-import apdsim
-from apdsim.imutils import *
-from apdsim.etc import *
-
-import pdb
-
-import PIL
-from PIL import Image
-
-import numpy as np
-
-import scipy.signal
-
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm 
-matplotlib.rc('image', interpolation='none', cmap = 'binary')
-plt.close('all')	
+from apdsim import *
 
 #########################################################################################################
 def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size_px, dest_plate_scale_as,
@@ -117,7 +99,7 @@ def getDiffractionLimitedImage(image_truth, wavelength, f_ratio, l_px_m,
 	r = np.pi / wavelength / f_ratio * np.sqrt(np.power(X,2) + np.power(Y,2))
 	# Calculating the PSF
 	I_0 = 1
-	psf = I_0 * np.power(2 * scipy.special.jv(1, r) / r, 2)
+	psf = I_0 * np.power(2 * special.jv(1, r) / r, 2)
 	psf[psf.shape[0]/2,psf.shape[1]/2] = I_0	# removing the NaN in the centre of the image
 	psf = np.swapaxes(psf,0,1)
 	psf = psf.astype(np.float32)
@@ -125,7 +107,7 @@ def getDiffractionLimitedImage(image_truth, wavelength, f_ratio, l_px_m,
 	# Convolving the PSF and the truth image to obtain the simulated diffraction-limited image
 	image_difflim = np.ndarray((N, height, width))
 	for k in range(N):
-		image_difflim[k] = scipy.signal.fftconvolve(image_truth[k], psf, mode='same')
+		image_difflim[k] = signal.fftconvolve(image_truth[k], psf, mode='same')
 
 	if plotIt:
 		plt.figure()
@@ -178,7 +160,7 @@ def getSeeingLimitedImage(images, seeing_diameter_as, plate_scale_as,
 
 	for k in range(N):
 		image_padded = np.pad(images[k], ((pad_ud,pad_ud + height % 2),(pad_lr,pad_lr + width % 2)), mode='constant')
-		image_seeing_limited[k] = scipy.signal.fftconvolve(image_padded, kernel, mode='same')
+		image_seeing_limited[k] = signal.fftconvolve(image_padded, kernel, mode='same')
 		image_seeing_limited_cropped[k] = image_seeing_limited[pad_ud : height + pad_ud, pad_lr : width + pad_lr]		
 
 	if plotIt:
@@ -193,7 +175,7 @@ def getSeeingLimitedImage(images, seeing_diameter_as, plate_scale_as,
 		plt.imshow(image_seeing_limited[0])
 		plt.title('Convolved image')
 		plt.subplot(2,2,4)
-		plt.imshow(np.log(image_seeing_limited_cropped[0]))
+		plt.imshow(image_seeing_limited_cropped[0])
 		plt.title('Cropped, convolved image')
 
 	return np.squeeze(image_seeing_limited_cropped)

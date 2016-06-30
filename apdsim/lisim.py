@@ -3,28 +3,12 @@
 # 	File:		lisim.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		29/06/2016
 #
 #	Description:
 #	A module for simulating lucky imaging.
 #
 #########################################################################################################
-import apdsim
-from apdsim.imutils import *
-
-import pdb
-
-from scipy.ndimage.interpolation import shift
-
-import numpy as np
-
-import scipy.signal
-
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm 
-matplotlib.rc('image', interpolation='none', cmap = 'binary')
-plt.close('all')
+from apdsim import *
 
 #########################################################################################################
 def addTurbulence(images, N_tt, sigma_tt_px,
@@ -105,7 +89,7 @@ def shiftAndStack(images,
 
 	for k in range(N):
 		# Cross-correlate image k with the reference image to find the tip and tilt.
-		corrs[k] = scipy.signal.fftconvolve(image_ref, images[k][::-1,::-1])
+		corrs[k] = signal.fftconvolve(image_ref, images[k][::-1,::-1])
 		corr_peak_idxs[k] = np.unravel_index(np.argmax(corrs[k]), (2 * height - 1, 2 * width - 1))
 		img_peak_idxs[k][0] = - corr_peak_idxs[k][0] + (height - 1)
 		img_peak_idxs[k][1] = - corr_peak_idxs[k][1] + (width - 1)

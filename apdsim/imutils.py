@@ -9,18 +9,21 @@
 #	Image processing utilities.
 #
 ############################################################################################
-import pdb
+from apdsim import *
+# import pdb
 
-from PIL import Image
+# from __future__ import division
 
-import numpy as np
+# from PIL import Image
 
-from astropy.io import fits
+# import numpy as np
 
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm 
-matplotlib.rc('image', interpolation='none', cmap = 'binary')
+# from astropy.io import fits
+
+# import matplotlib
+# import matplotlib.pyplot as plt
+# from matplotlib.colors import LogNorm 
+# matplotlib.rc('image', interpolation='none', cmap = 'binary')
 
 #########################################################################################################
 """

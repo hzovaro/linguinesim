@@ -3,7 +3,6 @@
 # 	File:		etc.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		19/06/2016
 #
 #	Description:
 #	An exposure time calculator (ETC) for a telescope-detector system in the near-infrared.
@@ -18,27 +17,7 @@
 #	- double check: do we need Tr_win for the telescope thermal emission calcs?
 #
 ###########################################################################################
-
-# Importing detector and telescope properties
-import apdsim
-import apdsim.sysparams.cryo as cryo
-import apdsim.sysparams.detector_saphira as detector
-import apdsim.sysparams.telescope_anu23m as telescope
-
-# Required packages
-import scipy.constants as constants
-import scipy.integrate as integrate
-import scipy.optimize as opt
-
-import numpy as np
-import pdb
-import matplotlib.pyplot as plt
-
-# NOTE: 
-#	[Sigma] = electrons/pixel/s
-#	[sigma] = sqrt(total electrons)/pixel
-
-figsize = 7.5
+from apdsim import *
 
 #########################################################################################################
 def exposureTimeCalc(
@@ -277,7 +256,12 @@ def getSkyTE(T_sky=273, plotIt=True):
 	Omega_px_rad = plate_scale_rad_px * plate_scale_rad_px
 
 	# Atmospheric properties	
-	f = open('cptrans_zm_23_10.dat','r')
+	fname = 'cptrans_zm_23_10.dat'
+	this_dir, this_filename = os.path.split(__file__)
+	DATA_PATH = os.path.join(this_dir, 'skytransdata', fname)
+	# f = open(fname,'r')
+	f = open(DATA_PATH, 'r')
+
 	wavelengths_sky = [];
 	Tr_sky = [];
 	for line in f:
