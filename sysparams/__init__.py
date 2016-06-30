@@ -1,3 +1,12 @@
+#########################################################################################################
+#
+# 	File:		__init__.py
+#	Author:		Anna Zovaro
+#	Email:		anna.zovaro@anu.edu.au
+#
+#	Description:
+#	A package for storing the parameters of various telescopes and detectors for use in apdsim.
+#
 #	Copyright (C) 2016 Anna Zovaro
 #
 #########################################################################################################

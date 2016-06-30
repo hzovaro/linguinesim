@@ -3,7 +3,6 @@
 # 	File:		h4rgParameters.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		17/06/2016
 #
 #	Description:
 #	Properties of the HAWAII H4RG detector.

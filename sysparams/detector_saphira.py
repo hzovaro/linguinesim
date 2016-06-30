@@ -3,7 +3,6 @@
 # 	File:		apdParameters.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		25/05/2016
 #
 #	Description:
 #	Properties of the SELEX avalanche photodiode detector (APD) with the SAPHIRA ROIC.

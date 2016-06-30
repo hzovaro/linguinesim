@@ -3,7 +3,6 @@
 # 	File:		anu23mParameters.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		27/06/2016
 #
 #	Description:
 #	Properties of the ANU 2.3 m telescope at Siding Spring Observatory.

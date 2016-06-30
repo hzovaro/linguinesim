@@ -3,7 +3,6 @@
 # 	File:		cryoParameters.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		26/05/2016
 #
 #	Description:
 #	Properties of the cryostat that will house the SAPHIRA APD.
