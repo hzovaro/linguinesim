@@ -30,79 +30,89 @@
 #
 #	TO DO:
 #	- Check consistency of np.log usage!
+#	- Conversion to/from I_e using mu_e: units?
+#	- better way of calculating b_n
 #
 ############################################################################################
 from __future__ import division
 from apdsim import *
+from cosmo_calc import *
 plt.close('all')
-
-def sersic(n, R_e, 
-	n_points=100, 
-	R_max = None,
-	mu_e = None,
-	I_e = None
-	):
-	" Returns a one-dimensional Sersic profile in units of surface brightness with index n, half-light radius R_e and mu(R=R_e) = mu_e. "
-	
-	if R_max == None:
-		R_max = 10 * R_e
-	R = np.linspace(-R_max, +R_max, n_points)
-	
-	# Calculating the constraining parameter.
-	if mu_e == None and I_e == None:
-		print 'ERROR: at least one of mu_e or I_e must be specified!'
-		return
-	if mu_e == None:
-		mu_e = - 2.5 * np.log10(I_e)
-	elif I_e == None:
-		I_e = np.power(10, - mu_e / 2.5)
-	else:
-		print 'WARNING: you have specified both mu_e and I_e, so they might not be consistent! Proceed with caution...'
-
-	# Calculating b_n given the Sersic index n.
-	if n > 0.5 and n < 8:
-		b_n = 1.9992 * n - 0.3271
-	elif n >= 8:
-		b_n = 2 * n - 1 / 3
-	else:
-		print 'ERROR: haven\'t implemented n < 0.5 yet! Check again later...'
-		return
-
-	mu = mu_e + 2.5 / np.log(10) * b_n * (np.power(R/R_e, n) - 1)
-	# NOTE: I is in units of ergs/s/cm^2/arcsec^2/Hz? Check with Rob...
-	I = I_e * np.exp(- b_n * (np.power(R/R_e, 1/n)))
-
-	return R, mu, I
-
 
 # Simulating an image of a galaxy with a Sersic profile.
 # Disc: truncated exponential.
 # Bulge: de Vaucoeleurs profile. 
-print "1/3 = ", 1/3
 
 " Inputs "
 # Galaxy:
-R_e = 10	# Half-light or effective radius (kpc) - that is, the radius enclosing half the total light from the galaxy
+R_e = 4	# Half-light or effective radius (kpc) - that is, the radius enclosing half the total light from the galaxy
+R_trunc = np.inf	# Truncation radius of disc
 mu_e = 12	# Surface brightness at the half-light radius (AB mag/arcsec^2)
-n = 2
-z = 0.001	# Redshift
+n = 1
+z = 0.095	# Redshift
 i = 45		# inclination (degrees)
 alpha = 30	# rotation (degrees)
+band = 'K'
+
+# In units of kpc...
+R, dR, I_map, mu_map = sersic2D(n=n, R_e=R_e, R_trunc=R_trunc, mu_e=mu_e, plotIt=True, 
+	i_rad=np.deg2rad(30), 
+	theta_rad=np.deg2rad(20))
+
+# Converting to units of pixels on our detector...
+# First, need to calculate the mapping from parsecs-->arcsec.
+D_A_Mpc = distances(z)['D_A_Mpc']
+plate_scale_as = np.rad2deg(2 * np.arctan(dR / 2 / (D_A_Mpc * 1e3))) * 3600
+
+flux_map = getPhotonFlux(surfaceBrightness=mu_map, 
+	wavelength_eff=telescope.filter_bands_m[band][0], 
+	bandwidth=telescope.filter_bands_m[band][1], 
+	plate_scale_as=telescope.plate_scale_as_m*detector.l_px_m, 
+	A_tel=telescope.A_collecting)
+
+flux_map_resized = resizeImagesToDetector(flux_map, 
+	plate_scale_as, 
+	(detector.height_px, detector.width_px),
+	detector.l_px_m, 
+	detector.l_px_m * telescope.plate_scale_as_m)
+
+plt.figure(figsize=(2*figsize,figsize))
+plt.subplot(1,2,1)
+plt.imshow(flux_map)
+plt.colorbar()
+plt.title('2D flux map (imaginary detector, plate scale = %.2f arcsec/pixel)' % plate_scale_as)
+plt.subplot(1,2,2)
+plt.imshow(flux_map_resized)
+plt.colorbar()
+plt.title('2D flux map (imaginary detector, plate scale = %.2f arcsec/pixel)' % plate_scale_as)
+plt.show()
 
 # So the galaxy has a certain redshift and a certain half-light radius
 # We want our process to be: Light profile in kpc --> Light profile in arcsec --> Light profile in pixels.
 # So make the Sersic profile in units of linear distance (say pc or kpc), then use the redshift to convert 1 kpc into arcseconds acros the sky (use cosmo_calc.py for this), then rescale the Sersic profile to arcseconds, then rescale to pixels on the detector.
-R, mu, I = sersic(n=n, R_e=10, mu_e = 10)
+# plt.figure(figsize=(2*figsize, figsize))
+# for n in range(1,5):
+# 	R, mu, I = sersic(n=n, R_e=10, mu_e=mu_e, R=np.linspace(0, 10*R_e, 100))
+# 	plt.subplot(1,2,1)
+# 	plt.plot(R/R_e, mu, color = (0, n/5, 1), label = r'$n=%d$' % n)
+# 	plt.subplot(1,2,2)
+# 	plt.plot(R/R_e, I, color = (0, n/5, 1), label = r'$n=%d$' % n)
 
-plt.figure()
-plt.subplot(1,2,1)
-plt.plot(R, mu, 'r')
-plt.title(r'Surface brightness vs. radius, $n = %d$' % n)
-plt.xlabel(r'Radius $R$ (kpc)')
-plt.ylabel(r'Surface brightness $\mu(R)$ (magnitudes/arcsec$^2$)')
-plt.subplot(1,2,2)
-plt.plot(R, I, 'b')
-plt.title(r'Intensity vs. radius, $n = %d$' % n)
-plt.xlabel(r'Radius $R$ (kpc)')
-plt.ylabel(r'Intensity $I(R)$')
-plt.show()
+# plt.subplot(1,2,1)
+# plt.plot([1,1], [min(mu), max(mu)], 'k--')
+# plt.title(r'Surface brightness vs. radius, $n = %d$' % n)
+# plt.xlabel(r'Radius $R/R_e$')
+# plt.ylabel(r'Surface brightness $\mu(R)$ (magnitudes/arcsec$^2$)')
+# plt.legend()
+# plt.gca().invert_yaxis()
+
+# plt.subplot(1,2,2)
+# plt.plot([1,1], [0, max(I)], 'k--')
+# plt.title(r'Intensity vs. radius, $n = %d$' % n)
+# plt.xlabel(r'Radius $R/R_e$')
+# plt.ylabel(r'Intensity $I(R)$')
+# plt.yscale('log')
+# plt.legend()
+# plt.show()
+
+
