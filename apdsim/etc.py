@@ -38,9 +38,9 @@
 #	- double check: do we need Tr_win for the telescope thermal emission calcs?
 #
 #########################################################################################################
+from __future__ import division
 from apdsim import *
 
-#########################################################################################################
 def exposureTimeCalc(
 		band,
 		t_exp = 1,

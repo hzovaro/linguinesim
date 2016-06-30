@@ -27,6 +27,7 @@
 #	along with apd-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 #########################################################################################################
+from __future__ import division
 from apdsim import *
 
 def addTurbulence(images, N_tt, sigma_tt_px,

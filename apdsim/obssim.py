@@ -27,6 +27,7 @@
 #	along with apd-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 #########################################################################################################
+from __future__ import division
 from apdsim import *
 
 def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size_px, dest_plate_scale_as,

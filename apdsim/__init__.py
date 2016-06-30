@@ -13,11 +13,11 @@
 #	Email:		anna.zovaro@anu.edu.au
 #
 #	Description:
-#	A package for simulating Lucky Imaging of Nearby Galaxies (Usefully) In the Near-Infrared (LINGUINI)
+#	A package for simulating Lucky Imaging of Nearby Galaxies Undertaken In the Near-Infrared (LINGUINI)
 #
 #	Copyright (C) 2016 Anna Zovaro
 #
-############################################################################################
+###########################################################################################################
 #
 #	This file is part of apd-sim.
 #

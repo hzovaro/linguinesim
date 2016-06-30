@@ -1,5 +1,5 @@
 # Taken from http://www.astro.ucla.edu/%7Ewright/CosmoCalc.html 
-
+from __future__ import division
 import sys
 from math import *
 import numpy as np

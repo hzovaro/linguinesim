@@ -34,6 +34,7 @@
 #	- double check the PSF stuff
 #
 #########################################################################################################
+from __future__ import division
 from apdsim import *
 plt.close('all')
 

@@ -28,6 +28,7 @@
 #	along with apd-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 #########################################################################################################
+from __future__ import division
 from sysparams import *
 
 """ Efficiency properties """

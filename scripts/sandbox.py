@@ -32,7 +32,9 @@
 #	- Check consistency of np.log usage!
 #
 ############################################################################################
+from __future__ import division
 from apdsim import *
+plt.close('all')
 
 def sersic(n, R_e, 
 	n_points=100, 
@@ -76,6 +78,7 @@ def sersic(n, R_e,
 # Simulating an image of a galaxy with a Sersic profile.
 # Disc: truncated exponential.
 # Bulge: de Vaucoeleurs profile. 
+print "1/3 = ", 1/3
 
 " Inputs "
 # Galaxy:
@@ -89,7 +92,7 @@ alpha = 30	# rotation (degrees)
 # So the galaxy has a certain redshift and a certain half-light radius
 # We want our process to be: Light profile in kpc --> Light profile in arcsec --> Light profile in pixels.
 # So make the Sersic profile in units of linear distance (say pc or kpc), then use the redshift to convert 1 kpc into arcseconds acros the sky (use cosmo_calc.py for this), then rescale the Sersic profile to arcseconds, then rescale to pixels on the detector.
-R, mu, I = sersic(n=n, R_e=10)
+R, mu, I = sersic(n=n, R_e=10, mu_e = 10)
 
 plt.figure()
 plt.subplot(1,2,1)
@@ -98,7 +101,8 @@ plt.title(r'Surface brightness vs. radius, $n = %d$' % n)
 plt.xlabel(r'Radius $R$ (kpc)')
 plt.ylabel(r'Surface brightness $\mu(R)$ (magnitudes/arcsec$^2$)')
 plt.subplot(1,2,2)
-plt.plot(R, mu, 'b')
+plt.plot(R, I, 'b')
 plt.title(r'Intensity vs. radius, $n = %d$' % n)
 plt.xlabel(r'Radius $R$ (kpc)')
 plt.ylabel(r'Intensity $I(R)$')
+plt.show()
