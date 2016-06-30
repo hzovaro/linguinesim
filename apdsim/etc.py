@@ -174,7 +174,7 @@ def getPhotonFlux(surfaceBrightness, wavelength_eff, bandwidth, plate_scale_as, 
 	gain_av = 1.,
 	magnitudeSystem = 'AB',
 	):
-	" Return the electron count per pixel per second from a source with a given surface brightness imaged through a system with collecting area A_tel, throughput tau, quantum efficiency qe, avalanche gain gain_av and plate scale plate_scale_as"
+	" Return the electron count per pixel per second from a source with a given surface brightness imaged through a system with collecting area A_tel, throughput tau, quantum efficiency qe, avalanche gain gain_av and plate scale in arcsec/pixel plate_scale_as"
 
 	E_photon = constants.h * constants.c / wavelength_eff
 	# Vega band magnitudes calculated using data from https://www.astro.umd.edu/~ssm/ASTR620/mags.html
