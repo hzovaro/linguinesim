@@ -3,7 +3,6 @@
 # 	File:		imutils.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		29/06/2016
 #
 #	Description:
 #	Image processing utilities.
@@ -65,30 +64,35 @@ def imageToArray(im):
 	return image_map
 
 #########################################################################################################
-def rotateAndCrop(image_in_array, angle, cropArg, 
+def rotateAndCrop(image_in_array, 
+	angle = None, 
+	cropArg = None, 
 	plotIt=False):
 	" Rotate and crop an array of N images stored in ndarray image_in_array counterclockwise by a given angle and then crop the image using coordinates (left, upper, right, lower) "
 	image_in_array, N, height, width = getImageSize(image_in_array)
 
 	# Crop options:
 	#	1. One number given: crop by the same amount on all sides
-	if type(cropArg) == int:
-		cropIdx = (cropArg, cropArg, width - cropArg, height - cropArg)
-	#	2. Two numbers given: crop by the same width and height either side.
-	elif type(cropArg) == tuple and len(cropArg) == 2:
-		cropIdx = (cropArg[1], cropArg[0], width - cropArg[1], height - cropArg[0])
-	#	3. Four numbers given: crop input is given as the (left, top, right, bottom) indices.
-	elif type(cropArg) == tuple and len(cropArg) == 4:
-		cropIdx = cropArg
+	if cropArg != None:
+		if type(cropArg) == int:
+			cropIdx = (cropArg, cropArg, width - cropArg, height - cropArg)
+		#	2. Two numbers given: crop by the same width and height either side.
+		elif type(cropArg) == tuple and len(cropArg) == 2:
+			cropIdx = (cropArg[1], cropArg[0], width - cropArg[1], height - cropArg[0])
+		#	3. Four numbers given: crop input is given as the (left, top, right, bottom) indices.
+		elif type(cropArg) == tuple and len(cropArg) == 4:
+			cropIdx = cropArg
 
 	# Convert to an Image object.
 	for k in range(N):
 		image = Image.fromarray(image_in_array[k])
 		# Rotate.
-		if angle != 0.:
+		if angle != None:
 			image = image.rotate(angle)
 		# Crop.
-		image = image.crop(cropIdx)
+		if cropArg != None:
+			image = image.crop(cropIdx)
+		
 		image = imageToArray(image)
 		if k == 0:
 			image_out_array = np.ndarray((N, image.shape[0], image.shape[1]))
