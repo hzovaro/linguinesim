@@ -1,4 +1,4 @@
-############################################################################################
+#########################################################################################################
 #
 # 	File:		obssim.py
 #	Author:		Anna Zovaro
@@ -7,10 +7,28 @@
 #	Description:
 #	A module for simulating imaging of objects using a given telescope and detector system.
 #
-############################################################################################
+#	Copyright (C) 2016 Anna Zovaro
+#
+#########################################################################################################
+#
+#	This file is part of apd-sim.
+#
+#	apd-sim is free software: you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation, either version 3 of the License, or
+#	(at your option) any later version.
+#
+#	apd-sim is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with apd-sim.  If not, see <http://www.gnu.org/licenses/>.
+#
+#########################################################################################################
 from apdsim import *
 
-#########################################################################################################
 def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size_px, dest_plate_scale_as,
 	plotIt=False):
 	" Resize the images stored in array images_raw with a given plate scale to a detector with given dimensions and plate scale. "

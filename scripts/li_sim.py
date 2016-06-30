@@ -9,14 +9,28 @@
 #	Generating some simulated images of the lucky imaging process. Not worrying about 
 #	resizing to the detector for now.
 #
+#	Copyright (C) 2016 Anna Zovaro
+#
 ############################################################################################
-
+#
+#	This file is part of apd-sim.
+#
+#	apd-sim is free software: you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation, either version 3 of the License, or
+#	(at your option) any later version.
+#
+#	apd-sim is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with apd-sim.  If not, see <http://www.gnu.org/licenses/>.
+#
+############################################################################################
 from apd_sim import *
-from matplotlib.colors import LogNorm 
-matplotlib.rc('image', interpolation='none', cmap = 'binary')
 plt.close('all')
-
-############################################################################################
 
 N_exp = 5
 t_exp = 10e-3

@@ -1,4 +1,4 @@
-############################################################################################
+#########################################################################################################
 #
 # 	File:		apd_sim_test.py
 #	Author:		Anna Zovaro
@@ -7,15 +7,35 @@
 #	Description:
 #	Testing out the functions in the apdsim package.
 #
+#	Copyright (C) 2016 Anna Zovaro
+#
+#########################################################################################################
+#
+#	This file is part of apd-sim.
+#
+#	apd-sim is free software: you can redistribute it and/or modify
+#	it under the terms of the GNU General Public License as published by
+#	the Free Software Foundation, either version 3 of the License, or
+#	(at your option) any later version.
+#
+#	apd-sim is distributed in the hope that it will be useful,
+#	but WITHOUT ANY WARRANTY; without even the implied warranty of
+#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#	GNU General Public License for more details.
+#
+#	You should have received a copy of the GNU General Public License
+#	along with apd-sim.  If not, see <http://www.gnu.org/licenses/>.
+#
+#########################################################################################################
+#
 #	TO DO:
 #	- in-quadrature PSF: figure out sigma for 
 #	- simulate realistic magnitudes for target objects
 #	- double check the PSF stuff
 #
-############################################################################################
+#########################################################################################################
 from apdsim import *
 plt.close('all')
-############################################################################################
 
 N_exp = 200
 t_exp = 20e-3
