@@ -3,7 +3,6 @@
 # 	File:		apd_sim_test.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
-#	Edited:		27/06/2016
 #
 #	Description:
 #	Testing out the functions in the apdsim package.
@@ -14,22 +13,8 @@
 #	- double check the PSF stuff
 #
 ############################################################################################
-
-import apdsim
-from apdsim.imutils import *
-from apdsim.obssim import * 
-from apdsim.lisim import *
-from apdsim.etc import *
-import apdsim.sysparams.cryo as cryo
-import apdsim.sysparams.detector_saphira as detector
-import apdsim.sysparams.telescope_anu23m as telescope
-
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib.colors import LogNorm 
-matplotlib.rc('image', interpolation='none', cmap = 'binary')
+from apdsim import *
 plt.close('all')
-
 ############################################################################################
 
 N_exp = 200
