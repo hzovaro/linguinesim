@@ -19,23 +19,32 @@
 #
 ###########################################################################################################
 #
-#	This file is part of apd-sim.
+#	This file is part of lignuini-sim.
 #
-#	apd-sim is free software: you can redistribute it and/or modify
+#	lignuini-sim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	apd-sim is distributed in the hope that it will be useful,
+#	lignuini-sim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with apd-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ############################################################################################################                                                               
 from __future__ import division
+
+# Vega band magnitudes calculated using data from https://www.astro.umd.edu/~ssm/ASTR620/mags.html
+VEGA_MAGNITUDE_ZEROPOINT = {
+	'J' : 49.46953099,
+	'H' : 49.95637318,
+	'K' : 50.47441871
+}
+AB_MAGNITUDE_ZEROPOINT = 48.6
+FIGSIZE = 7.5
 
 # Required packages
 import scipy.constants as constants
@@ -58,7 +67,6 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
 from matplotlib import rc
 rc('image', interpolation='none', cmap = 'binary')
-figsize = 7.5
 
 from astropy.io import fits
 
@@ -69,7 +77,10 @@ import sysparams.telescope_anu23m as telescope
 
 # Importing modules
 from apdsim.imutils import *
+from apdsim.etcutils import *
 from apdsim.etc import *
 from apdsim.obssim import *
 from apdsim.lisim import *
 from apdsim.galsim import *
+
+
