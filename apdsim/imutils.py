@@ -11,20 +11,20 @@
 #
 ############################################################################################
 #
-#	This file is part of apd-sim.
+#	This file is part of lignuini-sim.
 #
-#	apd-sim is free software: you can redistribute it and/or modify
+#	lignuini-sim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	apd-sim is distributed in the hope that it will be useful,
+#	lignuini-sim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with apd-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ############################################################################################
 from __future__ import division
@@ -130,3 +130,26 @@ def getImageSize(image_in_array):
 		print "ERROR: invalid image array shape!"
 		return -1
 	return (image_out_array, N, height, width)
+
+#########################################################################################################
+def exportFITSFile(image_in_array, fname,
+	headerData = None, 
+	clobber = False):
+	"""
+		Exports a FITS file containing the image data contained in image_in_array and optional header 
+		data stored in the dictionary headerData. Does not overwrite existing file fname.fits by default,
+		but will if clobber is set to True.
+
+		Note: HDU stands for 'Header Data Unit'
+	"""
+	hdu = fits.PrimaryHDU()
+	# Add data. Note that this automatically updates the header data with the axis sizes. 
+	hdu.data = image_in_array
+	# Add header keywords
+	for key in headerData:
+		hdu.header[key] = headerData[key]
+	# Write to disk.
+	if fname.endswith('.fits') == False:
+		fname += '.fits'
+	hdu.writeto(fname, clobber = clobber)
+
