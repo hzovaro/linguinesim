@@ -17,20 +17,20 @@
 #
 #########################################################################################################
 #
-#	This file is part of apd-sim.
+#	This file is part of lignuini-sim.
 #
-#	apd-sim is free software: you can redistribute it and/or modify
+#	lignuini-sim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	apd-sim is distributed in the hope that it will be useful,
+#	lignuini-sim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with apd-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 #########################################################################################################
 #
@@ -77,14 +77,14 @@ def exposureTimeCalc(
 	
 	""" Signal photon flux """
 	# Given the surface brightness and angular extent of the image, calculate the source electrons/s/pixel.
-	Sigma_source_e = getPhotonFlux(surfaceBrightness = surfaceBrightness, 
-		wavelength_eff = wavelength_eff, 
-		bandwidth = bandwidth, 
-		plate_scale_as = plate_scale_as, 
+	Sigma_source_e = getElectronCount(mu = surfaceBrightness, 
+		wavelength_m = wavelength_eff, 
+		bandwidth_m = bandwidth, 
+		plate_scale_as_px = plate_scale_as, 
 		A_tel = telescope.A_collecting, 
 		tau = telescope.tau * cryo.Tr_win,
 		qe = detector.qe,
-		gain_av = detector.gain_av,
+		gain = detector.gain_av,
 		magnitudeSystem = 'AB'
 	)
 
@@ -98,14 +98,15 @@ def exposureTimeCalc(
 	Sigma_sky_thermal = getSkyTE(plotIt=False)[band]
 
 	""" Empirical sky background flux """
-	Sigma_sky_emp = getPhotonFlux(surfaceBrightness = telescope.sky_brightness[band], 
-		wavelength_eff = wavelength_eff, 
-		bandwidth = bandwidth, 
-		plate_scale_as = plate_scale_as, 
+	# Sigma_sky_emp = getPhotonFlux(surfaceBrightness = telescope.sky_brightness[band], 
+	Sigma_sky_emp = getElectronCount(mu = telescope.sky_brightness[band], 
+		wavelength_m = wavelength_eff, 
+		bandwidth_m = bandwidth, 
+		plate_scale_as_px = plate_scale_as, 
 		A_tel = telescope.A_collecting, 
 		tau = telescope.tau * cryo.Tr_win,
 		qe = detector.qe,
-		gain_av = detector.gain_av,
+		gain = detector.gain_av,
 		magnitudeSystem = 'AB'
 	)
 
@@ -166,41 +167,6 @@ def exposureTimeCalc(
 	}
 
 	return etc_output
-
-#########################################################################################################
-def getPhotonFlux(surfaceBrightness, wavelength_eff, bandwidth, plate_scale_as, A_tel, 
-	tau = 1.,
-	qe = 1.,
-	gain_av = 1.,
-	magnitudeSystem = 'AB',
-	):
-	" Return the electron count per pixel per second from a source with a given surface brightness imaged through a system with collecting area A_tel, throughput tau, quantum efficiency qe, avalanche gain gain_av and plate scale in arcsec/pixel plate_scale_as"
-
-	E_photon = constants.h * constants.c / wavelength_eff
-	# Vega band magnitudes calculated using data from https://www.astro.umd.edu/~ssm/ASTR620/mags.html
-	Vega_magnitudes = {
-		'J' : 49.46953099,
-		'H' : 49.95637318,
-		'K' : 50.47441871
-	}
-
-	" Signal photon flux "
-	# Given the surface brightness, calculate the source electrons/s/pixel.
-	m = surfaceBrightness	
-	if magnitudeSystem == 'AB':
-		F_nu_cgs = np.power(10, - (48.6 + m) / 2.5) 						# ergs/s/cm^2/arcsec^2/Hz		
-	elif magnitudeSystem == 'Vega':
-		F_nu_cgs = np.power(10, - (Vega_magnitudes[band] + m) / 2.5) 		# ergs/s/cm^2/arcsec^2/Hz
-	else:
-		print('Magnitude must be specified either in AB or Vega magnitudes!')
-
-	F_lambda_cgs = F_nu_cgs * constants.c / np.power(wavelength_eff, 2)	# ergs/s/cm^2/arcsec^2/m
-	F_lambda = F_lambda_cgs * 1e-7 * 1e4								# J/s/m^2/arcsec^2/m
-	F_total_phot = F_lambda * bandwidth	/ E_photon						# photons/s/m^2/arcsec^2
-	Sigma_source_phot = F_total_phot * np.power(plate_scale_as,2) * A_tel	# photons/s/px
-	Sigma_source_e = Sigma_source_phot * tau * qe * gain_av 			# electrons/s/px
-
-	return Sigma_source_e
 
 #########################################################################################################
 def getCryostatTE(plotIt=True):
@@ -283,16 +249,17 @@ def getSkyTE(T_sky=273, plotIt=True):
 	# f = open(fname,'r')
 	f = open(DATA_PATH, 'r')
 
-	wavelengths_sky = [];
-	Tr_sky = [];
-	for line in f:
-		cols = line.split()
-		wavelengths_sky.append(float(cols[0]))
-		Tr_sky.append(float(cols[1]))
-	Tr_sky = np.asarray(Tr_sky)
-	wavelengths_sky = np.asarray(wavelengths_sky) * 1e-6
-	eps_sky = lambda wavelength: np.interp(wavelength, wavelengths_sky, 1 - Tr_sky)
-	f.close()
+	# wavelengths_sky = [];
+	# Tr_sky = [];
+	# for line in f:
+	# 	cols = line.split()
+	# 	wavelengths_sky.append(float(cols[0]))
+	# 	Tr_sky.append(float(cols[1]))
+	# Tr_sky = np.asarray(Tr_sky)
+	# wavelengths_sky = np.asarray(wavelengths_sky) * 1e-6
+	# eps_sky = lambda wavelength: np.interp(wavelength, wavelengths_sky, 1 - Tr_sky)
+	# f.close()
+	eps_sky = getSkyEps()
 
 	for key in I_sky:
 		wavelength_min = telescope.filter_bands_m[key][2]
@@ -313,7 +280,7 @@ def getSkyTE(T_sky=273, plotIt=True):
 		wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
 
 		# Plotting
-		plt.figure(figsize=(figsize,figsize))
+		plt.figure(figsize=(FIGSIZE,FIGSIZE))
 		plt.plot(wavelengths*1e6, D, 'g--', label=r'Dark current')
 		# Imager mode
 		for key in I_sky:
@@ -355,10 +322,11 @@ def getTelescopeTE(T_sky=273, plotIt=True, worstCaseSpider=False):
 		
 		# Spider (acting as a grey body at both the sky temperature and telescope temperature)
 		if worstCaseSpider == False:
+			eps_sky = getSkyEps()
 			# BEST CASE: assume the spider has a fresh aluminium coating - so 9.1% emissive at sky temp and 90.1% emissive at telescope temp
 			I_spider = \
 				thermalEmissionIntensity(T = telescope.T, 	wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = telescope.eps_spider_eff)\
-			  + thermalEmissionIntensity(T = T_sky, 		wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = 1 - telescope.eps_spider_eff)
+			  + thermalEmissionIntensity(T = T_sky, 		wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = (1 - telescope.eps_spider_eff) * eps_sky)
 		else:
 			# WORST CASE: assume the spider is 100% emissive at telescope temperature (i.e. not reflective at all)
 			I_spider = \
@@ -376,7 +344,7 @@ def getTelescopeTE(T_sky=273, plotIt=True, worstCaseSpider=False):
 		wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
 
 		# Plotting
-		plt.figure(figsize=(figsize,figsize))
+		plt.figure(figsize=(FIGSIZE,FIGSIZE))
 		plt.plot(wavelengths*1e6, D, 'g--', label=r'Dark current')
 
 		for key in telescope.filter_bands_m:
@@ -410,7 +378,7 @@ def plotBackgroundNoiseSources():
 	wavelengths = np.linspace(1.0, 2.5, 1000)*1e-6
 
 	# Plotting
-	plt.figure(figsize=(figsize,figsize))
+	plt.figure(figsize=(FIGSIZE,FIGSIZE))
 	plt.plot(wavelengths*1e6, D, 'g--', label=r'Dark current')
 	plotColors = {
 		'H' : 'orangered',
@@ -478,3 +446,24 @@ def thermalEmissionIntensity(
 		I = integrate.quad(integrand, wavelength_min, wavelength_max, args=(Omega, eta, A, T, eps))[0]
 
 	return I
+
+########################################################################################
+def getSkyEps():
+	# Atmospheric properties	
+	fname = 'cptrans_zm_23_10.dat'
+	this_dir, this_filename = os.path.split(__file__)
+	DATA_PATH = os.path.join(this_dir, 'skytransdata', fname)
+	f = open(DATA_PATH, 'r')
+
+	wavelengths_sky = [];
+	Tr_sky = [];
+	for line in f:
+		cols = line.split()
+		wavelengths_sky.append(float(cols[0]))
+		Tr_sky.append(float(cols[1]))
+	Tr_sky = np.asarray(Tr_sky)
+	wavelengths_sky = np.asarray(wavelengths_sky) * 1e-6
+	eps_sky = lambda wavelength: np.interp(wavelength, wavelengths_sky, 1 - Tr_sky)
+	f.close()
+
+	return eps_sky
