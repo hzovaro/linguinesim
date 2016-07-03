@@ -40,6 +40,7 @@ adu_gain = 1 / 2.9			# electrons/ADU
 """ Geometry """
 width_px = 320				# width (pixels)
 height_px = 256				# height (pixels)
+size_px = (height_px, width_px)
 n_px_tot = width_px * height_px	# number of pixels (total)
 l_px_m = 24e-6				# pixel width (m)
 A_px_m2 = l_px_m * l_px_m	# pixel area (m^2)
