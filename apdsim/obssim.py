@@ -27,6 +27,11 @@
 #	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 #########################################################################################################
+#
+#	TODO:
+#	- Check methods for accounting for oddly-sized detectors 
+#
+#########################################################################################################
 from __future__ import division
 from apdsim import *
 
@@ -79,12 +84,14 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size
 	images = np.pad(images, ((0, 0), (pad_height_top, pad_height_bottom), (pad_width_left, pad_width_right)), mode='constant')
 
 	if plotIt:
-		plt.figure()
+		plt.figure(figsize=(2*FIGSIZE, FIGSIZE))
 		plt.subplot(1,2,1)
 		plt.imshow(images_raw[0])
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Input image')
 		plt.subplot(1,2,2)
 		plt.imshow(images[0])
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Resized image')
 		plt.suptitle('Resizing truth image to detector')
 		plt.show()
@@ -117,27 +124,31 @@ def getDiffractionLimitedImage(image_truth, wavelength, f_ratio, l_px_m,
 	# x in units of m
 	r = np.pi / wavelength / f_ratio * np.sqrt(np.power(X,2) + np.power(Y,2))
 	# Calculating the PSF
-	I_0 = 1
-	psf = I_0 * np.power(2 * special.jv(1, r) / r, 2)
-	psf[psf.shape[0]/2,psf.shape[1]/2] = I_0	# removing the NaN in the centre of the image
+	psf = np.power(2 * special.jv(1, r) / r, 2)
+	# Normalising
+	psf[psf.shape[0]/2,psf.shape[1]/2] = 1	# removing the NaN in the centre of the image
+	P = sum(psf.flatten())
+	psf /= P
 	psf = np.swapaxes(psf,0,1)
-	psf = psf.astype(np.float32)
-
+	psf = psf.astype(np.float64)
 	# Convolving the PSF and the truth image to obtain the simulated diffraction-limited image
 	image_difflim = np.ndarray((N, height, width))
 	for k in range(N):
 		image_difflim[k] = signal.fftconvolve(image_truth[k], psf, mode='same')
 
 	if plotIt:
-		plt.figure()
+		plt.figure(figsize=(3*FIGSIZE, FIGSIZE))
 		plt.subplot(1,3,1)
 		plt.imshow(psf)
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Diffraction-limited PSF of telescope')
 		plt.subplot(1,3,2)
 		plt.imshow(image_truth[0])
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Truth image')
 		plt.subplot(1,3,3)
 		plt.imshow(image_difflim[0])
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Diffraction-limited image')
 		plt.suptitle('Diffraction-limiting image')
 		plt.show()
@@ -183,18 +194,22 @@ def getSeeingLimitedImage(images, seeing_diameter_as, plate_scale_as,
 		image_seeing_limited_cropped[k] = image_seeing_limited[pad_ud : height + pad_ud, pad_lr : width + pad_lr]		
 
 	if plotIt:
-		plt.figure()
+		plt.figure(figsize=(2*FIGSIZE, 2*FIGSIZE))
 		plt.subplot(2,2,1)
 		plt.imshow(image)
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Input image')
 		plt.subplot(2,2,2)
 		plt.imshow(kernel)
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Kernel')
 		plt.subplot(2,2,3)
 		plt.imshow(image_seeing_limited[0])
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Convolved image')
 		plt.subplot(2,2,4)
 		plt.imshow(image_seeing_limited_cropped[0])
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Cropped, convolved image')
 
 	return np.squeeze(image_seeing_limited_cropped)
@@ -211,8 +226,10 @@ def getSeeingLimitedImage(images, seeing_diameter_as, plate_scale_as,
 		The actual statistical properties of the nosie (i.e. the standard deviation) are actually determined by Poisson
 		statistics!
 """
-def addNoise(images,band,t_exp):
-	" Add noise to an array of input images assuming an exposure time t_exp."
+def addNoise(images,band,t_exp, 
+	worstCaseSpider=False
+	plotIt=False):
+	""" Add noise to an array of input images assuming an exposure time t_exp. """
 	print ("Adding noise to image(s)...")
 
 	# Creating an array in which to store the noisy images
@@ -221,7 +238,7 @@ def addNoise(images,band,t_exp):
 	noisyImages = np.copy(images)
 
 	# Getting noise parameters from the ETC.
-	etc_output = exposureTimeCalc(band,t_exp)
+	etc_output = exposureTimeCalc(band = band,t_exp = t_exp)
 
 	# Adding noise to each image.
 	for k in range(N):
@@ -229,6 +246,18 @@ def addNoise(images,band,t_exp):
 		frame_dark = np.ones((height, width)) * etc_output['N_dark'] + np.random.randn(height, width) * etc_output['sigma_dark']
 		frame_cryo = np.ones((height, width)) * etc_output['N_cryo'] + np.random.randn(height, width) * etc_output['sigma_cryo']
 		frame_RN = np.ones((height, width)) * etc_output['N_RN'] + np.random.randn(height, width) * etc_output['sigma_RN']
-		noisyImages[k] += frame_sky + frame_cryo + frame_RN + frame_dark		
+		noisyImages[k] += frame_sky + frame_cryo + frame_RN + frame_dark	
+
+	if plotIt:
+		plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
+		plt.subplot(1,2,1)
+		plt.imshow(images[0], vmin=min(images[0].flatten()), vmax=max(noisyImages[0].flatten()))
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		plt.title('Raw input image')
+		plt.subplot(1,2,2)
+		plt.imshow(noisyImages[0], vmin=min(images[0].flatten()), vmax=max(noisyImages[0].flatten()))
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		plt.title('Noisy image')
+		plt.show()
 
 	return (np.squeeze(noisyImages), etc_output)
