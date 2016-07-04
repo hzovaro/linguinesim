@@ -31,20 +31,27 @@ from __future__ import division
 from apdsim import *
 
 # This routine is independent of telescope, detector geometry.
-def surfaceBrightnessToFlux(mu, wavelength_m,
+def surfaceBrightnessToFlux(mu, 
+	wavelength_m = None,
 	zeropoint = AB_MAGNITUDE_ZEROPOINT	# Default: mu is given in AB magnitudes
 	):
 	"""" 
 		Convert a given surface brightness (expressed in magnitudes/arcsec^2) to 
 		spectral radiance units in both per unit frequency and per unit wavelength.
 		The flux values are returned in both CGS and SI units.
+
+		If a wavelength is not specified then only the spectral radiance per unit 
+		frequency is returned.
 	"""
-	# CGS units
 	F_nu_cgs = np.power(10, - (zeropoint + mu) / 2.5)						# ergs/s/cm^2/arcsec^2/Hz
-	F_lambda_cgs = F_nu_cgs * constants.c / np.power(wavelength_m, 2)		# ergs/s/cm^2/arcsec^2/m
-	# SI units
-	F_nu_si = F_nu_cgs * 1e-7 * 1e4 		# W/m^2/arcsec^2/Hz
-	F_lambda_si = F_lambda_cgs * 1e-7 * 1e4	# W/m^2/arcsec^2/m
+	F_nu_si = F_nu_cgs * 1e-7 * 1e4 										# W/m^2/arcsec^2/Hz
+
+	if wavelength_m != None:
+		F_lambda_cgs = F_nu_cgs * constants.c / np.power(wavelength_m, 2)		# ergs/s/cm^2/arcsec^2/m
+		F_lambda_si = F_lambda_cgs * 1e-7 * 1e4									# W/m^2/arcsec^2/m
+	else:
+		F_lambda_cgs = None
+		F_lambda_si = None
 
 	F = {
 		'F_nu_cgs' 		: F_nu_cgs,
@@ -58,8 +65,7 @@ def surfaceBrightnessToFlux(mu, wavelength_m,
 #########################################################################################################
 def fluxToPhotons(F, wavelength_m, bandwidth_m):
 	"""
-		Convert a given flux from a source (in a format output by surfaceBrightnessToFlux) 
-		into photons/s/m^2/arcsec^2 given a central wavelength and bandwidth of a filter.
+		Convert a given flux from a source (in a dictionary format output by surfaceBrightnessToFlux) into photons/s/m^2/arcsec^2 given a central wavelength and bandwidth of a filter.
 	"""
 	E_photon = constants.h * constants.c / wavelength_m			# J
 	Sigma_photons = F['F_lambda_si'] * bandwidth_m / E_photon	# W/m^2/arcsec^2/m * m/J = photons/s/m^2/arcsec^2
@@ -76,11 +82,13 @@ def photonsToCounts(Sigma_photons, A_tel, plate_scale_as_px, tau, qe, gain):
 	return Sigma_electrons
 
 #########################################################################################################
-def getElectronCount(mu, wavelength_m, bandwidth_m, A_tel, plate_scale_as_px,
+def surfaceBrightnessToElectronCount(mu, A_tel, plate_scale_as_px,
 	tau = 1,
 	qe = 1,
 	gain = 1,
 	magnitudeSystem = None,
+	wavelength_m = None, 
+	bandwidth_m = None, 
 	band = None,
 	):
 	""" 
@@ -88,6 +96,15 @@ def getElectronCount(mu, wavelength_m, bandwidth_m, A_tel, plate_scale_as_px,
 		imaged through a system with collecting area A_tel, throughput tau, quantum efficiency qe, 
 		internal gain gain and a detector plate scale (plate_scale_as) in arcsec/pixel 
 	"""
+
+	if (band == None and (wavelength_m == None or bandwidth_m == None)) or (band != None and (wavelength_m != None or bandwidth_m != None)):
+		print 'ERROR: you must specify either a band (J, H or K) OR a wavelength and bandwidth!'
+		return
+
+	if band != None:
+		wavelength_m = FILTER_BANDS_M[band][0]
+		bandwidth_m = FILTER_BANDS_M[band][1]
+
 	# Getting the magnitude zero points.
 	if magnitudeSystem == 'AB':
 		zeropoint = AB_MAGNITUDE_ZEROPOINT
@@ -100,6 +117,34 @@ def getElectronCount(mu, wavelength_m, bandwidth_m, A_tel, plate_scale_as_px,
 		zeropoint = 0
 
 	F = surfaceBrightnessToFlux(mu=mu, wavelength_m=wavelength_m, zeropoint=zeropoint)
+	Sigma_electrons = fluxToElectronCount(F=F, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain, magnitudeSystem=magnitudeSystem, wavelength_m=wavelength_m,bandwidth_m=bandwidth_m, band=band)                                                             
+	# Sigma_photons = fluxToPhotons(F=F, wavelength_m=wavelength_m, bandwidth_m=bandwidth_m)
+	# Sigma_electrons = photonsToCounts(Sigma_photons=Sigma_photons, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain)
+	return Sigma_electrons
+
+#########################################################################################################
+def fluxToElectronCount(F, A_tel, plate_scale_as_px,
+	tau = 1,
+	qe = 1,
+	gain = 1,
+	magnitudeSystem = None,
+	wavelength_m = None, 
+	bandwidth_m = None, 
+	band = None,
+	):
+	""" 
+		Return the electron count (e/pixel/s) from a source with a given 
+		imaged through a system with collecting area A_tel, throughput tau, quantum efficiency qe, 
+		internal gain gain and a detector plate scale (plate_scale_as) in arcsec/pixel 
+	"""
+	if (band == None and (wavelength_m == None or bandwidth_m == None)) or (band != None and (wavelength_m != None or bandwidth_m != None)):
+		print 'ERROR: you must specify either a band (J, H or K) OR a wavelength and bandwidth!'
+		return
+
+	if band != None:
+		wavelength_m = FILTER_BANDS_M[band][0]
+		bandwidth_m = FILTER_BANDS_M[band][1]
+
 	Sigma_photons = fluxToPhotons(F=F, wavelength_m=wavelength_m, bandwidth_m=bandwidth_m)
 	Sigma_electrons = photonsToCounts(Sigma_photons=Sigma_photons, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain)
 	return Sigma_electrons
