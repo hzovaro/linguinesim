@@ -87,22 +87,6 @@ f_ratio = efl_mm / 1e3 / 2 / r_M1_outer
 plate_scale_as_mm = 206256. / efl_mm
 plate_scale_as_m = plate_scale_as_mm * 1e3 
 
-""" Imaging filter bands """
-filter_bands_um = {
-	# [centre wavelength, width, min, max]
-	# 'Y' : [1.030, 0.100],	
-	'J' : [1.250, 0.160, 1.170, 1.330],
-	'H' : [1.635, 0.290, 1.490, 1.780],
-	'K' : [2.200, 0.340, 2.030, 2.370]
-}
-
-filter_bands_m = {
-	# [centre wavelength, width, min, max]
-	'J' : [1.250e-6, 0.160e-6, 1.170e-6, 1.330e-6],
-	'H' : [1.635e-6, 0.290e-6, 1.490e-6, 1.780e-6],
-	'K' : [2.200e-6, 0.340e-6, 2.030e-6, 2.370e-6]
-}
-
 """ Sky brightness (magnitudes per square arcsec) """
 # Source: http://www.mso.anu.edu.au/pfrancis/reference/reference/node4.html
 # Note these are 'full moon' values -- typical values will be better!
