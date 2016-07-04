@@ -29,9 +29,7 @@
 #########################################################################################################
 #
 #	TO DO:
-#	- in-quadrature PSF: figure out sigma for 
 #	- simulate realistic magnitudes for target objects
-#	- double check the PSF stuff
 #
 #########################################################################################################
 from __future__ import division
@@ -53,6 +51,8 @@ crop_right = 2300
 crop_top = 400
 crop_bottom = 1400
 cropIdx = (crop_left,crop_top,crop_right,crop_bottom)
+wavelength_HST = 455.731982422 * 1e-9
+
 
 # targname = "ARP 274"
 # fname = 'sample-images/arp274/hlsp_heritage_hst_wfpc2_arp274_f814w_v1_sci.fits'
@@ -67,22 +67,17 @@ cropIdx = (crop_left,crop_top,crop_right,crop_bottom)
 # HST & system plate scales
 wfpc2_plate_scale_as_1 = 1.38889E-05 * 3600
 wfpc2_plate_scale_as_2 = 2.77778E-05 * 3600
-sys_plate_scale_as = telescope.plate_scale_as_m * detector.l_px_m
-f_ratio = telescope.f_ratio
+D_HST = 2.4
 
 # Tip/tilt parameters
 pad_tt = 50			# Pad the input image before applying tip/tilt so that we don't get zeros at the edges after tip and tilt are applied.
 seeing_as = 2		# Seeing disc diameter (FWHM) in arcsec
-sigma_tt_px = seeing_as / 2 / sys_plate_scale_as
+sigma_tt_px = seeing_as / 2 / SYSTEM_PLATE_SCALE_AS_PX
 
 # Get the raw images.
 fitsFileData = getRawImages(fname)
 images_hst = fitsFileData[0]
 images_hst, N = getImageSize(images_hst)[0:2]
-# if len(images_hst.shape) > 2:
-# 	N = images_hst.shape[0]
-# else:
-# 	N = 1
 
 # Rotate and crop.
 images_hst = rotateAndCrop(images_hst, angle=angle, cropArg=cropIdx, plotIt=True)
@@ -92,7 +87,7 @@ images_hst = rotateAndCrop(images_hst, angle=angle, cropArg=cropIdx, plotIt=True
 # Resize to the detector.
 images_resized = resizeImagesToDetector(images_hst, 
 	source_plate_scale_as = wfpc2_plate_scale_as_1, 
-	dest_plate_scale_as = sys_plate_scale_as, 
+	dest_plate_scale_as = SYSTEM_PLATE_SCALE_AS_PX, 
 	dest_detector_size_px = (detector.height_px + 2 * pad_tt, detector.width_px + 2 * pad_tt),
 	plotIt=True)
 
@@ -109,14 +104,13 @@ else:
 	images_resized /= maxval
 
 # 2. Multiply by the flux * t_exp
-flux = getPhotonFlux(surfaceBrightness = 12, 
-		wavelength_eff = FILTER_BANDS_M[band][0], 
-		bandwidth = FILTER_BANDS_M[band][1], 
-		plate_scale_as = sys_plate_scale_as, 
+flux = surfaceBrightnessToElectronCount(mu = 12, 
+		band = band, 
+		plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX, 
 		A_tel = telescope.A_collecting, 
 		tau = telescope.tau,
 		qe = detector.qe,
-		gain_av = detector.gain,
+		gain = detector.gain,
 		magnitudeSystem = 'AB')
 
 images_resized *= t_exp * flux
@@ -124,8 +118,15 @@ images_resized *= t_exp * flux
 ############################################################################################
 
 # Diffraction-limit the truth (HST) image.
+# Need to add in quadrature...
+fwhm_23m = FILTER_BANDS_M[band][0] / telescope.D_M1
+fwhm_HST = wavelength_HST / D_HST
+fwhm_leftover = np.sqrt(fwhm_23m * fwhm_23m - fwhm_HST * fwhm_HST)
+D_eff_m = FILTER_BANDS_M[band][0] / fwhm_leftover
+f_ratio_eff = telescope.efl_m / D_eff_m
+
 image_difflim_padded = getDiffractionLimitedImage(images_resized, 
-	f_ratio = f_ratio,
+	f_ratio = f_ratio_eff,
 	detector_size_px = (detector.height_px + 2 * pad_tt, detector.width_px + 2 * pad_tt),
 	l_px_m = detector.l_px_m,
 	wavelength=FILTER_BANDS_M[band][0],
