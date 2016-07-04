@@ -35,12 +35,16 @@
 #	- weird pixelation effect: occurs during call to image.rotate()
 #	- Ultimate goal: what is the minimum surface brightness of galaxies that we can reliably
 #	image with LINGUINI? 
-#	- Image directly onto the APD 
+#	- modify sersic2D function to take as input z, R_trunc, detector width & detector plate scale instead
+#	- appropriate ordering: 
+#	- PSF: should the central intensity be 1? Or something else?
+#	- in getDiffractionLimitedImage: something weird going on with the flux values -- diffraction limited image has higher peak flux than the truth image. Central intensity seems proportional to the f-ratio
 #
 ############################################################################################
 from __future__ import division
 from apdsim import *
 from cosmo_calc import *
+plt.close('all')
 """
 	STEPS:
 	1. Simulate a galaxy. For now, make the effective surface brightness mu_e the only variable parameter. For the morphology assume a combined disc (n = 1) + bulge (n = 4) profile. For the effective radius assume the mean value for SAMI galaxies (R_e ~ 4-5 kpc). Assume an appropriate exposure time (matched to tau_0) for the given imaging band.
@@ -57,28 +61,49 @@ from cosmo_calc import *
 z = 0.095		# Redshift
 D_A_Mpc = distances(z)['D_A_Mpc']	# Angular diameter distance of galaxy (Mpc)
 D_A_kpc = D_A_Mpc * 1e3 			# Angular diameter distance of galaxy (kpc)
-R_e = 4			# Half-light or effective radius (kpc) - that is, the radius enclosing half the total light from the galaxy
+R_e = 20			# Half-light or effective radius (kpc) - that is, the radius enclosing half the total light from the galaxy
 R_trunc = 50	# Truncation radius of disc
-mu_e = 15		# Surface brightness at the half-light radius (AB mag/arcsec^2)
+mu_e = 13		# Surface brightness at the half-light radius (AB mag/arcsec^2)
 n = 4			# Sersic index
-i_deg = 45		# inclination (degrees)
+i_deg = 75		# inclination (degrees)
 theta_deg = 0	# rotation (degrees)
 
 # Observing parameters:
 t_exp = 100e-3	# exposure time (s)
 band = 'K'		# imaging band 
+N_exp = 50		# number of exposures
+seeing_as = 2	# seeing (arcsec)
+sigma_tt_px = 0.5 * seeing_as / SYSTEM_PLATE_SCALE_AS_PX	# tip/tilt standard deviation (px)
 
-# 1. Simulating a galaxy.
-# In units of kpc...
-
+# 1, 2. Simulating a galaxy.
 # Distance subtended by one pixel a distance D_A_kpc away given our plate scale.
 dR_kpc = np.deg2rad(SYSTEM_PLATE_SCALE_AS_PX / 3600) * D_A_kpc
 R_max = dR_kpc * detector.width_px / 2
 
-R, dR, I_map, mu_map = sersic2D(n=n, R_e=R_e, R_trunc=R_trunc, mu_e=mu_e,
+R, dR, F, mu = sersic2D(n=n, R_e=R_e, R_trunc=R_trunc, mu_e=mu_e,
 	R_max = R_max,
 	gridsize = detector.width_px,
 	i_rad=np.deg2rad(i_deg), 
 	theta_rad=np.deg2rad(theta_deg),
+	wavelength_m = FILTER_BANDS_M[band][0],
+	zeropoint = AB_MAGNITUDE_ZEROPOINT,
 	plotIt=True)
 
+# 3. Convolving the image with the PSF of the 2.3 m.
+# 3a. Convert to counts.
+counts_truth = fluxToElectronCount(F = F, A_tel = telescope.A_collecting, plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX, band = band, magnitudeSystem = 'AB', tau = telescope.tau, qe = detector.qe, gain = detector.gain)
+image_truth = t_exp * counts_truth
+# 3b. Diffraction limit the image
+counts_difflim = getDiffractionLimitedImage(image_truth = counts_truth, wavelength = FILTER_BANDS_M[band][0], f_ratio = telescope.f_ratio, l_px_m = detector.l_px_m, detector_size_px = detector.size_px, plotIt = True)
+image_difflim = t_exp * counts_difflim
+
+# 4. Making N_exp copies with randomised tip and tilt.
+images_tt, tt_idxs = addTurbulence(image_difflim, N_tt = N_exp, sigma_tt_px = sigma_tt_px)
+
+# 5. Adding noise to each copy.
+images_tt_noisy, etc_output = addNoise(images = images_tt, band = band, t_exp = t_exp, plotIt = True)
+
+# 6. Shifting-and-stacking.
+image_stacked = shiftAndStack(images = images_tt_noisy, image_ref = image_difflim, plotIt = True)
+
+exportGalaxyFITSFile(image_stacked, n, R_e, mu_e, z, R_trunc, i_deg, band, seeing_as, t_exp, N_exp)
