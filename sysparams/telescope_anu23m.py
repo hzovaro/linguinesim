@@ -79,11 +79,13 @@ tau = 0.909 * 0.909 * 0.909	# telescope transmission
 """ More readable parameters """
 r_M1 = r_M1_outer
 r_M2 = r_M2_outer
+D_M1 = 2 * r_M1
 A_collecting = A_M1_reflective
 
 """ f ratio & plate scale """
 efl_mm = 6010. / 700. * 4840.	# effective focal length
-f_ratio = efl_mm / 1e3 / 2 / r_M1_outer
+efl_m = efl_mm / 1e3
+f_ratio = efl_m / D_M1
 plate_scale_as_mm = 206256. / efl_mm
 plate_scale_as_m = plate_scale_as_mm * 1e3 
 
