@@ -133,23 +133,36 @@ def getImageSize(image_in_array):
 
 #########################################################################################################
 def exportFITSFile(image_in_array, fname,
-	headerData = None, 
-	clobber = False):
+	otherHeaderData = None, 
+	overwriteExisting = False):
 	"""
 		Exports a FITS file containing the image data contained in image_in_array and optional header 
-		data stored in the dictionary headerData. Does not overwrite existing file fname.fits by default,
-		but will if clobber is set to True.
+		data stored in the dictionary otherHeaderData. Does not overwrite existing file fname.fits 
+		by default, but will if overwriteExisting is set to True.
+
+		Some notes: 
+		- It is generally better to give the pixel values in terms of ADU count units instead of flux 
+		values as the sky background component usually appears deceptively small
+		- If the image is an averaged image of, say, N exposures, then NCOMBINE = N and GAIN and
+		RDNOISE are those values corresponding to a single exposure. 
+		- RDNOISE is expressed in units of electrons (not electrons rms?)
+		- If the image is a stacked (summed) image, then NCOMBINE = 1, GAIN corresponds to that of 
+		a single image but RDNOISE = sqrt(N) * RN where RN corresponds to that of a single image.
 
 		Note: HDU stands for 'Header Data Unit'
 	"""
 	hdu = fits.PrimaryHDU()
+
 	# Add data. Note that this automatically updates the header data with the axis sizes. 
 	hdu.data = image_in_array
-	# Add header keywords
-	for key in headerData:
-		hdu.header[key] = headerData[key]
+
+	# Optional header data:
+	if otherHeaderData != None:
+		for key in otherHeaderData:
+			hdu.header[key] = otherHeaderData[key]
+		
 	# Write to disk.
 	if fname.endswith('.fits') == False:
 		fname += '.fits'
-	hdu.writeto(fname, clobber = clobber)
+	hdu.writeto(fname, clobber = overwriteExisting)
 
