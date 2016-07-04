@@ -11,20 +11,20 @@
 #
 #########################################################################################################
 #
-#	This file is part of apd-sim.
+#	This file is part of lignuini-sim.
 #
-#	apd-sim is free software: you can redistribute it and/or modify
+#	lignuini-sim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	apd-sim is distributed in the hope that it will be useful,
+#	lignuini-sim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with apd-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 #########################################################################################################
 from __future__ import division
@@ -33,7 +33,7 @@ from apdsim import *
 def addTurbulence(images, N_tt, sigma_tt_px,
 	crop_tt=None):
 	" Add turbulence to an input `truth' image. Returns N_tt copies of the input image with randomised turbulence added. "
-	" Adding randomised tip/tilt to image(s)..."
+	print "Adding randomised tip/tilt to image(s)..."
 
 	# Tip and tilt for now	
 	images, N, height, width = getImageSize(images)
@@ -69,8 +69,9 @@ def addTurbulence(images, N_tt, sigma_tt_px,
 def shiftAndStack(images, 
 	image_ref=None,
 	N=None, 
+	showAnimatedPlots=False,	# Show an animated plot window of the shifting-and-stacking process.
 	plotIt=False):
-	" Shift and stack the images given in the 3-dimensional array of N images."
+	""" Shift and stack the images given in the 3-dimensional array of N images. """
 	print "Shifting and stacking images..."
 
 	# Error checking
@@ -118,15 +119,18 @@ def shiftAndStack(images,
 		image_stacked += shift(images[k], (-img_peak_idxs[k][0].astype(int), -img_peak_idxs[k][1].astype(int)))
 
 		# Plotting
-		if plotIt:
+		if showAnimatedPlots:
 			if k == 0:
-				plt.figure()
+				plt.figure(figsize=(3*FIGSIZE, FIGSIZE))
 				plt.subplot(1,3,1)
 				plt.imshow(images[0],origin='lower')
 				plt.subplot(1,3,2)
 				scat2 = plt.scatter(0.0,0.0,c='r',s=20)
 				plt.subplot(1,3,3)
 				scat3 = plt.scatter(0.0,0.0,c='g',s=40)
+
+			plt.subplot(1,3,1)
+			plt.imshow(image_stacked,origin='lower')
 
 			plt.subplot(1,3,2)
 			plt.imshow(images[k],origin='lower')	
@@ -145,5 +149,17 @@ def shiftAndStack(images,
 			# plt.scatter([peak_idxs[k][0]], [peak_idxs[k][1]], c='r', s=20)
 			plt.draw()
 			plt.pause(1)
+
+	if plotIt:
+		plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
+		plt.subplot(1,2,1)
+		plt.imshow(images[0], vmin=min(images[0].flatten()), vmax=max(image_stacked.flatten()))
+		plt.title('Single exposure')
+		plt.colorbar()
+		plt.subplot(1,2,2)
+		plt.imshow(image_stacked, vmin=min(images[0].flatten()), vmax=max(image_stacked.flatten()))
+		plt.title('Shifted-and-stacked image')
+		plt.colorbar()
+		plt.show()
 
 	return image_stacked
