@@ -65,7 +65,7 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size
 		
 	# Resizing to the size of the detector.
 	if dest_height_px > detector_height_px:
-		images = images[:, images.shape[height_idx]/2-detector_height_px/2:images.shape[height_idx]/2+detector_height_px/2, :]
+		images = images[:, images.shape[height_idx]//2-detector_height_px//2:images.shape[height_idx]//2+detector_height_px//2, :]
 		pad_height_top = 0
 		pad_height_bottom = 0
 	else:
@@ -73,7 +73,7 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size
 		pad_height_bottom = np.ceil((detector_height_px - images.shape[height_idx])/2.).astype(np.int)
 
 	if dest_width_px > detector_width_px:
-		images = images[:, :, images.shape[width_idx]/2-detector_width_px/2:images.shape[width_idx]/2+detector_width_px/2]
+		images = images[:, :, images.shape[width_idx]//2-detector_width_px//2:images.shape[width_idx]//2+detector_width_px//2]
 		pad_width_left = 0
 		pad_width_right = 0
 	else: 
@@ -118,8 +118,8 @@ def getDiffractionLimitedImage(image_truth, wavelength, f_ratio, l_px_m,
 		detector_width_px = width	
 
 	# Calculating the PSF
-	x = np.arange(-detector_height_px/2, +detector_height_px/2 + detector_height_px%2, 1) * l_px_m
-	y = np.arange(-detector_width_px/2, +detector_width_px/2 + detector_width_px%2, 1) * l_px_m
+	x = np.arange(-detector_height_px//2, +detector_height_px//2 + detector_height_px%2, 1) * l_px_m
+	y = np.arange(-detector_width_px//2, +detector_width_px//2 + detector_width_px%2, 1) * l_px_m
 	X, Y = np.meshgrid(x, y)
 	# x in units of m
 	r = np.pi / wavelength / f_ratio * np.sqrt(np.power(X,2) + np.power(Y,2))
@@ -165,20 +165,20 @@ def getSeeingLimitedImage(images, seeing_diameter_as, plate_scale_as,
 	images, N, height, width = getImageSize(images)
 
 	# Padding the source image.
-	pad_ud = height / padFactor / 2
-	pad_lr = width / padFactor / 2
+	pad_ud = height // padFactor // 2
+	pad_lr = width // padFactor // 2
 	
 	# If the image dimensions are odd, need to ad an extra row/column of zeros.
-	# image_padded = np.pad(images[0], ((pad_ud,pad_ud + height % 2),(pad_lr,pad_lr + width % 2)), mode='constant')
+	image_padded = np.pad(images[0], ((pad_ud,pad_ud + height % 2),(pad_lr,pad_lr + width % 2)), mode='constant')
 	# conv_height = image_padded.shape[0]
 	# conv_width = image_padded.shape[1]
 	conv_height = 2 * pad_ud + height + (height % 2)
 	conv_width = 2 * pad_lr + width + (width % 2)
 
 	# Generate a Gaussian kernel.
-	kernel = np.zeros(image_padded.shape)
-	y_as = np.arange(-conv_width /2, +conv_width/2, 1) * plate_scale_as
-	x_as = np.arange(-conv_height/2, +conv_height/2, 1) * plate_scale_as
+	kernel = np.zeros((conv_height, conv_width))
+	y_as = np.arange(-conv_width//2, +conv_width//2 + conv_width%2, 1) * plate_scale_as
+	x_as = np.arange(-conv_height//2, +conv_height//2 + conv_height%2, 1) * plate_scale_as
 	X, Y = np.meshgrid(x_as, y_as)
 	sigma = seeing_diameter_as / (2 * np.sqrt(2 * np.log(2)))
 	kernel = np.exp(-(np.power(X, 2) + np.power(Y, 2)) / (2 * np.power(sigma,2)))
@@ -227,7 +227,7 @@ def getSeeingLimitedImage(images, seeing_diameter_as, plate_scale_as,
 		statistics!
 """
 def addNoise(images,band,t_exp, 
-	worstCaseSpider=False
+	worstCaseSpider=False,
 	plotIt=False):
 	""" Add noise to an array of input images assuming an exposure time t_exp. """
 	print ("Adding noise to image(s)...")
