@@ -37,6 +37,8 @@
 ############################################################################################################                                                               
 from __future__ import division
 
+############################################################################################################
+" Global variables "
 # Vega band magnitudes calculated using data from https://www.astro.umd.edu/~ssm/ASTR620/mags.html
 VEGA_MAGNITUDE_ZEROPOINT = {
 	'J' : 49.46953099,
@@ -44,9 +46,27 @@ VEGA_MAGNITUDE_ZEROPOINT = {
 	'K' : 50.47441871
 }
 AB_MAGNITUDE_ZEROPOINT = 48.6
-FIGSIZE = 7.5
 
-# Required packages
+# Plotting
+FIGSIZE = 5
+COLORBAR_FRACTION = 0.046
+COLORBAR_PAD = 0.04
+
+# Near-IR filter bands
+FILTER_BANDS_UM = {
+	# [centre wavelength, width, min, max]
+	'J' : [1.250, 0.160, 1.170, 1.330],
+	'H' : [1.635, 0.290, 1.490, 1.780],
+	'K' : [2.200, 0.340, 2.030, 2.370]
+}
+FILTER_BANDS_M = {
+	# [centre wavelength, width, min, max]
+	'J' : [1.250e-6, 0.160e-6, 1.170e-6, 1.330e-6],
+	'H' : [1.635e-6, 0.290e-6, 1.490e-6, 1.780e-6],
+	'K' : [2.200e-6, 0.340e-6, 2.030e-6, 2.370e-6]
+}
+############################################################################################################
+" Various packages "
 import scipy.constants as constants
 import scipy.integrate as integrate
 import scipy.optimize as opt
@@ -74,6 +94,7 @@ from astropy.io import fits
 import sysparams.cryo as cryo
 import sysparams.detector_saphira as detector
 import sysparams.telescope_anu23m as telescope
+SYSTEM_PLATE_SCALE_AS_PX = detector.l_px_m * telescope.plate_scale_as_m
 
 # Importing modules
 from apdsim.imutils import *
