@@ -32,7 +32,9 @@ from apdsim import *
 
 def addTurbulence(images, N_tt, sigma_tt_px,
 	crop_tt=None):
-	" Add turbulence to an input `truth' image. Returns N_tt copies of the input image with randomised turbulence added. "
+	""" 
+		Add turbulence to an input `truth' image. Returns N_tt copies of the input image with randomised turbulence added. 
+	"""
 	print "Adding randomised tip/tilt to image(s)..."
 
 	# Tip and tilt for now	
@@ -71,7 +73,9 @@ def shiftAndStack(images,
 	N=None, 
 	showAnimatedPlots=False,	# Show an animated plot window of the shifting-and-stacking process.
 	plotIt=False):
-	""" Shift and stack the images given in the 3-dimensional array of N images. """
+	""" 
+		Shift and stack the images given in the 3-dimensional array of N images. 
+	"""
 	print "Shifting and stacking images..."
 
 	# Error checking
