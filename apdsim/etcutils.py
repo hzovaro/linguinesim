@@ -137,13 +137,13 @@ def fluxToElectronCount(F, A_tel, plate_scale_as_px,
 		imaged through a system with collecting area A_tel, throughput tau, quantum efficiency qe, 
 		internal gain gain and a detector plate scale (plate_scale_as) in arcsec/pixel 
 	"""
-	if (band == None and (wavelength_m == None or bandwidth_m == None)) or (band != None and (wavelength_m != None or bandwidth_m != None)):
-		print 'ERROR: you must specify either a band (J, H or K) OR a wavelength and bandwidth!'
-		return
 
 	if band != None:
 		wavelength_m = FILTER_BANDS_M[band][0]
 		bandwidth_m = FILTER_BANDS_M[band][1]
+	elif (wavelength_m == None or bandwidth_m == None):
+		print 'ERROR: you must specify either a band (J, H or K) OR a wavelength and bandwidth!'
+		return
 
 	Sigma_photons = fluxToPhotons(F=F, wavelength_m=wavelength_m, bandwidth_m=bandwidth_m)
 	Sigma_electrons = photonsToCounts(Sigma_photons=Sigma_photons, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain)
