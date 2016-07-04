@@ -11,20 +11,20 @@
 #
 #########################################################################################################
 #
-#	This file is part of apd-sim.
+#	This file is part of lignuini-sim.
 #
-#	apd-sim is free software: you can redistribute it and/or modify
+#	lignuini-sim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	apd-sim is distributed in the hope that it will be useful,
+#	lignuini-sim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with apd-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 #########################################################################################################
 #
@@ -110,13 +110,13 @@ else:
 
 # 2. Multiply by the flux * t_exp
 flux = getPhotonFlux(surfaceBrightness = 12, 
-		wavelength_eff = telescope.filter_bands_m[band][0], 
-		bandwidth = telescope.filter_bands_m[band][1], 
+		wavelength_eff = FILTER_BANDS_M[band][0], 
+		bandwidth = FILTER_BANDS_M[band][1], 
 		plate_scale_as = sys_plate_scale_as, 
 		A_tel = telescope.A_collecting, 
 		tau = telescope.tau,
 		qe = detector.qe,
-		gain_av = detector.gain_av,
+		gain_av = detector.gain,
 		magnitudeSystem = 'AB')
 
 images_resized *= t_exp * flux
@@ -128,7 +128,7 @@ image_difflim_padded = getDiffractionLimitedImage(images_resized,
 	f_ratio = f_ratio,
 	detector_size_px = (detector.height_px + 2 * pad_tt, detector.width_px + 2 * pad_tt),
 	l_px_m = detector.l_px_m,
-	wavelength=telescope.filter_bands_m[band][0],
+	wavelength=FILTER_BANDS_M[band][0],
 	plotIt=False)
 
 image_difflim = rotateAndCrop(image_difflim_padded, angle=0., 

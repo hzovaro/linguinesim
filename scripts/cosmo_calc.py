@@ -129,82 +129,82 @@ def distances(z=3.0, verbose=False):
 	}
 
 ###################################################################################
-# def thetaVsRedshift():
-" Calculate the angular size subtended on the size by 1 kpc as a function of redshift. "
-# Diffraction-limited resolution at the ANU 2.3 m
-res_ANU_J = 1.25e-6 / 2.3 * 180 / np.pi * 3600
-res_ANU_H = 1.635e-6 / 2.3 * 180 / np.pi * 3600
-res_ANU_K = 2.2e-6 / 2.3 * 180 / np.pi * 3600
-# For SAMI
-res_SAMI = 1.6
+def thetaVsRedshift():
+	" Calculate the angular size subtended on the size by 1 kpc as a function of redshift. "
+	# Diffraction-limited resolution at the ANU 2.3 m
+	res_ANU_J = 1.25e-6 / 2.3 * 180 / np.pi * 3600
+	res_ANU_H = 1.635e-6 / 2.3 * 180 / np.pi * 3600
+	res_ANU_K = 2.2e-6 / 2.3 * 180 / np.pi * 3600
+	# For SAMI
+	res_SAMI = 1.6
 
-z = np.linspace(0.004,0.095,500)
-D_A = np.zeros(z.shape)
-D_L = np.zeros(z.shape)
-D_now = np.zeros(z.shape) 
-# theta_arc = np.zeros(z.shape)
-theta_D_A = np.zeros(z.shape)
-theta_D_L = np.zeros(z.shape)
-theta_D_now = np.zeros(z.shape)
+	z = np.linspace(0.004,0.095,500)
+	D_A = np.zeros(z.shape)
+	D_L = np.zeros(z.shape)
+	D_now = np.zeros(z.shape) 
+	# theta_arc = np.zeros(z.shape)
+	theta_D_A = np.zeros(z.shape)
+	theta_D_L = np.zeros(z.shape)
+	theta_D_now = np.zeros(z.shape)
 
-for k in range(z.size):
-	dist = distances(z[k])
-	D_A[k] = dist['D_A_Mpc']
-	D_L[k] = dist['D_L_Mpc']
-	D_now[k] = dist['D_now_Mpc']
-	theta_D_A[k] = 2 * np.arctan(1e-3 / 2 / D_A[k]) * 180 / np.pi * 3600
+	for k in range(z.size):
+		dist = distances(z[k])
+		D_A[k] = dist['D_A_Mpc']
+		D_L[k] = dist['D_L_Mpc']
+		D_now[k] = dist['D_now_Mpc']
+		theta_D_A[k] = 2 * np.arctan(1e-3 / 2 / D_A[k]) * 180 / np.pi * 3600
 
-# Plotting
-plt.close('all')
-plt.figure()
-plt.subplot(1,2,1)
-plt.semilogy(z, theta_D_A, 'g', label=r'$\theta$')
-# SAMI resolution as reference
-plt.semilogy(z, np.ones(z.shape) * res_ANU_J, color='darkorange', label=r'2.3 m, $J$-band')
-plt.semilogy(z, np.ones(z.shape) * res_ANU_H, color='orangered', label=r'2.3 m, $H$-band')
-plt.semilogy(z, np.ones(z.shape) * res_ANU_K, color='darkred', label=r'2.3 m, $K$-band')
-plt.semilogy(z, np.ones(z.shape) * 1.6, 'k--', label='SAMI (diffraction-limited)')
-plt.semilogy(z, np.ones(z.shape) * 2.1, linestyle='dashed', color='darkgrey', label='SAMI (median seeing)')
-plt.semilogy(z, np.ones(z.shape) * 1., linestyle='dashed', color='blue', label='Ground-based imaging data resolution')
-plt.xlim([min(z), max(z)])
-plt.legend()
-# plt.xlabel(r'$D_A(z)$ (Mpc)')
-plt.xlabel(r'Redshift $z$')
-# plt.ylabel(r'Angular size $\log_{10}(\theta)$ (arcsec)')
-plt.ylabel(r'Angular size $\theta$ (arcsec)')
-plt.title(r'Angular size subtended on sky by 1 kpc')
+	# Plotting
+	plt.close('all')
+	plt.figure()
+	plt.subplot(1,2,1)
+	plt.semilogy(z, theta_D_A, 'g', label=r'$\theta$')
+	# SAMI resolution as reference
+	plt.semilogy(z, np.ones(z.shape) * res_ANU_J, color='darkorange', label=r'2.3 m, $J$-band')
+	plt.semilogy(z, np.ones(z.shape) * res_ANU_H, color='orangered', label=r'2.3 m, $H$-band')
+	plt.semilogy(z, np.ones(z.shape) * res_ANU_K, color='darkred', label=r'2.3 m, $K$-band')
+	plt.semilogy(z, np.ones(z.shape) * 1.6, 'k--', label='SAMI (diffraction-limited)')
+	plt.semilogy(z, np.ones(z.shape) * 2.1, linestyle='dashed', color='darkgrey', label='SAMI (median seeing)')
+	plt.semilogy(z, np.ones(z.shape) * 1., linestyle='dashed', color='blue', label='Ground-based imaging data resolution')
+	plt.xlim([min(z), max(z)])
+	plt.legend()
+	# plt.xlabel(r'$D_A(z)$ (Mpc)')
+	plt.xlabel(r'Redshift $z$')
+	# plt.ylabel(r'Angular size $\log_{10}(\theta)$ (arcsec)')
+	plt.ylabel(r'Angular size $\theta$ (arcsec)')
+	plt.title(r'Angular size subtended on sky by 1 kpc')
 
-" Calculate the distance correspoding to a given on-sky angle as a function of redshift "
-# SAMI
-l_groundbased = 2 * np.tan(1. / 3600 * np.pi / 180 / 2) * D_A * 1e3
-l_SAMI = 2 * np.tan(1.6 / 3600 * np.pi / 180 / 2) * D_A * 1e3
-l_SAMI_median = 2 * np.tan(2.1 / 3600 * np.pi / 180 / 2) * D_A * 1e3
-l_ANU_J = 2 * np.tan(res_ANU_J / 3600 * np.pi / 180 / 2) * D_A * 1e3
-l_ANU_H = 2 * np.tan(res_ANU_H / 3600 * np.pi / 180 / 2) * D_A * 1e3
-l_ANU_K = 2 * np.tan(res_ANU_K / 3600 * np.pi / 180 / 2) * D_A * 1e3
+	" Calculate the distance correspoding to a given on-sky angle as a function of redshift "
+	# SAMI
+	l_groundbased = 2 * np.tan(1. / 3600 * np.pi / 180 / 2) * D_A * 1e3
+	l_SAMI = 2 * np.tan(1.6 / 3600 * np.pi / 180 / 2) * D_A * 1e3
+	l_SAMI_median = 2 * np.tan(2.1 / 3600 * np.pi / 180 / 2) * D_A * 1e3
+	l_ANU_J = 2 * np.tan(res_ANU_J / 3600 * np.pi / 180 / 2) * D_A * 1e3
+	l_ANU_H = 2 * np.tan(res_ANU_H / 3600 * np.pi / 180 / 2) * D_A * 1e3
+	l_ANU_K = 2 * np.tan(res_ANU_K / 3600 * np.pi / 180 / 2) * D_A * 1e3
 
-plt.subplot(1,2,2)
-plt.plot(z, l_ANU_J, color='darkorange', label=r'2.3 m, $J$-band')
-plt.plot(z, l_ANU_H, color='orangered', label=r'2.3 m, $H$-band')
-plt.plot(z, l_ANU_K, color='darkred', label=r'2.3 m, $K$-band')
-plt.plot(z, l_SAMI, 'k--', label='SAMI (diffraction-limited)')
-plt.plot(z, l_SAMI_median, linestyle='dashed', color='darkgrey', label='SAMI (median seeing)')
-plt.plot(z, l_groundbased, linestyle='dashed', color='blue', label='Ground-based imaging data resolution')
-plt.xlim([min(z), max(z)])
-plt.legend(loc='upper left')
-plt.xlabel(r'Redshift $z$')
-plt.ylabel(r'$l$ (kpc)')
-plt.title(r'Distance corresponding to diffraction-limited resolution')
-plt.show()
+	plt.subplot(1,2,2)
+	plt.plot(z, l_ANU_J, color='darkorange', label=r'2.3 m, $J$-band')
+	plt.plot(z, l_ANU_H, color='orangered', label=r'2.3 m, $H$-band')
+	plt.plot(z, l_ANU_K, color='darkred', label=r'2.3 m, $K$-band')
+	plt.plot(z, l_SAMI, 'k--', label='SAMI (diffraction-limited)')
+	plt.plot(z, l_SAMI_median, linestyle='dashed', color='darkgrey', label='SAMI (median seeing)')
+	plt.plot(z, l_groundbased, linestyle='dashed', color='blue', label='Ground-based imaging data resolution')
+	plt.xlim([min(z), max(z)])
+	plt.legend(loc='upper left')
+	plt.xlabel(r'Redshift $z$')
+	plt.ylabel(r'$l$ (kpc)')
+	plt.title(r'Distance corresponding to diffraction-limited resolution')
+	plt.show()
 
-" Cosmological distances "
-# plt.figure()
-# plt.plot(z, D_A, 'r', label=r'$D_A(z)$')
-# plt.plot(z, D_L, 'b', label=r'$D_L(z)$')
-# plt.plot(z, D_now, 'g', label=r'$D_{now}(z)$')
-# plt.xlim([min(z), max(z)])
-# plt.legend(loc='lower right')
-# plt.xlabel(r'Redshift $z$')
-# plt.ylabel(r'Distance (Mpc)')
-# plt.title(r'Cosmological distances')
-# plt.show()
+	" Cosmological distances "
+	plt.figure()
+	plt.plot(z, D_A, 'r', label=r'$D_A(z)$')
+	plt.plot(z, D_L, 'b', label=r'$D_L(z)$')
+	plt.plot(z, D_now, 'g', label=r'$D_{now}(z)$')
+	plt.xlim([min(z), max(z)])
+	plt.legend(loc='lower right')
+	plt.xlabel(r'Redshift $z$')
+	plt.ylabel(r'Distance (Mpc)')
+	plt.title(r'Cosmological distances')
+	plt.show()
