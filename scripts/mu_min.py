@@ -30,15 +30,13 @@
 ############################################################################################
 #
 #	TO DO:
-#	- Check consistency of np.log usage!
 #	- better way of calculating b_n
 #	- weird pixelation effect: occurs during call to image.rotate()
 #	- Ultimate goal: what is the minimum surface brightness of galaxies that we can reliably
 #	image with LINGUINI? 
 #	- modify sersic2D function to take as input z, R_trunc, detector width & detector plate scale instead
-#	- appropriate ordering: 
+#	- appropriate ordering 
 #	- PSF: should the central intensity be 1? Or something else?
-#	- in getDiffractionLimitedImage: something weird going on with the flux values -- diffraction limited image has higher peak flux than the truth image. Central intensity seems proportional to the f-ratio
 #
 ############################################################################################
 from __future__ import division
