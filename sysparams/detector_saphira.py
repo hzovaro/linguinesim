@@ -33,7 +33,7 @@ from __future__ import division
 from sysparams import *
 
 """ Efficiency properties """
-gain_av = 52				# avalanche gain (electrons/photelectron)
+gain = 52					# avalanche gain (electrons/photelectron)
 qe = 0.9					# quantum efficiency (worst-case)
 adu_gain = 1 / 2.9			# electrons/ADU 
 
