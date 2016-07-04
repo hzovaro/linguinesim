@@ -49,20 +49,10 @@ def exposureTimeCalc(
 		worstCaseSpider = False
 	):
 
-	wavelength_eff = telescope.filter_bands_m[band][0]
-	bandwidth = telescope.filter_bands_m[band][1]
-	wavelength_min = telescope.filter_bands_m[band][2]
-	wavelength_max = telescope.filter_bands_m[band][3]
-
-	E_photon = constants.h * constants.c / wavelength_eff
-	# Vega band magnitudes calculated using data from https://www.astro.umd.edu/~ssm/ASTR620/mags.html
-	# Note: the bandwidths used to calculate these numbers DO NOT correspond to those in our system but are
-	# slightly different. Hence there is some inaccuracy involved in using Vega magnitudes as the input.
-	Vega_magnitudes = {
-		'J' : 49.46953099,
-		'H' : 49.95637318,
-		'K' : 50.47441871
-	}
+	wavelength_eff = FILTER_BANDS_M[band][0]
+	bandwidth = FILTER_BANDS_M[band][1]
+	wavelength_min = FILTER_BANDS_M[band][2]
+	wavelength_max = FILTER_BANDS_M[band][3]
 
 	""" Telescope-detector system properties """
 	# Calculate the plate scale.
@@ -77,14 +67,14 @@ def exposureTimeCalc(
 	
 	""" Signal photon flux """
 	# Given the surface brightness and angular extent of the image, calculate the source electrons/s/pixel.
-	Sigma_source_e = getElectronCount(mu = surfaceBrightness, 
+	Sigma_source_e = surfaceBrightnessToElectronCount(mu = surfaceBrightness, 
 		wavelength_m = wavelength_eff, 
 		bandwidth_m = bandwidth, 
 		plate_scale_as_px = plate_scale_as, 
 		A_tel = telescope.A_collecting, 
 		tau = telescope.tau * cryo.Tr_win,
 		qe = detector.qe,
-		gain = detector.gain_av,
+		gain = detector.gain,
 		magnitudeSystem = 'AB'
 	)
 
@@ -99,14 +89,14 @@ def exposureTimeCalc(
 
 	""" Empirical sky background flux """
 	# Sigma_sky_emp = getPhotonFlux(surfaceBrightness = telescope.sky_brightness[band], 
-	Sigma_sky_emp = getElectronCount(mu = telescope.sky_brightness[band], 
+	Sigma_sky_emp = surfaceBrightnessToElectronCount(mu = telescope.sky_brightness[band], 
 		wavelength_m = wavelength_eff, 
 		bandwidth_m = bandwidth, 
 		plate_scale_as_px = plate_scale_as, 
 		A_tel = telescope.A_collecting, 
 		tau = telescope.tau * cryo.Tr_win,
 		qe = detector.qe,
-		gain = detector.gain_av,
+		gain = detector.gain,
 		magnitudeSystem = 'AB'
 	)
 
@@ -134,7 +124,6 @@ def exposureTimeCalc(
 	N_RN = detector.read_noise * detector.read_noise
 
 	SNR = N_source / np.sqrt(N_source + N_dark + N_cryo + N_sky + N_RN)
-
 	#########################################################################################################
 
 	etc_output = {
@@ -186,7 +175,7 @@ def getCryostatTE(plotIt=True):
 			wavelength_max = detector.wavelength_cutoff,
 			Omega = cryo.Omega,
 			eps = cryo.eps_wall,
-			eta = detector.gain_av * detector.qe
+			eta = detector.gain * detector.qe
 			)
 		I_cryo_h[k] = thermalEmissionIntensity(
 			T = T_cryo[k],
@@ -195,7 +184,7 @@ def getCryostatTE(plotIt=True):
 			wavelength_max = detector.wavelength_cutoff_h,
 			Omega = cryo.Omega,
 			eps = cryo.eps_wall,
-			eta = detector.gain_av * detector.qe
+			eta = detector.gain * detector.qe
 			)
 		# Find the crossing point
 		if abs(I_cryo[k] - detector.dark_current) < minVal:
@@ -238,7 +227,7 @@ def getSkyTE(T_sky=273, plotIt=True):
 		'K' : 0.0
 	}
 	
-	plate_scale_as_px = telescope.plate_scale_as_m * detector.l_px_m
+	plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX
 	plate_scale_rad_px = plate_scale_as_px / 3600 * np.pi / 180
 	Omega_px_rad = plate_scale_rad_px * plate_scale_rad_px
 
@@ -262,8 +251,8 @@ def getSkyTE(T_sky=273, plotIt=True):
 	eps_sky = getSkyEps()
 
 	for key in I_sky:
-		wavelength_min = telescope.filter_bands_m[key][2]
-		wavelength_max = telescope.filter_bands_m[key][3]
+		wavelength_min = FILTER_BANDS_M[key][2]
+		wavelength_max = FILTER_BANDS_M[key][3]
 		I_sky[key] = thermalEmissionIntensity(
 			T = T_sky, 
 			wavelength_min = wavelength_min, 
@@ -273,7 +262,7 @@ def getSkyTE(T_sky=273, plotIt=True):
 			eps = eps_sky
 			)
 		# Multiply by the gain, QE and telescope transmission to get units of electrons/s/px.
-		I_sky[key] = detector.gain_av * detector.qe * telescope.tau * cryo.Tr_win * I_sky[key]
+		I_sky[key] = detector.gain * detector.qe * telescope.tau * cryo.Tr_win * I_sky[key]
 
 	if plotIt:
 		D = np.ones(1000)*detector.dark_current
@@ -284,8 +273,8 @@ def getSkyTE(T_sky=273, plotIt=True):
 		plt.plot(wavelengths*1e6, D, 'g--', label=r'Dark current')
 		# Imager mode
 		for key in I_sky:
-			plt.errorbar(telescope.filter_bands_m[key][0]*1e6, I_sky[key], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='o')
-			plt.text(telescope.filter_bands_m[key][0]*1e6, I_sky[key]*5, key)
+			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, I_sky[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='o')
+			plt.text(FILTER_BANDS_M[key][0]*1e6, I_sky[key]*5, key)
 
 		plt.yscale('log')
 		plt.axis('tight')
@@ -308,13 +297,13 @@ def getTelescopeTE(T_sky=273, plotIt=True, worstCaseSpider=False):
 	}
 	
 	# plate_scale_as_px = telescope.plate_scale_as_mm * detector.l_px
-	plate_scale_as_px = telescope.plate_scale_as_m * detector.l_px_m
+	plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX
 	plate_scale_rad_px = plate_scale_as_px / 3600 * np.pi / 180
 	Omega_px_rad = plate_scale_rad_px * plate_scale_rad_px
 
 	for key in I_tel:
-		wavelength_min = telescope.filter_bands_m[key][2]
-		wavelength_max = telescope.filter_bands_m[key][3]
+		wavelength_min = FILTER_BANDS_M[key][2]
+		wavelength_max = FILTER_BANDS_M[key][3]
 		
 		I_M1 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = telescope.eps_M1_eff)
 		I_M2 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M2_total_eff, eps = telescope.eps_M2_eff)
@@ -326,7 +315,7 @@ def getTelescopeTE(T_sky=273, plotIt=True, worstCaseSpider=False):
 			# BEST CASE: assume the spider has a fresh aluminium coating - so 9.1% emissive at sky temp and 90.1% emissive at telescope temp
 			I_spider = \
 				thermalEmissionIntensity(T = telescope.T, 	wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = telescope.eps_spider_eff)\
-			  + thermalEmissionIntensity(T = T_sky, 		wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = (1 - telescope.eps_spider_eff) * eps_sky)
+			  + thermalEmissionIntensity(T = T_sky, 		wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = lambda wavelength : (1 - telescope.eps_spider_eff) * eps_sky(wavelength))
 		else:
 			# WORST CASE: assume the spider is 100% emissive at telescope temperature (i.e. not reflective at all)
 			I_spider = \
@@ -337,7 +326,7 @@ def getTelescopeTE(T_sky=273, plotIt=True, worstCaseSpider=False):
 
 		# Multiply by the gain and QE to get units of electrons/s/px.
 		# We don't multiply by the transmission because the mirrors themselves are emitting.
-		I_tel[key] = detector.gain_av * detector.qe * cryo.Tr_win * (I_M1 + I_M2 + I_M3 + I_spider) + detector.gain_av * detector.qe * I_window
+		I_tel[key] = detector.gain * detector.qe * cryo.Tr_win * (I_M1 + I_M2 + I_M3 + I_spider) + detector.gain * detector.qe * I_window
 
 	if plotIt:
 		D = np.ones(1000)*detector.dark_current
@@ -347,9 +336,9 @@ def getTelescopeTE(T_sky=273, plotIt=True, worstCaseSpider=False):
 		plt.figure(figsize=(FIGSIZE,FIGSIZE))
 		plt.plot(wavelengths*1e6, D, 'g--', label=r'Dark current')
 
-		for key in telescope.filter_bands_m:
-			plt.errorbar(telescope.filter_bands_m[key][0]*1e6, I_tel[key], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='o')
-			plt.text(telescope.filter_bands_m[key][0]*1e6, I_tel[key]*5, key)
+		for key in FILTER_BANDS_M:
+			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, I_tel[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='o')
+			plt.text(FILTER_BANDS_M[key][0]*1e6, I_tel[key]*5, key)
 
 		plt.yscale('log')
 		plt.axis('tight')
@@ -387,19 +376,19 @@ def plotBackgroundNoiseSources():
 	}
 	for key in counts:
 		if key == 'J':
-			plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_emp'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='o', ecolor=plotColors[key], mfc=plotColors[key], label='Empirical sky background')
-			plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_thermal'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='^', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal sky background')
-			plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_tel'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope background')
-			# eb=plt.errorbar(telescope.filter_bands_m[key][0]*1e6, N_tel_worstcase[key], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope background (worst-case)')
+			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_emp'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='o', ecolor=plotColors[key], mfc=plotColors[key], label='Empirical sky background')
+			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_thermal'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='^', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal sky background')
+			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_tel'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope background')
+			# eb=plt.errorbar(FILTER_BANDS_M[key][0]*1e6, N_tel_worstcase[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope background (worst-case)')
 			# eb[-1][0].set_linestyle('--')
 		else:
-			plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_emp'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='o', ecolor=plotColors[key], mfc=plotColors[key])
-			plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_thermal'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='^', ecolor=plotColors[key], mfc=plotColors[key])
-			plt.errorbar(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_tel'], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key])
-			# eb=plt.errorbar(telescope.filter_bands_m[key][0]*1e6, N_tel_worstcase[key], 0, telescope.filter_bands_m[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key])
+			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_emp'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='o', ecolor=plotColors[key], mfc=plotColors[key])
+			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_thermal'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='^', ecolor=plotColors[key], mfc=plotColors[key])
+			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_tel'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key])
+			# eb=plt.errorbar(FILTER_BANDS_M[key][0]*1e6, N_tel_worstcase[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key])
 			# eb[-1][0].set_linestyle('--')
 
-		plt.text(telescope.filter_bands_m[key][0]*1e6, counts[key]['N_sky_emp']*5, key)
+		plt.text(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_emp']*5, key)
 
 	plt.yscale('log')
 	plt.axis('tight')
