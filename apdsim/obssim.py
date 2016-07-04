@@ -156,7 +156,8 @@ def getDiffractionLimitedImage(image_truth, wavelength, f_ratio, l_px_m,
 	return np.squeeze(image_difflim)
 
 #########################################################################################################
-def getSeeingLimitedImage(images, seeing_diameter_as, plate_scale_as,
+def getSeeingLimitedImage(images, seeing_diameter_as, 
+	plate_scale_as=1,
 	padFactor=1,
 	plotIt=False):
 	" Convolve a Gaussian PSF with an input image to simulate seeing with a FWHM of seeing_diameter_as. "
@@ -191,12 +192,12 @@ def getSeeingLimitedImage(images, seeing_diameter_as, plate_scale_as,
 	for k in range(N):
 		image_padded = np.pad(images[k], ((pad_ud,pad_ud + height % 2),(pad_lr,pad_lr + width % 2)), mode='constant')
 		image_seeing_limited[k] = signal.fftconvolve(image_padded, kernel, mode='same')
-		image_seeing_limited_cropped[k] = image_seeing_limited[pad_ud : height + pad_ud, pad_lr : width + pad_lr]		
+		image_seeing_limited_cropped[k] = image_seeing_limited[k,pad_ud : height + pad_ud, pad_lr : width + pad_lr]		
 
 	if plotIt:
 		plt.figure(figsize=(2*FIGSIZE, 2*FIGSIZE))
 		plt.subplot(2,2,1)
-		plt.imshow(image)
+		plt.imshow(images[0])
 		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Input image')
 		plt.subplot(2,2,2)
@@ -211,6 +212,7 @@ def getSeeingLimitedImage(images, seeing_diameter_as, plate_scale_as,
 		plt.imshow(image_seeing_limited_cropped[0])
 		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Cropped, convolved image')
+		plt.show()
 
 	return np.squeeze(image_seeing_limited_cropped)
 
