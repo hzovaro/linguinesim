@@ -27,8 +27,5 @@
 #	along with apd-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 #########################################################################################################
-#
-
-
 from scipy import constants
 import numpy as np
