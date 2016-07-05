@@ -31,7 +31,7 @@ from __future__ import division
 from apdsim import *
 
 # This routine is independent of telescope, detector geometry.
-def surfaceBrightnessToFlux(mu, 
+def surfaceBrightness2flux(mu, 
 	wavelength_m = None,
 	zeropoint = AB_MAGNITUDE_ZEROPOINT	# Default: mu is given in AB magnitudes
 	):
@@ -64,16 +64,16 @@ def surfaceBrightnessToFlux(mu,
 	return F
 
 #########################################################################################################
-def fluxToPhotons(F, wavelength_m, bandwidth_m):
+def flux2photonRate(F, wavelength_m, bandwidth_m):
 	"""
-		Convert a given flux from a source (in a dictionary format output by surfaceBrightnessToFlux) into photons/s/m^2/arcsec^2 given a central wavelength and bandwidth of a filter.
+		Convert a given flux from a source (in a dictionary format output by surfaceBrightness2flux) into photons/s/m^2/arcsec^2 given a central wavelength and bandwidth of a filter.
 	"""
 	E_photon = constants.h * constants.c / wavelength_m			# J
 	Sigma_photons = F['F_lambda_si'] * bandwidth_m / E_photon	# W/m^2/arcsec^2/m * m/J = photons/s/m^2/arcsec^2
 	return Sigma_photons
 
 #########################################################################################################
-def photonsToCounts(Sigma_photons, A_tel, plate_scale_as_px, tau, qe, gain):
+def photonRate2countRate(Sigma_photons, A_tel, plate_scale_as_px, tau, qe, gain):
 	"""
 		Convert a flux given in units of photons/s/m^2/arcsec^2 into detector counts given
 		a telescope collecting area (A_tel), detector plate scale (arcsec/pixel), throughput
@@ -83,7 +83,7 @@ def photonsToCounts(Sigma_photons, A_tel, plate_scale_as_px, tau, qe, gain):
 	return Sigma_electrons
 
 #########################################################################################################
-def surfaceBrightnessToElectronCount(mu, A_tel, plate_scale_as_px,
+def surfaceBrightness2countRate(mu, A_tel, plate_scale_as_px,
 	tau = 1,
 	qe = 1,
 	gain = 1,
@@ -117,14 +117,12 @@ def surfaceBrightnessToElectronCount(mu, A_tel, plate_scale_as_px,
 	else:
 		zeropoint = 0
 
-	F = surfaceBrightnessToFlux(mu=mu, wavelength_m=wavelength_m, zeropoint=zeropoint)
-	Sigma_electrons = fluxToElectronCount(F=F, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain, magnitudeSystem=magnitudeSystem, wavelength_m=wavelength_m,bandwidth_m=bandwidth_m, band=band)                                                             
-	# Sigma_photons = fluxToPhotons(F=F, wavelength_m=wavelength_m, bandwidth_m=bandwidth_m)
-	# Sigma_electrons = photonsToCounts(Sigma_photons=Sigma_photons, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain)
+	F = surfaceBrightness2flux(mu=mu, wavelength_m=wavelength_m, zeropoint=zeropoint)
+	Sigma_electrons = flux2countRate(F=F, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain, magnitudeSystem=magnitudeSystem, wavelength_m=wavelength_m,bandwidth_m=bandwidth_m, band=band)                                                             
 	return Sigma_electrons
 
 #########################################################################################################
-def fluxToElectronCount(F, A_tel, plate_scale_as_px,
+def flux2countRate(F, A_tel, plate_scale_as_px, 
 	tau = 1,
 	qe = 1,
 	gain = 1,
@@ -146,6 +144,20 @@ def fluxToElectronCount(F, A_tel, plate_scale_as_px,
 		print 'ERROR: you must specify either a band (J, H or K) OR a wavelength and bandwidth!'
 		return
 
-	Sigma_photons = fluxToPhotons(F=F, wavelength_m=wavelength_m, bandwidth_m=bandwidth_m)
-	Sigma_electrons = photonsToCounts(Sigma_photons=Sigma_photons, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain)
+	Sigma_photons = flux2photonRate(F=F, wavelength_m=wavelength_m, bandwidth_m=bandwidth_m)
+	Sigma_electrons = photonRate2countRate(Sigma_photons=Sigma_photons, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain)
 	return Sigma_electrons
+
+#########################################################################################################
+def expectedCount2count(arg, 
+	t_exp = None):
+	"""
+		Convert an expected photon count (in photons) OR expected photon count rate (in photons/s) to a 'truth' count assuming a Poisson distribution.
+		If t_exp is not specified, it is assumed that the input argument is given in units of photons. 
+		If t_exp is specified, it is assumed that the input argument is given in units of photons/s, in which case the expected count is arg * t_exp.
+	"""
+	if t_exp == None:
+		expectedCount = arg
+	else:
+		expectedCount = arg * t_exp
+	return np.random.poisson(lam=expectedCount, size=expectedCount.shape)
