@@ -1,6 +1,6 @@
 ############################################################################################
 #
-# 	File:		anu23mParameters.py
+# 	File:		telescope_anu23m.py
 #	Author:		Anna Zovaro
 #	Email:		anna.zovaro@anu.edu.au
 #
@@ -89,13 +89,3 @@ f_ratio = efl_m / D_M1
 plate_scale_as_mm = 206256. / efl_mm
 plate_scale_as_m = plate_scale_as_mm * 1e3 
 
-""" Sky brightness (magnitudes per square arcsec) """
-# Source: http://www.mso.anu.edu.au/pfrancis/reference/reference/node4.html
-# Note these are 'full moon' values -- typical values will be better!
-sky_brightness_magnitude_system = 'AB'
-sky_brightness = {
-	'J' : 15,
-	'H' : 13.7,
-	'K' : 12.5
-}
-T_sky = 273
