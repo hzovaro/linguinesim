@@ -95,6 +95,8 @@ import sysparams.cryo as cryo
 import sysparams.detector_saphira as detector
 import sysparams.telescope_anu23m as telescope
 SYSTEM_PLATE_SCALE_AS_PX = detector.l_px_m * telescope.plate_scale_as_m
+SYSTEM_PLATE_SCALE_RAD_PX = SYSTEM_PLATE_SCALE_AS_PX / 3600 * np.pi / 180
+OMEGA_PX_RAD = SYSTEM_PLATE_SCALE_RAD_PX * SYSTEM_PLATE_SCALE_RAD_PX
 
 # Importing modules
 from apdsim.imutils import *
