@@ -41,25 +41,17 @@
 from __future__ import division
 from apdsim import *
 
-def exposureTimeCalc(
-		band,
-		t_exp = 1,
-		surfaceBrightness = 19,
-		magnitudeSystem = 'AB',
-		worstCaseSpider = False
+def exposureTimeCalc(band, t_exp, worstCaseSpider,
+		surfaceBrightness = None,
+		magnitudeSystem = None,
 	):
-
+	"""
+		
+	"""
 	wavelength_eff = FILTER_BANDS_M[band][0]
 	bandwidth = FILTER_BANDS_M[band][1]
 	wavelength_min = FILTER_BANDS_M[band][2]
 	wavelength_max = FILTER_BANDS_M[band][3]
-
-	""" Telescope-detector system properties """
-	# Calculate the plate scale.
-	plate_scale_as = telescope.plate_scale_as_m * detector.l_px_m
-	plate_scale_rad = plate_scale_as / 3600 * np.pi / 180
-	Omega_px_rad = plate_scale_rad * plate_scale_rad
-	T_sky = 273
 
 	#########################################################################################################
 	# Noise terms in the SNR calculation
@@ -67,37 +59,43 @@ def exposureTimeCalc(
 	
 	""" Signal photon flux """
 	# Given the surface brightness and angular extent of the image, calculate the source electrons/s/pixel.
-	Sigma_source_e = surfaceBrightnessToElectronCount(mu = surfaceBrightness, 
-		wavelength_m = wavelength_eff, 
-		bandwidth_m = bandwidth, 
-		plate_scale_as_px = plate_scale_as, 
-		A_tel = telescope.A_collecting, 
-		tau = telescope.tau * cryo.Tr_win,
-		qe = detector.qe,
-		gain = detector.gain,
-		magnitudeSystem = 'AB'
-	)
+	if surfaceBrightness != None:
+		if magnitudeSystem != None:
+			Sigma_source_e = surfaceBrightnessToElectronCount(mu = surfaceBrightness, 
+				wavelength_m = wavelength_eff, 
+				bandwidth_m = bandwidth, 
+				plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX, 
+				A_tel = telescope.A_collecting, 
+				tau = telescope.tau * cryo.Tr_win,
+				qe = detector.qe,
+				gain = detector.gain,
+				magnitudeSystem = magnitudeSystem
+			)
+		else:
+			print 'ERROR: you must specify a magnitude system for the source!'
+			return
+	else:
+		Sigma_source_e = 0
 
 	""" Cryostat photon flux """
 	Sigma_cryo = getCryostatTE(plotIt=False)
 
 	""" Telescope thermal background photon flux """
-	Sigma_tel = getTelescopeTE(plotIt=False, worstCaseSpider=worstCaseSpider)[band]
+	Sigma_tel = getTelescopeTE(T_sky=telescope.T_sky, plotIt=False, worstCaseSpider=worstCaseSpider)[band]
 
 	""" Sky thermal background photon flux """
-	Sigma_sky_thermal = getSkyTE(plotIt=False)[band]
+	Sigma_sky_thermal = getSkyTE(T_sky=telescope.T_sky, plotIt=False)[band]
 
 	""" Empirical sky background flux """
-	# Sigma_sky_emp = getPhotonFlux(surfaceBrightness = telescope.sky_brightness[band], 
 	Sigma_sky_emp = surfaceBrightnessToElectronCount(mu = telescope.sky_brightness[band], 
 		wavelength_m = wavelength_eff, 
 		bandwidth_m = bandwidth, 
-		plate_scale_as_px = plate_scale_as, 
+		plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX, 
 		A_tel = telescope.A_collecting, 
 		tau = telescope.tau * cryo.Tr_win,
 		qe = detector.qe,
 		gain = detector.gain,
-		magnitudeSystem = 'AB'
+		magnitudeSystem = telescope.sky_brightness_magnitude_system
 	)
 
 	""" Total sky background """
@@ -219,35 +217,15 @@ def getCryostatTE(plotIt=True):
 
 #########################################################################################################
 
-def getSkyTE(T_sky=273, plotIt=True):
+def getSkyTE(T_sky, plotIt=True):
 	" Sky thermal background photon flux in the J, H and K bands "
 	I_sky = {
 		'J' : 0.0,
 		'H' : 0.0,
 		'K' : 0.0
 	}
-	
-	plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX
-	plate_scale_rad_px = plate_scale_as_px / 3600 * np.pi / 180
-	Omega_px_rad = plate_scale_rad_px * plate_scale_rad_px
 
 	# Atmospheric properties	
-	fname = 'cptrans_zm_23_10.dat'
-	this_dir, this_filename = os.path.split(__file__)
-	DATA_PATH = os.path.join(this_dir, 'skytransdata', fname)
-	# f = open(fname,'r')
-	f = open(DATA_PATH, 'r')
-
-	# wavelengths_sky = [];
-	# Tr_sky = [];
-	# for line in f:
-	# 	cols = line.split()
-	# 	wavelengths_sky.append(float(cols[0]))
-	# 	Tr_sky.append(float(cols[1]))
-	# Tr_sky = np.asarray(Tr_sky)
-	# wavelengths_sky = np.asarray(wavelengths_sky) * 1e-6
-	# eps_sky = lambda wavelength: np.interp(wavelength, wavelengths_sky, 1 - Tr_sky)
-	# f.close()
 	eps_sky = getSkyEps()
 
 	for key in I_sky:
@@ -257,7 +235,7 @@ def getSkyTE(T_sky=273, plotIt=True):
 			T = T_sky, 
 			wavelength_min = wavelength_min, 
 			wavelength_max = wavelength_max, 
-			Omega = Omega_px_rad, 
+			Omega = OMEGA_PX_RAD, 
 			A = telescope.A_collecting, 
 			eps = eps_sky
 			)
@@ -289,40 +267,35 @@ def getSkyTE(T_sky=273, plotIt=True):
 
 #########################################################################################################
 
-def getTelescopeTE(T_sky=273, plotIt=True, worstCaseSpider=False):
+def getTelescopeTE(T_sky, plotIt=True, worstCaseSpider=False):
 	I_tel = {
 		'J' : 0.0,
 		'H' : 0.0,
 		'K' : 0.0
 	}
-	
-	# plate_scale_as_px = telescope.plate_scale_as_mm * detector.l_px
-	plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX
-	plate_scale_rad_px = plate_scale_as_px / 3600 * np.pi / 180
-	Omega_px_rad = plate_scale_rad_px * plate_scale_rad_px
 
 	for key in I_tel:
 		wavelength_min = FILTER_BANDS_M[key][2]
 		wavelength_max = FILTER_BANDS_M[key][3]
 		
-		I_M1 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = telescope.eps_M1_eff)
-		I_M2 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M2_total_eff, eps = telescope.eps_M2_eff)
-		I_M3 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = telescope.eps_M1_eff)
+		I_M1 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = telescope.eps_M1_eff)
+		I_M2 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M2_total_eff, eps = telescope.eps_M2_eff)
+		I_M3 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = telescope.eps_M1_eff)
 		
 		# Spider (acting as a grey body at both the sky temperature and telescope temperature)
 		if worstCaseSpider == False:
 			eps_sky = getSkyEps()
 			# BEST CASE: assume the spider has a fresh aluminium coating - so 9.1% emissive at sky temp and 90.1% emissive at telescope temp
 			I_spider = \
-				thermalEmissionIntensity(T = telescope.T, 	wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = telescope.eps_spider_eff)\
-			  + thermalEmissionIntensity(T = T_sky, 		wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = lambda wavelength : (1 - telescope.eps_spider_eff) * eps_sky(wavelength))
+				thermalEmissionIntensity(T = telescope.T, 	wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = telescope.eps_spider_eff)\
+			  + thermalEmissionIntensity(T = T_sky, 		wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = lambda wavelength : (1 - telescope.eps_spider_eff) * eps_sky(wavelength))
 		else:
 			# WORST CASE: assume the spider is 100% emissive at telescope temperature (i.e. not reflective at all)
 			I_spider = \
-				thermalEmissionIntensity(T = telescope.T, 	wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = 1.0)\
+				thermalEmissionIntensity(T = telescope.T, 	wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = 1.0)\
 		
 		# Cryostat window (acting as a grey body)
-		I_window = thermalEmissionIntensity(T = cryo.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = Omega_px_rad, A = telescope.A_M1_total, eps = cryo.eps_win)
+		I_window = thermalEmissionIntensity(T = cryo.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = cryo.eps_win)
 
 		# Multiply by the gain and QE to get units of electrons/s/px.
 		# We don't multiply by the transmission because the mirrors themselves are emitting.
