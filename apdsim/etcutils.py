@@ -47,8 +47,9 @@ def surfaceBrightnessToFlux(mu,
 	F_nu_si = F_nu_cgs * 1e-7 * 1e4 										# W/m^2/arcsec^2/Hz
 
 	if wavelength_m != None:
-		F_lambda_cgs = F_nu_cgs * constants.c / np.power(wavelength_m, 2)		# ergs/s/cm^2/arcsec^2/m
-		F_lambda_si = F_lambda_cgs * 1e-7 * 1e4									# W/m^2/arcsec^2/m
+		# F_lambda_cgs = F_nu_cgs * constants.c / np.power(wavelength_m, 2)		# ergs/s/cm^2/arcsec^2/m
+		F_lambda_cgs = F_nu_cgs * constants.c / np.power(wavelength_m, 2) * 1e-10	# ergs/s/cm^2/arcsec^2/angstrom
+		F_lambda_si = F_lambda_cgs * 1e-7 * 1e4	* 1e10								# W/m^2/arcsec^2/m
 	else:
 		F_lambda_cgs = None
 		F_lambda_si = None
