@@ -40,3 +40,4 @@ Omega = np.pi 	# Solid angle subtended by the cryostat walls on the detector
 T = 172.372					# Temperature
 eps_wall = 1.0			# Wall emissivity
 eps_win = 1 - Tr_win	# Window emissivity
+print 'TODO: Cryostat temperature needs updating!'
