@@ -79,6 +79,12 @@ def shiftAndStack(images,
 	print "Shifting and stacking images..."
 
 	# Error checking
+	# Need to convert to float if necessary.
+	if type(images.flatten()[0]) != np.float64:
+		images = images.astype(np.float64)
+	if image_ref != None and type(image_ref.flatten()[0]) != np.float64:
+		image_ref = image_ref.astype(np.float64)
+
 	if len(images.shape) > 4:
 		print "WARNING: for now, please only input a 3D array of images to shift and stack! I'm operating on the first set of images..."
 		images = np.squeeze(images[0])	
