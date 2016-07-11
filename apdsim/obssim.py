@@ -53,8 +53,7 @@ def pointSpreadFunction(wavelength, f_ratio, l_px_m, detector_size_px,
 	psf = np.power(2 * special.jv(1, r) / r, 2)
 	# Normalising
 	psf[psf.shape[0]/2,psf.shape[1]/2] = 1	# removing the NaN in the centre of the image
-	P = sum(psf.flatten())
-	psf /= P
+	psf /= sum(psf.flatten())
 	psf = np.swapaxes(psf,0,1)
 	psf = psf.astype(np.float64)
 
@@ -216,9 +215,10 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 	X, Y = np.meshgrid(x_as, y_as)
 	sigma = seeing_diameter_as / (2 * np.sqrt(2 * np.log(2)))
 	kernel = np.exp(-(np.power(X, 2) + np.power(Y, 2)) / (2 * np.power(sigma,2)))
+	kernel /= sum(kernel.flatten())
 	kernel = np.pad(kernel, ((pad_ud, pad_ud + height % 2), (pad_lr, pad_lr + width % 2)), mode='constant')
 
-	# Convolving the kernal with the image.
+	# Convolving the kernel with the image.
 	image_seeing_limited = np.ndarray((N, conv_height, conv_width))
 	image_seeing_limited_cropped = np.ndarray((N, height, width))
 
