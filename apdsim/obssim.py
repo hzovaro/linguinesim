@@ -196,6 +196,7 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 
 	if plotIt:
 		plt.figure(figsize=(2*FIGSIZE, 2*FIGSIZE))
+		plt.suptitle('Seeing-limiting image')
 		plt.subplot(2,2,1)
 		plt.imshow(images[0])
 		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
@@ -240,18 +241,19 @@ def addNoise(images,band,t_exp,
 	noisyImages = np.copy(images)
 
 	# Getting noise parameters from the ETC.
-	etc_output = exposureTimeCalc(band = band,t_exp = t_exp)
+	etc_output = exposureTimeCalc(band = band,t_exp = t_exp, worstCaseSpider = worstCaseSpider)
 
 	# Adding noise to each image.
 	for k in range(N):
-		frame_sky = np.ones((height, width)) * etc_output['N_sky'] + np.random.randn(height, width) * etc_output['sigma_sky']
-		frame_dark = np.ones((height, width)) * etc_output['N_dark'] + np.random.randn(height, width) * etc_output['sigma_dark']
-		frame_cryo = np.ones((height, width)) * etc_output['N_cryo'] + np.random.randn(height, width) * etc_output['sigma_cryo']
-		frame_RN = np.ones((height, width)) * etc_output['N_RN'] + np.random.randn(height, width) * etc_output['sigma_RN']
+		frame_sky = np.random.poisson(lam=etc_output['N_sky'], size=(height, width))
+		frame_dark = np.random.poisson(lam=etc_output['N_dark'], size=(height, width))
+		frame_cryo = np.random.poisson(lam=etc_output['N_cryo'], size=(height, width))
+		frame_RN = np.random.poisson(lam=etc_output['N_RN'], size=(height, width))
 		noisyImages[k] += frame_sky + frame_cryo + frame_RN + frame_dark	
 
 	if plotIt:
 		plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
+		plt.suptitle('Adding noise')
 		plt.subplot(1,2,1)
 		plt.imshow(images[0], vmin=min(images[0].flatten()), vmax=max(noisyImages[0].flatten()))
 		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
