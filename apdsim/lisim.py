@@ -9,6 +9,17 @@
 #
 #	Copyright (C) 2016 Anna Zovaro
 #
+#	Lucky imaging techniques to implement:
+#	- Shifting-and-stacking via
+#		- Cross-correlation
+#		- Aligning to brightest pixel
+#		- Drizzle algorithm for image alignment (sub-integer alignment)
+#
+#	- Frame selection techniques:
+#		- Rank in order of brightest pixel value
+#		- Cross-correlate the ideal PSF (say, Airy disc) with a subsection of the image containing a guide star--peak of the x-corr indicates the correlation (basically the Strehl) whilst its position gives the shift that needs to be applied 
+#		- Rank in order of the fraction of light concentrated in the brightest pixel of the guide star PSF
+#
 #########################################################################################################
 #
 #	This file is part of lignuini-sim.
@@ -34,6 +45,7 @@ def addTurbulence(images, N_tt, sigma_tt_px,
 	crop_tt=None):
 	""" 
 		Add turbulence to an input `truth' image. Returns N_tt copies of the input image with randomised turbulence added. 
+		Just tip and tilt for now with a standard deviation of sigma_tt_px in both dimensions.
 	"""
 	print "Adding randomised tip/tilt to image(s)..."
 
@@ -162,14 +174,28 @@ def shiftAndStack(images,
 
 	if plotIt:
 		plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
+		plt.suptitle('Lucky imaging technique')
 		plt.subplot(1,2,1)
 		plt.imshow(images[0], vmin=min(images[0].flatten()), vmax=max(image_stacked.flatten()))
 		plt.title('Single exposure')
-		plt.colorbar()
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.subplot(1,2,2)
 		plt.imshow(image_stacked, vmin=min(images[0].flatten()), vmax=max(image_stacked.flatten()))
 		plt.title('Shifted-and-stacked image')
-		plt.colorbar()
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.show()
 
 	return image_stacked
+
+#########################################################################################################
+def luckyImaging(images, type, vararg):
+	""" 
+		Apply a Lucky Imaging (LI) technique to a sequence of images stored in the input array images. 
+		The type of LI technique used is specified by input string type and any additional arguments which may be required are given in vararg.
+	"""
+	# Converting to an image array
+	images, N, height, width = getImageSize(images)
+
+
+
+	return image_lucky
