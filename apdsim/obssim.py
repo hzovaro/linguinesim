@@ -27,11 +27,6 @@
 #	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 #########################################################################################################
-#
-#	TODO:
-#	- Check methods for accounting for oddly-sized detectors 
-#
-#########################################################################################################
 from __future__ import division
 from apdsim import *
 
@@ -251,17 +246,6 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 	return np.squeeze(image_seeing_limited_cropped)
 
 #########################################################################################################
-"""
-	ADDING NOISE:
-		The Sigmga * t_exp that get output by the ETC are *what we should theoretically expect to measure 
-		in every single pixel*. 
-		However, because we are dealing with low numbers of photons here, we assume that the standard deviation goes as 
-		the square root of the total numbers of pixels (Poisson statistics)
-		Therefore the noise that we add should be a Gaussian *Centered* at Sigma * t_exp (the theoretical count rate)
-		+/- sqrt(Sigma * t_exp) 
-		The actual statistical properties of the nosie (i.e. the standard deviation) are actually determined by Poisson
-		statistics!
-"""
 def addNoise(images,band,t_exp, 
 	worstCaseSpider=False,
 	plotIt=False):
