@@ -106,5 +106,6 @@ from apdsim.etc import *
 from apdsim.obssim import *
 from apdsim.lisim import *
 from apdsim.galsim import *
+from apdsim.starsim import *
 
 
