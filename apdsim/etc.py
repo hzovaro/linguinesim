@@ -33,11 +33,6 @@
 #	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 #########################################################################################################
-#
-#	TO DO:
-#	- double check: do we need Tr_win for the telescope thermal emission calcs?
-#
-#########################################################################################################
 from __future__ import division
 from apdsim import *
 
@@ -46,7 +41,18 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 		magnitudeSystem = None,
 	):
 	"""
-		
+		An exposure time calculator. 
+		Noise terms include contributions from
+		- the telescope (spider structure and mirrors, radiating as blackbodies at telescope.T)
+		- the sky (radiating as a blackbody at sky.T)
+		- the cryostat (radiating as a blackbody at cryo.T)
+		- detector read noise 
+		- detector dark current.
+
+		In the J and H bands, empirical sky brightness values from the sky module are used instead of theoretical estimates in the SNR result.
+		In the K band, the sky and telescope values are used instead.
+		In either case, all noise counts (empirical and theoretical) are returned in their respective fields in the output dictionary.
+
 	"""
 	wavelength_eff = FILTER_BANDS_M[band][0]
 	bandwidth = FILTER_BANDS_M[band][1]
@@ -61,7 +67,7 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 	# Given the surface brightness and angular extent of the image, calculate the source electrons/s/pixel.
 	if surfaceBrightness != None:
 		if magnitudeSystem != None:
-			Sigma_source_e = surfaceBrightnessToElectronCount(mu = surfaceBrightness, 
+			Sigma_source_e = surfaceBrightness2countRate(mu = surfaceBrightness, 
 				wavelength_m = wavelength_eff, 
 				bandwidth_m = bandwidth, 
 				plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX, 
@@ -81,13 +87,13 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 	Sigma_cryo = getCryostatTE(plotIt=False)
 
 	""" Telescope thermal background photon flux """
-	Sigma_tel = getTelescopeTE(T_sky=telescope.T_sky, plotIt=False, worstCaseSpider=worstCaseSpider)[band]
+	Sigma_tel = getTelescopeTE(T_sky=sky.T, plotIt=False, worstCaseSpider=worstCaseSpider)[band]
 
 	""" Sky thermal background photon flux """
-	Sigma_sky_thermal = getSkyTE(T_sky=telescope.T_sky, plotIt=False)[band]
+	Sigma_sky_thermal = getSkyTE(T_sky=sky.T, plotIt=False)[band]
 
 	""" Empirical sky background flux """
-	Sigma_sky_emp = surfaceBrightnessToElectronCount(mu = telescope.sky_brightness[band], 
+	Sigma_sky_emp = surfaceBrightness2countRate(mu = sky.brightness[band], 
 		wavelength_m = wavelength_eff, 
 		bandwidth_m = bandwidth, 
 		plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX, 
@@ -95,7 +101,7 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 		tau = telescope.tau * cryo.Tr_win,
 		qe = detector.qe,
 		gain = detector.gain,
-		magnitudeSystem = telescope.sky_brightness_magnitude_system
+		magnitudeSystem = sky.magnitude_system
 	)
 
 	""" Total sky background """
@@ -198,7 +204,7 @@ def getCryostatTE(plotIt=True):
 		wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
 
 		# Plotting
-		plt.figure(figsize=(figsize*1.25,figsize))
+		plt.figure(figsize=(FIGSIZE*1.25,FIGSIZE))
 		plt.rc('text', usetex=True)
 		plt.plot(T_cryo, I_cryo, 'r', label='Cryostat thermal emission, $\lambda_c = %.1f \mu$m' % (detector.wavelength_cutoff*1e6))
 		plt.plot(T_cryo, I_cryo_h, 'r--', label='Cryostat thermal emission, $\lambda_c = %.1f \mu$m' % (detector.wavelength_cutoff_h*1e6))
