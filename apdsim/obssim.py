@@ -35,6 +35,38 @@
 from __future__ import division
 from apdsim import *
 
+def pointSpreadFunction(wavelength, f_ratio, l_px_m, detector_size_px,
+	plotIt=False):
+	"""
+		Returns the PSF of an optical system with a given f ratio, pixel and detector size at a given wavelength.
+
+		The PSF is normalised such that the sum of every pixel in the PSF is equal to unity.
+	"""
+	# Calculating the PSF
+	detector_height_px, detector_width_px = detector_size_px[0:2]
+	x = np.arange(-detector_height_px//2, +detector_height_px//2 + detector_height_px%2, 1) * l_px_m
+	y = np.arange(-detector_width_px//2, +detector_width_px//2 + detector_width_px%2, 1) * l_px_m
+	X, Y = np.meshgrid(x, y)
+	# x in units of m
+	r = np.pi / wavelength / f_ratio * np.sqrt(np.power(X,2) + np.power(Y,2))
+	# Calculating the PSF
+	psf = np.power(2 * special.jv(1, r) / r, 2)
+	# Normalising
+	psf[psf.shape[0]/2,psf.shape[1]/2] = 1	# removing the NaN in the centre of the image
+	P = sum(psf.flatten())
+	psf /= P
+	psf = np.swapaxes(psf,0,1)
+	psf = psf.astype(np.float64)
+
+	if plotIt:
+		plt.figure(figsize=(FIGSIZE,FIGSIZE))
+		plt.imshow(psf)
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		plt.title('Point spread function')
+
+	return psf
+
+#########################################################################################################
 def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size_px, dest_plate_scale_as,
 	plotIt=False):
 	" Resize the images stored in array images_raw with a given plate scale to a detector with given dimensions and plate scale. "
@@ -118,23 +150,24 @@ def getDiffractionLimitedImage(image_truth, wavelength, f_ratio, l_px_m,
 		detector_width_px = width	
 
 	# Calculating the PSF
-	x = np.arange(-detector_height_px//2, +detector_height_px//2 + detector_height_px%2, 1) * l_px_m
-	y = np.arange(-detector_width_px//2, +detector_width_px//2 + detector_width_px%2, 1) * l_px_m
-	X, Y = np.meshgrid(x, y)
-	# x in units of m
-	r = np.pi / wavelength / f_ratio * np.sqrt(np.power(X,2) + np.power(Y,2))
-	# Calculating the PSF
-	psf = np.power(2 * special.jv(1, r) / r, 2)
-	# Normalising
-	psf[psf.shape[0]/2,psf.shape[1]/2] = 1	# removing the NaN in the centre of the image
-	P = sum(psf.flatten())
-	psf /= P
-	psf = np.swapaxes(psf,0,1)
-	psf = psf.astype(np.float64)
+	psf = pointSpreadFunction(wavelength, f_ratio, l_px_m, (2*detector_height_px, 2*detector_width_px))
+	# x = np.arange(-detector_height_px//2, +detector_height_px//2 + detector_height_px%2, 1) * l_px_m
+	# y = np.arange(-detector_width_px//2, +detector_width_px//2 + detector_width_px%2, 1) * l_px_m
+	# X, Y = np.meshgrid(x, y)
+	# # x in units of m
+	# r = np.pi / wavelength / f_ratio * np.sqrt(np.power(X,2) + np.power(Y,2))
+	# # Calculating the PSF
+	# psf = np.power(2 * special.jv(1, r) / r, 2)
+	# # Normalising
+	# psf[psf.shape[0]/2,psf.shape[1]/2] = 1	# removing the NaN in the centre of the image
+	# P = sum(psf.flatten())
+	# psf /= P
+	# psf = np.swapaxes(psf,0,1)
+	# psf = psf.astype(np.float64)
 	# Convolving the PSF and the truth image to obtain the simulated diffraction-limited image
 	image_difflim = np.ndarray((N, height, width))
 	for k in range(N):
-		image_difflim[k] = signal.fftconvolve(image_truth[k], psf, mode='same')
+		image_difflim[k] = signal.fftconvolve(psf, image_truth[k], mode='same')[detector_height_px//2 + detector_height_px%2:detector_height_px+detector_height_px//2 + detector_height_px%2 - 1, detector_width_px//2 + detector_width_px%2:detector_width_px+detector_width_px//2 + detector_width_px%2 - 1]
 
 	if plotIt:
 		plt.figure(figsize=(3*FIGSIZE, FIGSIZE))
