@@ -27,68 +27,31 @@
 #	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ############################################################################################
-#
-#	TO DO:
-#
-############################################################################################
 from __future__ import division
 from apdsim import *
 from cosmo_calc import *
 plt.close('all')
 
-imsize = 501
-image_truth = np.zeros((imsize, imsize))
-image_truth[imsize//2+1, imsize//2+1] = 1
+wavelength = 2e-6
+R = 50*25
+D = 2.5
+A_tel = np.pi * D * D / 4
+f_ratio = R / D
+l_px_m = 20e-6
+width = 500
+height = 500
+A_detector = height * width * l_px_m * l_px_m
+detector_size_px = (height,width)
 
-sigma_1 = 25
-sigma_2 = 30
-sigma_3 = np.sqrt(sigma_1*sigma_1 + sigma_2*sigma_2)
+# psf, P_0, I_0 = psfKernel(wavelength, f_ratio, l_px_m, detector_size_px,
+# 	plotIt=True)
+# psf, P_0, I_0 = psfKernel(2.2e-6, telescope.f_ratio, detector.l_px_m, detector.size_px,
+# 	plotIt=True)
+# print 'Sum = ',sum(psf.flatten()) * detector.l_px_m * detector.l_px_m
+# print 'P_0 = ',P_0
+# print 'I_0 = ',I_0
 
-image_1 = getSeeingLimitedImage(images = image_truth, seeing_diameter_as = sigma_1, plotIt = False)
-image_2 = getSeeingLimitedImage(images = image_truth, seeing_diameter_as = sigma_2, plotIt = False)
+# star = getStar(funtype, coords, wavelength, f_ratio, l_px_m, detector_size_px,
+# 	plotIt=False)
 
-image_3 = getSeeingLimitedImage(images = image_1, seeing_diameter_as = sigma_2, plotIt = False)
-
-image_4 = getSeeingLimitedImage(images = image_truth, seeing_diameter_as = sigma_3, plotIt = False)
-
-image_1 /= max(image_1.flatten())
-image_2 /= max(image_2.flatten())
-image_3 /= max(image_3.flatten())
-image_4 /= max(image_4.flatten())
-
-plt.figure()
-plt.plot(image_1[imsize//2,:], 'm')
-plt.plot(image_2[imsize//2,:], 'k')
-plt.plot(image_4[imsize//2,:], 'b')
-plt.plot(image_3[imsize//2,:], 'r')
-
-# Same but in the diffraction limit...
-efl = 50
-wavelength_1 = 500e-9
-wavelength_2 = 800e-9
-D_1 = 0.3
-D_2 = 0.4
-fwhm_1 = wavelength_1 / D_1
-fwhm_2 = wavelength_2 / D_2
-f_ratio_1 = efl / D_1
-f_ratio_2 = efl / D_2
-
-fwhm_3 = np.sqrt(fwhm_2*fwhm_2 - fwhm_1*fwhm_1)
-wavelength_3 = wavelength_1
-D_3 = wavelength_3 / fwhm_3
-f_ratio_3 = efl / D_3
-
-image_1 = getDiffractionLimitedImage(image_truth, f_ratio = f_ratio_1, detector_size_px = (imsize, imsize), l_px_m = 5e-6, wavelength = wavelength_1, plotIt = True)
-image_2 = getDiffractionLimitedImage(image_truth, f_ratio = f_ratio_2, detector_size_px = (imsize, imsize), l_px_m = 5e-6, wavelength = wavelength_2, plotIt = True)
-
-image_3 = getDiffractionLimitedImage(image_1, f_ratio = f_ratio_3, detector_size_px = (imsize, imsize), l_px_m = 5e-6, wavelength = wavelength_3, plotIt = True)
-	
-image_1 /= max(image_1.flatten())
-image_2 /= max(image_2.flatten())
-image_3 /= max(image_3.flatten())
-
-plt.figure()
-plt.plot(image_1[imsize//2,:], 'm')
-plt.plot(image_2[imsize//2,:], 'k')
-plt.plot(image_3[imsize//2,:], 'r')
-plt.show()
+image_count, starfield, m, coords = getStarField(N_stars = 5, A_tel = telescope.A_collecting, f_ratio = telescope.f_ratio, l_px_m = detector.l_px_m, detector_size_px = detector.size_px, magnitudeSystem = 'AB', band = 'K', plotIt = True)
