@@ -9,7 +9,7 @@
 #
 #	Copyright (C) 2016 Anna Zovaro
 #
-#########################################################################################################
+####################################################################################################
 #
 #	This file is part of lignuini-sim.
 #
@@ -26,41 +26,69 @@
 #	You should have received a copy of the GNU General Public License
 #	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
-#########################################################################################################
+####################################################################################################
 from __future__ import division
 from apdsim import *
 
-def pointSpreadFunction(wavelength, f_ratio, l_px_m, detector_size_px,
+def airyDisc(wavelength_m, f_ratio, l_px_m, detector_size_px,
+	x_offset=0,
+	y_offset=0,
+	P_0=1,
 	plotIt=False):
 	"""
-		Returns the PSF of an optical system with a given f ratio, pixel and detector size at a given wavelength.
+		Returns the PSF of an optical system with a circular aperture given the f ratio, pixel and detector size at a given wavelength_m.
 
-		The PSF is normalised such that the sum of every pixel in the PSF is equal to unity.
+		If desired, an offset (measured from the top left corner of the detector) can be specified.
+
+		The PSF is normalised such that the sum of every pixel in the PSF (extended to infinity) is equal to P_0 (unity by default), where P_0 is the total energy incident upon the telescope aperture. 
+
+		P_0 represents the *ideal* total energy in the airy disc (that is, the total energy incident upon the telescope aperture), whilst P_sum measures the actual total energy in the image (i.e. the pixel values). 
 	"""
 	# Calculating the PSF
 	detector_height_px, detector_width_px = detector_size_px[0:2]
-	x = np.arange(-detector_height_px//2, +detector_height_px//2 + detector_height_px%2, 1) * l_px_m
-	y = np.arange(-detector_width_px//2, +detector_width_px//2 + detector_width_px%2, 1) * l_px_m
+	dx = detector_height_px/2 - x_offset
+	dy = detector_width_px/2 - y_offset
+	x = np.arange(-detector_height_px//2, +detector_height_px//2 + detector_height_px%2, 1) + dx
+	y = np.arange(-detector_width_px//2, +detector_width_px//2 + detector_width_px%2, 1) + dy
+	x *= l_px_m
+	y *= l_px_m
 	X, Y = np.meshgrid(x, y)
 	# x in units of m
-	r = np.pi / wavelength / f_ratio * np.sqrt(np.power(X,2) + np.power(Y,2))
+	r_prime = np.sqrt(np.power(X,2) + np.power(Y,2))
+	r = np.pi / wavelength_m / f_ratio * r_prime
+	# Central intensity (W m^-2)
+	I_0 = P_0 * np.pi / 4 / wavelength_m / wavelength_m / f_ratio / f_ratio
 	# Calculating the PSF
-	psf = np.power(2 * special.jv(1, r) / r, 2)
-	# Normalising
-	psf[psf.shape[0]/2,psf.shape[1]/2] = 1	# removing the NaN in the centre of the image
-	psf /= sum(psf.flatten())
-	psf = np.swapaxes(psf,0,1)
-	psf = psf.astype(np.float64)
+	airyDisc = np.power((2 * special.jv(1, r) / r), 2) * I_0
+	nan_idx = np.where(np.isnan(airyDisc))
+	# pdb.set_trace()
+	if nan_idx[0].shape != (0,):
+		airyDisc[nan_idx[0][0],nan_idx[1][0]] = I_0 # removing the NaN in the centre of the image if necessary
+	airyDisc = np.swapaxes(airyDisc,0,1)
+	airyDisc = airyDisc.astype(np.float64)
+	P_sum = sum(airyDisc.flatten()) * l_px_m * l_px_m
 
 	if plotIt:
 		plt.figure(figsize=(FIGSIZE,FIGSIZE))
-		plt.imshow(psf)
+		# plt.imshow(psf, norm=LogNorm())
+		plt.imshow(airyDisc)
 		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Point spread function')
+		plt.show()
 
-	return psf
+	return airyDisc, P_0, P_sum, I_0
 
-#########################################################################################################
+####################################################################################################
+def psfKernel(wavelength_m, f_ratio, l_px_m, detector_size_px,
+	plotIt=False):
+	"""
+		Returns an Airy disc PSF corresponding to an optical system with a given f ratio, pixel size and detector size at a specified wavelength_m.
+
+		Note: if you are using this routine to generate a kernel with which to convolve a truth image, make sure the kernel is twice the size of the truth image!
+	"""	
+	return airyDisc(wavelength_m=wavelength_m, f_ratio=f_ratio, l_px_m=l_px_m, detector_size_px=detector_size_px, plotIt=plotIt)	
+
+####################################################################################################
 def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size_px, dest_plate_scale_as,
 	plotIt=False):
 	" Resize the images stored in array images_raw with a given plate scale to a detector with given dimensions and plate scale. "
@@ -125,7 +153,7 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size
 	return np.squeeze(images)
 
 # ##################################################################################
-def getDiffractionLimitedImage(image_truth, wavelength, f_ratio, l_px_m, 
+def getDiffractionLimitedImage(image_truth, wavelength_m, f_ratio, l_px_m, 
 	detector_size_px=None,
 	plotIt=False):
 	" Convolve the PSF of a given telescope in a given band (J, H or K) with image_truth to simulate diffraction-limited imaging. "
@@ -144,12 +172,12 @@ def getDiffractionLimitedImage(image_truth, wavelength, f_ratio, l_px_m,
 		detector_width_px = width	
 
 	# Calculating the PSF
-	psf = pointSpreadFunction(wavelength, f_ratio, l_px_m, (2*detector_height_px, 2*detector_width_px))
+	psf = psfKernel(wavelength_m, f_ratio, l_px_m, (2*detector_height_px, 2*detector_width_px))
 	# x = np.arange(-detector_height_px//2, +detector_height_px//2 + detector_height_px%2, 1) * l_px_m
 	# y = np.arange(-detector_width_px//2, +detector_width_px//2 + detector_width_px%2, 1) * l_px_m
 	# X, Y = np.meshgrid(x, y)
 	# # x in units of m
-	# r = np.pi / wavelength / f_ratio * np.sqrt(np.power(X,2) + np.power(Y,2))
+	# r = np.pi / wavelength_m / f_ratio * np.sqrt(np.power(X,2) + np.power(Y,2))
 	# # Calculating the PSF
 	# psf = np.power(2 * special.jv(1, r) / r, 2)
 	# # Normalising
