@@ -30,71 +30,67 @@
 from __future__ import division
 from apdsim import *
 
-# Inputs:
-#	- star magnitude & magnitude system
-#	- star coordinates (in arcsec relative to corner of image)
-# Outputs:
-#	- an image of the star as formed by the telescope and detector pair.
-
-def getStarField(m, coords, A_tel, f_ratio, l_px_m, detector_size_px,
+def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
+	N_stars = None,			# Number of random stars to generate.
+	m = None, 				# Vector of star magnitudes.
+	coords = None, 			# Coordinates of stars.
+	min_mag = 20,			# Minimum star magnitude.
+	max_mag = 5,			# Maximum star magnitude.
 	tau = 1,
 	qe = 1,
 	gain = 1,
 	magnitudeSystem = None,
 	wavelength_m = None, 
 	bandwidth_m = None, 
-	band = None, 
+	band = None, 	
 	plotIt=False):
-	
-	# Figuring out the value of the pixel:
-	# If we were imaging onto our detector with an infinitely large telescope, then all of the light falling on the telescope aperture would be imaged onto a single pixel.
-	# So, we need to get the flux (in units of electrons per pixel) given the magnitude of the star.
-	# Then, we make a normalised PSF grid (s.t. P = 1) with the appropriate plate scale, and simply multiply this by the flux. 
-	# THEN we convert to an expected count.
-	N_stars = len(m)
-	if len(m) != coords.shape[0]:
-		print 'ERROR: the length of the star magnitudes vector must be equal to that of the first dimension of the coords array!'
-		return
+	"""
+		Returns a simulated image of a star field imaged through an optical system at a given wavelength_m or in an imaging band with a specified centre wavelength_m and bandwidth with a given collecting area, f ratio, pixel size and detector dimensions. The throughput, QE and gain of the system can be specified if required; otherwise they are all assumed to be unity. 
 
-	# PSF.
+		The magnitudes and coordinates can either be specified by the user or generated randomly. For now, coordinates must be specified in units of pixels; sub-pixel positioning of stars has not been implemented.
+	"""
 	detector_height_px, detector_width_px = detector_size_px[0:2]
+	if N_stars != None:
+		m = np.random.uniform(low=max_mag, high=min_mag, size=(N_stars))
+		coords = np.zeros((2,N_stars))
+		coords[0,:] = np.random.uniform(high=detector_height_px, size=(1, N_stars))
+		coords[1,:] = np.random.uniform(high=detector_width_px, size=(1, N_stars))
+	elif m == None or coords == None:
+		print 'ERROR: ether both m and coords OR N_stars be specified!'
+		return
+	else:
+		N_stars = len(m)
+		if len(m) != coords.shape[0]:
+			print 'ERROR: the length of the star magnitudes vector must be equal to that of the first dimension of the coords array!'
+			return
+
 	if wavelength_m == None and band != None:
 		wavelength_m = FILTER_BANDS_M[band][0]
 		bandwidth_m = FILTER_BANDS_M[band][1]
-	psf = pointSpreadFunction(wavelength_m, f_ratio, l_px_m, tuple(2*x for x in detector_size_px), plotIt=True)
-	# 'Truth' image (telescope with infinite resolution)
-	image_truth = np.zeros(detector_size_px)
 
+	print '#\tCoordinates\t\tMagnitude\t\tP_0\t\tP_sum\t% in image'
+	starfield = np.zeros(detector_size_px)
 	for k in range(N_stars):
-		# Total expected electron count from the star.
+		# Total expected electron count from the star from the whole aperture.
 		Sigma_electrons = surfaceBrightness2countRate(mu = m[k], A_tel = A_tel, tau = tau, qe = qe, gain = gain, magnitudeSystem = magnitudeSystem, wavelength_m = wavelength_m, bandwidth_m = bandwidth_m)		
-		image_truth[coords[k,0], coords[k,1]] = Sigma_electrons
-
-	# Convolving the truth image with the PSF.
-	image_expected = signal.fftconvolve(psf, image_truth, mode='same')[detector_height_px//2 + detector_height_px%2:detector_height_px+detector_height_px//2 + detector_height_px%2 - 1, detector_width_px//2 + detector_width_px%2:detector_width_px+detector_width_px//2 + detector_width_px%2 - 1]
-	if min(image_expected.flatten()) < 0:
-		print 'WARNING: the result of the convolution contains negative pixels!'
-		image_expected -= min(image_expected.flatten())
-	image_count = expectedCount2count(image_expected)
+		# Adding the star's contribution to the image.
+		star, P_0, P_sum, I_0 =airyDisc(wavelength_m = wavelength_m, f_ratio = f_ratio, l_px_m = l_px_m, detector_size_px = detector_size_px, x_offset = coords[0,k], y_offset = coords[1,k], P_0 = Sigma_electrons)
+		starfield += star
+		print '%d:\t(%6.2f, %6.2f)\t%4.2f\t\t%15.2f\t%15.2f\t%4.2f' % (k+1, coords[0,k], coords[1,k], m[k], P_0, P_sum, 100*P_sum/P_0)
+	# Converting to image counts
+	image_count = expectedCount2count(starfield)
 
 	if plotIt:
-		plt.figure(figsize=(3*FIGSIZE,FIGSIZE))
+		plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
 		plt.suptitle('Starfield')
-		plt.subplot(1,3,1)
-		plt.imshow(image_truth, norm=LogNorm())
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
-		plt.title('Truth image')
-		plt.subplot(1,3,2)
-		plt.imshow(image_expected, norm=LogNorm())
+		plt.subplot(1,2,1)
+		plt.imshow(starfield, norm=LogNorm())
 		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Expected electron flux')
-		plt.subplot(1,3,3)
+		plt.subplot(1,2,2)
 		plt.imshow(image_count, norm=LogNorm())
 		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
-		plt.title('Count')
+		plt.title('Simulated image')
 		plt.show()
 
-	return image_count, image_expected, image_truth
-
-
-
+	return image_count, starfield, m, coords
