@@ -1,4 +1,4 @@
-#########################################################################################################
+####################################################################################################
 #
 # 	File:		obssim.py
 #	Author:		Anna Zovaro
@@ -28,6 +28,7 @@
 #
 ####################################################################################################
 from __future__ import division
+from __future__ import print_function
 from apdsim import *
 
 def airyDisc(wavelength_m, f_ratio, l_px_m, detector_size_px,
@@ -59,14 +60,14 @@ def airyDisc(wavelength_m, f_ratio, l_px_m, detector_size_px,
 	# Central intensity (W m^-2)
 	I_0 = P_0 * np.pi / 4 / wavelength_m / wavelength_m / f_ratio / f_ratio
 	# Calculating the PSF
-	airyDisc = np.power((2 * special.jv(1, r) / r), 2) * I_0
+	airyDisc = np.power((2 * special.jv(1, r) / r), 2) * I_0 
 	nan_idx = np.where(np.isnan(airyDisc))
-	# pdb.set_trace()
 	if nan_idx[0].shape != (0,):
 		airyDisc[nan_idx[0][0],nan_idx[1][0]] = I_0 # removing the NaN in the centre of the image if necessary
+	airyDisc *= l_px_m * l_px_m
 	airyDisc = np.swapaxes(airyDisc,0,1)
 	airyDisc = airyDisc.astype(np.float64)
-	P_sum = sum(airyDisc.flatten()) * l_px_m * l_px_m
+	P_sum = sum(airyDisc.flatten())
 
 	if plotIt:
 		plt.figure(figsize=(FIGSIZE,FIGSIZE))
@@ -92,7 +93,7 @@ def psfKernel(wavelength_m, f_ratio, l_px_m, detector_size_px,
 def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size_px, dest_plate_scale_as,
 	plotIt=False):
 	" Resize the images stored in array images_raw with a given plate scale to a detector with given dimensions and plate scale. "
-	print "Resizing image(s) to detector..."
+	print("Resizing image(s) to detector...")
 
 	# 1. Get the original size and shape of the input images.
 	images_raw, N, source_height_px, source_width_px = getImageSize(images_raw)
@@ -159,13 +160,13 @@ def getDiffractionLimitedImage(image_truth, wavelength_m, f_ratio, l_px_m,
 	" Convolve the PSF of a given telescope in a given band (J, H or K) with image_truth to simulate diffraction-limited imaging. "
 	" It is assumed that the truth image has the appropriate plate scale of, but may be larger than, the detector. "
 	" If the detector size is not given, then it is assumed that the input image and detector have the same dimensions. "
-	print "Diffraction-limiting truth image(s)..."
+	print("Diffraction-limiting truth image(s)...")
 
 	image_truth, N, height, width = getImageSize(image_truth)
 	if detector_size_px != None:
 		detector_height_px, detector_width_px = detector_size_px[0:2]
 		if height < detector_height_px or width < detector_width_px:
-			print "ERROR: the truth image must be larger than or the same size as the detector!"
+			print("ERROR: the truth image must be larger than or the same size as the detector!")
 			return -1		
 	else:
 		detector_height_px = height
@@ -210,13 +211,15 @@ def getDiffractionLimitedImage(image_truth, wavelength_m, f_ratio, l_px_m,
 
 	return np.squeeze(image_difflim)
 
-#########################################################################################################
+####################################################################################################
 def getSeeingLimitedImage(images, seeing_diameter_as, 
 	plate_scale_as=1,
 	padFactor=1,
 	plotIt=False):
-	" Convolve a Gaussian PSF with an input image to simulate seeing with a FWHM of seeing_diameter_as. "
-	print "Seeing-limiting image(s)..."
+	"""
+		 Convolve a Gaussian PSF with an input image to simulate seeing with a FWHM of seeing_diameter_as. 
+	"""
+	print("Seeing-limiting image(s)",end="")
 
 	images, N, height, width = getImageSize(images)
 
@@ -246,6 +249,7 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 	image_seeing_limited_cropped = np.ndarray((N, height, width))
 
 	for k in range(N):
+		print('.',end="")
 		image_padded = np.pad(images[k], ((pad_ud,pad_ud + height % 2),(pad_lr,pad_lr + width % 2)), mode='constant')
 		image_seeing_limited[k] = signal.fftconvolve(image_padded, kernel, mode='same')
 		image_seeing_limited_cropped[k] = image_seeing_limited[k,pad_ud : height + pad_ud, pad_lr : width + pad_lr]		
@@ -273,12 +277,12 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 
 	return np.squeeze(image_seeing_limited_cropped)
 
-#########################################################################################################
+####################################################################################################
 def addNoise(images,band,t_exp, 
 	worstCaseSpider=False,
 	plotIt=False):
 	""" Add noise to an array of input images assuming an exposure time t_exp. """
-	print ("Adding noise to image(s)...")
+	print ('Adding noise to image(s)', end="")
 
 	# Creating an array in which to store the noisy images
 	images, N, height, width = getImageSize(images)
@@ -290,11 +294,13 @@ def addNoise(images,band,t_exp,
 
 	# Adding noise to each image.
 	for k in range(N):
+		print('.', end="")
 		frame_sky = np.random.poisson(lam=etc_output['N_sky'], size=(height, width))
 		frame_dark = np.random.poisson(lam=etc_output['N_dark'], size=(height, width))
 		frame_cryo = np.random.poisson(lam=etc_output['N_cryo'], size=(height, width))
 		frame_RN = np.random.poisson(lam=etc_output['N_RN'], size=(height, width))
 		noisyImages[k] += frame_sky + frame_cryo + frame_RN + frame_dark	
+	print('\n')
 
 	if plotIt:
 		plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
