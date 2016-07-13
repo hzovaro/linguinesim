@@ -1,4 +1,4 @@
-###########################################################################################################
+####################################################################################################
 #   ________  ________  ________  ________  ___  _____ ______      
 #  |\   __  \|\   __  \|\   ___ \|\   ____\|\  \|\   _ \  _   \    
 #  \ \  \|\  \ \  \|\  \ \  \_|\ \ \  \___|\ \  \ \  \\\__\ \  \   
@@ -17,7 +17,7 @@
 #
 #	Copyright (C) 2016 Anna Zovaro
 #
-###########################################################################################################
+####################################################################################################
 #
 #	This file is part of lignuini-sim.
 #
@@ -34,10 +34,10 @@
 #	You should have received a copy of the GNU General Public License
 #	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
-############################################################################################################                                                               
+####################################################################################################                                                             
 from __future__ import division
 
-############################################################################################################
+####################################################################################################
 " Global variables "
 # Vega band magnitudes calculated using data from https://www.astro.umd.edu/~ssm/ASTR620/mags.html
 VEGA_MAGNITUDE_ZEROPOINT = {
@@ -54,18 +54,18 @@ COLORBAR_PAD = 0.04
 
 # Near-IR filter bands
 FILTER_BANDS_UM = {
-	# [centre wavelength, width, min, max]
+	# [centre wavelength_m, width, min, max]
 	'J' : [1.250, 0.160, 1.170, 1.330],
 	'H' : [1.635, 0.290, 1.490, 1.780],
 	'K' : [2.200, 0.340, 2.030, 2.370]
 }
 FILTER_BANDS_M = {
-	# [centre wavelength, width, min, max]
+	# [centre wavelength_m, width, min, max]
 	'J' : [1.250e-6, 0.160e-6, 1.170e-6, 1.330e-6],
 	'H' : [1.635e-6, 0.290e-6, 1.490e-6, 1.780e-6],
 	'K' : [2.200e-6, 0.340e-6, 2.030e-6, 2.370e-6]
 }
-############################################################################################################
+####################################################################################################
 " Various packages "
 import scipy.constants as constants
 import scipy.integrate as integrate
@@ -96,7 +96,7 @@ import sysparams.detector_saphira as detector
 import sysparams.telescope_anu23m as telescope
 import sysparams.sky_sso as sky
 SYSTEM_PLATE_SCALE_AS_PX = detector.l_px_m * telescope.plate_scale_as_m
-SYSTEM_PLATE_SCALE_RAD_PX = SYSTEM_PLATE_SCALE_AS_PX / 3600 * np.pi / 180
+SYSTEM_PLATE_SCALE_RAD_PX = np.deg2rad(SYSTEM_PLATE_SCALE_AS_PX / 3600)
 OMEGA_PX_RAD = SYSTEM_PLATE_SCALE_RAD_PX * SYSTEM_PLATE_SCALE_RAD_PX
 
 # Importing modules
