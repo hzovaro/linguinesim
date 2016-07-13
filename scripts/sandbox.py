@@ -32,26 +32,28 @@ from apdsim import *
 from cosmo_calc import *
 plt.close('all')
 
-wavelength = 2e-6
-R = 50*25
-D = 2.5
-A_tel = np.pi * D * D / 4
-f_ratio = R / D
-l_px_m = 20e-6
-width = 500
-height = 500
-A_detector = height * width * l_px_m * l_px_m
-detector_size_px = (height,width)
+# Input parameters
+N_stars = 5
+N_tt = 5
+t_exp = 10e-3
+band = 'K'
+sigma_tt_px = 20
+crop_tt = 50
+m_max = 20
+m_min = 10
 
-# psf, P_0, I_0 = psfKernel(wavelength, f_ratio, l_px_m, detector_size_px,
-# 	plotIt=True)
-# psf, P_0, I_0 = psfKernel(2.2e-6, telescope.f_ratio, detector.l_px_m, detector.size_px,
-# 	plotIt=True)
-# print 'Sum = ',sum(psf.flatten()) * detector.l_px_m * detector.l_px_m
-# print 'P_0 = ',P_0
-# print 'I_0 = ',I_0
+# Make a star field.
+image_count, starfield_padded, m, coords = getStarField(N_stars = N_stars, m_min = m_min, m_max = m_max, A_tel = telescope.A_collecting, f_ratio = telescope.f_ratio, l_px_m = detector.l_px_m, detector_size_px = tuple(2*crop_tt+x for x in detector.size_px), magnitudeSystem = 'AB', band = band, plotIt = True)
+starfield = starfield_padded[crop_tt:crop_tt+detector.height_px,crop_tt:crop_tt+detector.width_px]
 
-# star = getStar(funtype, coords, wavelength, f_ratio, l_px_m, detector_size_px,
-# 	plotIt=False)
+# Add tip and tilt.
+starfields_tt, in_idxs = addTurbulence(starfield_padded, N_tt, sigma_tt_px, crop_tt)
 
-image_count, starfield, m, coords = getStarField(N_stars = 5, A_tel = telescope.A_collecting, f_ratio = telescope.f_ratio, l_px_m = detector.l_px_m, detector_size_px = detector.size_px, magnitudeSystem = 'AB', band = 'K', plotIt = True)
+# Add noise.
+starfields_noisy, etc_output = addNoise(starfields_tt, band = band, t_exp = t_exp)
+
+# Applying the shift-and-stack routine.
+starfield_stacked, out_idxs = shiftAndStack(starfields_tt, image_ref = starfield, plotIt = True)
+
+# Printing the alignment error.
+printAlignmentError(in_idxs, out_idxs)
