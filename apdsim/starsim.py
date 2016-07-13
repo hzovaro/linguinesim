@@ -34,8 +34,8 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 	N_stars = None,			# Number of random stars to generate.
 	m = None, 				# Vector of star magnitudes.
 	coords = None, 			# Coordinates of stars.
-	min_mag = 20,			# Minimum star magnitude.
-	max_mag = 5,			# Maximum star magnitude.
+	m_min = 20,			# Minimum star magnitude.
+	m_max = 5,			# Maximum star magnitude.
 	tau = 1,
 	qe = 1,
 	gain = 1,
@@ -51,7 +51,7 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 	"""
 	detector_height_px, detector_width_px = detector_size_px[0:2]
 	if N_stars != None:
-		m = np.random.uniform(low=max_mag, high=min_mag, size=(N_stars))
+		m = np.random.uniform(low=m_max, high=m_min, size=(N_stars))
 		coords = np.zeros((2,N_stars))
 		coords[0,:] = np.random.uniform(high=detector_height_px, size=(1, N_stars))
 		coords[1,:] = np.random.uniform(high=detector_width_px, size=(1, N_stars))
@@ -59,24 +59,37 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 		print 'ERROR: ether both m and coords OR N_stars be specified!'
 		return
 	else:
-		N_stars = len(m)
-		if len(m) != coords.shape[0]:
-			print 'ERROR: the length of the star magnitudes vector must be equal to that of the first dimension of the coords array!'
-			return
+		if len(m.shape) > 0:
+			N_stars = len(m)
+			if len(m) != coords.shape[0]:
+				print 'ERROR: the length of the star magnitudes vector must be equal to that of the first dimension of the coords array!'
+				return
+		else:
+			N_stars = 1
+			m_tmp = m 
+			m = np.ndarray(shape=(1,1))
+			m[0] = m_tmp
+			coords_tmp = coords
+			coords = np.ndarray(shape=(2,1))
+			coords[:,0] = coords_tmp		
 
 	if wavelength_m == None and band != None:
 		wavelength_m = FILTER_BANDS_M[band][0]
 		bandwidth_m = FILTER_BANDS_M[band][1]
 
+	print '-------------------------------------------------------------------------------------------------------'
 	print '#\tCoordinates\t\tMagnitude\t\tP_0\t\tP_sum\t% in image'
+	print '-------------------------------------------------------------------------------------------------------'
 	starfield = np.zeros(detector_size_px)
 	for k in range(N_stars):
+		pdb.set_trace()
 		# Total expected electron count from the star from the whole aperture.
 		Sigma_electrons = surfaceBrightness2countRate(mu = m[k], A_tel = A_tel, tau = tau, qe = qe, gain = gain, magnitudeSystem = magnitudeSystem, wavelength_m = wavelength_m, bandwidth_m = bandwidth_m)		
 		# Adding the star's contribution to the image.
 		star, P_0, P_sum, I_0 =airyDisc(wavelength_m = wavelength_m, f_ratio = f_ratio, l_px_m = l_px_m, detector_size_px = detector_size_px, x_offset = coords[0,k], y_offset = coords[1,k], P_0 = Sigma_electrons)
 		starfield += star
 		print '%d:\t(%6.2f, %6.2f)\t%4.2f\t\t%15.2f\t%15.2f\t%4.2f' % (k+1, coords[0,k], coords[1,k], m[k], P_0, P_sum, 100*P_sum/P_0)
+	print '-------------------------------------------------------------------------------------------------------'
 	# Converting to image counts
 	image_count = expectedCount2count(starfield)
 
