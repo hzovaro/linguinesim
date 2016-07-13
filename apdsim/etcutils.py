@@ -1,4 +1,4 @@
-#########################################################################################################
+####################################################################################################
 #
 # 	File:		etcutils.py
 #	Author:		Anna Zovaro
@@ -9,7 +9,7 @@
 #
 #	Copyright (C) 2016 Anna Zovaro
 #
-#########################################################################################################
+####################################################################################################
 #
 #	This file is part of lignuini-sim.
 #
@@ -26,7 +26,7 @@
 #	You should have received a copy of the GNU General Public License
 #	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
-#########################################################################################################
+####################################################################################################
 from __future__ import division
 from apdsim import *
 
@@ -41,15 +41,12 @@ def surfaceBrightness2countRate(mu, A_tel,
 	band = None
 	):
 	""" 
-		Return the electron count (e/pixel/s) from a source with a given surface brightness OR magnitude (mu) 
-		imaged through a system with collecting area A_tel, throughput tau, quantum efficiency qe, 
-		internal gain gain and a detector plate scale (plate_scale_as) in arcsec/pixel.
+		Return the electron count (e/pixel/s) from a source with a given surface brightness OR magnitude (mu) imaged through a system with collecting area A_tel, throughput tau, quantum efficiency qe, internal gain gain and a detector plate scale (plate_scale_as) in arcsec/pixel.
 
 		If mu is given in magnitudes, then the plate scale is irrelevant to the calculation.
 	"""
-
 	if (band == None and (wavelength_m == None or bandwidth_m == None)) or (band != None and (wavelength_m != None or bandwidth_m != None)):
-		print 'ERROR: you must specify either a band (J, H or K) OR a wavelength and bandwidth!'
+		print 'ERROR: you must specify either a band (J, H or K) OR a wavelength_m and bandwidth!'
 		return
 
 	if band != None:
@@ -71,18 +68,17 @@ def surfaceBrightness2countRate(mu, A_tel,
 	Sigma_electrons = flux2countRate(F=F, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain, magnitudeSystem=magnitudeSystem, wavelength_m=wavelength_m,bandwidth_m=bandwidth_m, band=band)                                                             
 	return Sigma_electrons
 
-#########################################################################################################
+####################################################################################################
 # This routine is independent of telescope, detector geometry.
 def surfaceBrightness2flux(mu, 
 	wavelength_m = None,
 	zeropoint = AB_MAGNITUDE_ZEROPOINT	# Default: mu is given in AB magnitudes
 	):
 	"""" 
-		Convert a given surface brightness (expressed in magnitudes/arcsec^2) OR magnitude (in magnitudes)
-		to spectral radiance units in both per unit frequency and per unit wavelength.
+		Convert a given surface brightness (expressed in magnitudes/arcsec^2) OR magnitude (in magnitudes) to spectral radiance units in both per unit frequency and per unit wavelength_m.
 		The flux values are returned in both CGS and SI units.
 
-		If a wavelength is not specified then only the spectral radiance per unit 
+		If a wavelength_m is not specified then only the spectral radiance per unit 
 		frequency is returned.
 	"""
 	F_nu_cgs = np.power(10, - (zeropoint + mu) / 2.5)						# ergs/s/cm^2/arcsec^2/Hz
@@ -102,19 +98,20 @@ def surfaceBrightness2flux(mu,
 		'F_nu_si' 		: F_nu_si,
 		'F_lambda_si' 	: F_lambda_si,
 	}
-
+	# pdb.set_trace()
 	return F
 
-#########################################################################################################
+####################################################################################################
 def flux2photonRate(F, wavelength_m, bandwidth_m):
 	"""
-		Convert a given flux from a source (in a dictionary format output by surfaceBrightness2flux) into photons/s/m^2/arcsec^2 given a central wavelength and bandwidth of a filter.
+		Convert a given flux from a source (in a dictionary format output by surfaceBrightness2flux) into photons/s/m^2/arcsec^2 given a central wavelength_m and bandwidth of a filter.
 	"""
 	E_photon = constants.h * constants.c / wavelength_m			# J
 	Sigma_photons = F['F_lambda_si'] * bandwidth_m / E_photon	# W/m^2/arcsec^2/m * m/J = photons/s/m^2/arcsec^2
+	# pdb.set_trace()
 	return Sigma_photons
 
-#########################################################################################################
+####################################################################################################
 def photonRate2countRate(Sigma_photons, A_tel, 
 	tau, 
 	qe, 
@@ -127,9 +124,10 @@ def photonRate2countRate(Sigma_photons, A_tel,
 		(tau), quantum efficiency (qe) and gain (gain).
 	"""
 	Sigma_electrons = Sigma_photons * A_tel * plate_scale_as_px * plate_scale_as_px * tau * qe * gain # photons/s/px
+	# pdb.set_trace()
 	return Sigma_electrons
 
-#########################################################################################################
+####################################################################################################
 def flux2countRate(F, A_tel, 
 	plate_scale_as_px = 1, 
 	tau = 1,
@@ -150,14 +148,15 @@ def flux2countRate(F, A_tel,
 		wavelength_m = FILTER_BANDS_M[band][0]
 		bandwidth_m = FILTER_BANDS_M[band][1]
 	elif (wavelength_m == None or bandwidth_m == None):
-		print 'ERROR: you must specify either a band (J, H or K) OR a wavelength and bandwidth!'
+		print 'ERROR: you must specify either a band (J, H or K) OR a wavelength_m and bandwidth!'
 		return
 
 	Sigma_photons = flux2photonRate(F=F, wavelength_m=wavelength_m, bandwidth_m=bandwidth_m)
 	Sigma_electrons = photonRate2countRate(Sigma_photons=Sigma_photons, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain)
+	# pdb.set_trace()
 	return Sigma_electrons
 
-#########################################################################################################
+####################################################################################################
 def expectedCount2count(arg, 
 	t_exp = None):
 	"""
