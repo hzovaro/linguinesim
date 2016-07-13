@@ -1,4 +1,4 @@
-#########################################################################################################
+####################################################################################################
 #
 # 	File:		etc.py
 #	Author:		Anna Zovaro
@@ -15,7 +15,7 @@
 #
 #	Copyright (C) 2016 Anna Zovaro
 #
-#########################################################################################################
+####################################################################################################
 #
 #	This file is part of lignuini-sim.
 #
@@ -32,7 +32,7 @@
 #	You should have received a copy of the GNU General Public License
 #	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
-#########################################################################################################
+####################################################################################################
 from __future__ import division
 from apdsim import *
 
@@ -42,6 +42,7 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 	):
 	"""
 		An exposure time calculator. 
+		Outputs are expressed per pixel.
 		Noise terms include contributions from
 		- the telescope (spider structure and mirrors, radiating as blackbodies at telescope.T)
 		- the sky (radiating as a blackbody at sky.T)
@@ -59,14 +60,15 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 	wavelength_min = FILTER_BANDS_M[band][2]
 	wavelength_max = FILTER_BANDS_M[band][3]
 
-	#########################################################################################################
+	################################################################################################
 	# Noise terms in the SNR calculation
-	#########################################################################################################
+	################################################################################################
 	
 	""" Signal photon flux """
-	# Given the surface brightness and angular extent of the image, calculate the source electrons/s/pixel.
+	# Given the surface brightness of the object, calculate the source electrons/s/pixel.
 	if surfaceBrightness != None:
 		if magnitudeSystem != None:
+			# Here, if the input is given in mag/arcsec^2, then we need Sigma_source_e to be returned in units of electrons/s/pixel. 
 			Sigma_source_e = surfaceBrightness2countRate(mu = surfaceBrightness, 
 				wavelength_m = wavelength_eff, 
 				bandwidth_m = bandwidth, 
@@ -115,9 +117,9 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 	""" Dark current """
 	Sigma_dark = detector.dark_current
 
-	#########################################################################################################
+	################################################################################################
 	# Calculating the SNR
-	#########################################################################################################
+	################################################################################################
 	N_source = Sigma_source_e * t_exp
 	N_dark = Sigma_dark * t_exp
 	N_cryo = Sigma_cryo * t_exp
@@ -128,7 +130,7 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 	N_RN = detector.read_noise * detector.read_noise
 
 	SNR = N_source / np.sqrt(N_source + N_dark + N_cryo + N_sky + N_RN)
-	#########################################################################################################
+	################################################################################################
 
 	etc_output = {
 		# Input parameters
@@ -136,7 +138,7 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 		'band' : band,
 		'surfaceBrightness' : surfaceBrightness,
 		'magnitudeSystem' : magnitudeSystem,
-		# Noise standard deviations
+		# Noise standard deviations PER PIXEL
 		# Poisson distribution, so the nosie scales as the square root of the total number of photons
 		'sigma_source' : np.sqrt(N_source),
 		'sigma_dark' : np.sqrt(N_dark),
@@ -146,7 +148,7 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 		'sigma_tel' : np.sqrt(N_tel),
 		'sigma_sky_thermal' : np.sqrt(N_sky_thermal),
 		'sigma_RN' : detector.read_noise,
-		# Total electron counts
+		# Total electron count PER PIXEL
 		'N_source' : N_source,
 		'N_dark' : N_dark,
 		'N_cryo' : N_cryo,
@@ -161,7 +163,7 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 
 	return etc_output
 
-#########################################################################################################
+####################################################################################################
 def getCryostatTE(plotIt=True):
 	T_cryo = np.linspace(80, 200, 1000)
 	I_cryo = np.zeros(len(T_cryo))
@@ -221,7 +223,7 @@ def getCryostatTE(plotIt=True):
 	
 	return I_cryo[idx]
 
-#########################################################################################################
+####################################################################################################
 
 def getSkyTE(T_sky, plotIt=True):
 	" Sky thermal background photon flux in the J, H and K bands "
@@ -271,7 +273,7 @@ def getSkyTE(T_sky, plotIt=True):
 
 	return I_sky
 
-#########################################################################################################
+####################################################################################################
 
 def getTelescopeTE(T_sky, plotIt=True, worstCaseSpider=False):
 	I_tel = {
@@ -294,7 +296,7 @@ def getTelescopeTE(T_sky, plotIt=True, worstCaseSpider=False):
 			# BEST CASE: assume the spider has a fresh aluminium coating - so 9.1% emissive at sky temp and 90.1% emissive at telescope temp
 			I_spider = \
 				thermalEmissionIntensity(T = telescope.T, 	wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = telescope.eps_spider_eff)\
-			  + thermalEmissionIntensity(T = T_sky, 		wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = lambda wavelength : (1 - telescope.eps_spider_eff) * eps_sky(wavelength))
+			  + thermalEmissionIntensity(T = T_sky, 		wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = lambda wavelength_m : (1 - telescope.eps_spider_eff) * eps_sky(wavelength_m))
 		else:
 			# WORST CASE: assume the spider is 100% emissive at telescope temperature (i.e. not reflective at all)
 			I_spider = \
@@ -332,7 +334,7 @@ def getTelescopeTE(T_sky, plotIt=True, worstCaseSpider=False):
 
 ########################################################################################
 def plotBackgroundNoiseSources():
-	" Plot the empirical sky brightness, thermal sky emission, thermal telescope emission and dark current as a function of wavelength "
+	" Plot the empirical sky brightness, thermal sky emission, thermal telescope emission and dark current as a function of wavelength_m "
 	counts = {
 		'H' : 0,
 		'J' : 0,
@@ -399,15 +401,15 @@ def thermalEmissionIntensity(
 	"""
 
 	# Planck function
-	B = lambda wavelength, T: 2 * constants.h * np.power(constants.c,2) / np.power(wavelength,5) * 1 / (np.exp(constants.h * constants.c / (wavelength * constants.Boltzmann * T)) - 1)
+	B = lambda wavelength_m, T: 2 * constants.h * np.power(constants.c,2) / np.power(wavelength_m,5) * 1 / (np.exp(constants.h * constants.c / (wavelength_m * constants.Boltzmann * T)) - 1)
 	
 	# Integrand
-	integrand = lambda wavelength, Omega, eta, A, T, eps: Omega * A * eta * B(wavelength, T) * wavelength / (constants.h * constants.c) * eps
+	integrand = lambda wavelength_m, Omega, eta, A, T, eps: Omega * A * eta * B(wavelength_m, T) * wavelength_m / (constants.h * constants.c) * eps
 	
 	# Integrating to find the total irradiance incident upon the pupil
 	if hasattr(eps, '__call__'):
-		# if the emissivity is a function of wavelength
-		integrand_prime = lambda wavelength, Omega, eta, A, T: integrand(wavelength, Omega, eta, A, T, eps(wavelength))
+		# if the emissivity is a function of wavelength_m
+		integrand_prime = lambda wavelength_m, Omega, eta, A, T: integrand(wavelength_m, Omega, eta, A, T, eps(wavelength_m))
 		I = integrate.quad(integrand_prime, wavelength_min, wavelength_max, args=(Omega, eta, A, T))[0]
 	else:	
 		# if the emissivity is scalar
@@ -431,7 +433,7 @@ def getSkyEps():
 		Tr_sky.append(float(cols[1]))
 	Tr_sky = np.asarray(Tr_sky)
 	wavelengths_sky = np.asarray(wavelengths_sky) * 1e-6
-	eps_sky = lambda wavelength: np.interp(wavelength, wavelengths_sky, 1 - Tr_sky)
+	eps_sky = lambda wavelength_m: np.interp(wavelength_m, wavelengths_sky, 1 - Tr_sky)
 	f.close()
 
 	return eps_sky
