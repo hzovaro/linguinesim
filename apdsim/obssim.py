@@ -32,52 +32,85 @@ from __future__ import print_function
 from apdsim import *
 
 def airyDisc(wavelength_m, f_ratio, l_px_m, detector_size_px,
-	x_offset=0,
-	y_offset=0,
+	oversampleFactor=4,
+	coords=None,
 	P_0=1,
 	plotIt=False):
 	"""
 		Returns the PSF of an optical system with a circular aperture given the f ratio, pixel and detector size at a given wavelength_m.
 
-		If desired, an offset (measured from the top left corner of the detector) can be specified.
+		If desired, an offset (measured from the top left corner of the detector) can be specified in vector coords = (x, y).
 
 		The PSF is normalised such that the sum of every pixel in the PSF (extended to infinity) is equal to P_0 (unity by default), where P_0 is the total energy incident upon the telescope aperture. 
 
 		P_0 represents the *ideal* total energy in the airy disc (that is, the total energy incident upon the telescope aperture), whilst P_sum measures the actual total energy in the image (i.e. the pixel values). 
 	"""
-	# Calculating the PSF
+
+	# Detector size 
 	detector_height_px, detector_width_px = detector_size_px[0:2]
-	dx = detector_height_px/2 - x_offset
-	dy = detector_width_px/2 - y_offset
-	x = np.arange(-detector_height_px//2, +detector_height_px//2 + detector_height_px%2, 1) + dx
-	y = np.arange(-detector_width_px//2, +detector_width_px//2 + detector_width_px%2, 1) + dy
-	x *= l_px_m
-	y *= l_px_m
-	X, Y = np.meshgrid(x, y)
-	# x in units of m
-	r_prime = np.sqrt(np.power(X,2) + np.power(Y,2))
-	r = np.pi / wavelength_m / f_ratio * r_prime
+	# Intensity map grid size
+	oversampled_height_px = detector_height_px * oversampleFactor
+	oversampled_width_px = detector_width_px * oversampleFactor
+	# Coordinates of the centre of the Airy disc in the intensity map grid
+	if coords == None:
+		x_offset = oversampled_height_px/2
+		y_offset = oversampled_width_px/2
+	else:
+		x_offset = coords[0] * oversampleFactor
+		y_offset = coords[1] * oversampleFactor
+	dx = oversampled_height_px/2 - x_offset
+	dy = oversampled_width_px/2 - y_offset
+	# Intensity map grid indices (in metres)
+	x = np.arange(-oversampled_height_px//2, +oversampled_height_px//2 + oversampled_height_px%2 + 1, 1) + dx
+	y = np.arange(-oversampled_width_px//2, +oversampled_width_px//2 + oversampled_width_px%2 + 1, 1) + dy
+	x *= l_px_m / oversampleFactor
+	y *= l_px_m / oversampleFactor
+	Y, X = np.meshgrid(y, x)
+
 	# Central intensity (W m^-2)
 	I_0 = P_0 * np.pi / 4 / wavelength_m / wavelength_m / f_ratio / f_ratio
-	# Calculating the PSF
-	airyDisc = np.power((2 * special.jv(1, r) / r), 2) * I_0 
-	nan_idx = np.where(np.isnan(airyDisc))
+
+	# Calculating the Airy disc
+	# r = np.pi / wavelength_m / f_ratio * np.sqrt(np.power(X,2) + np.power(Y,2))
+	# I = np.power((2 * special.jv(1, r) / r), 2) * I_0 
+	r = lambda x, y: np.pi / wavelength_m / f_ratio * np.sqrt(np.power(x,2) + np.power(y,2))
+	I_fun = lambda x, y : np.power((2 * special.jv(1, r(x,y)) / r(x,y)), 2) * I_0 
+	I = I_fun(X,Y)
+	# I = np.swapaxes(I,0,1)
+	nan_idx = np.where(np.isnan(I))
 	if nan_idx[0].shape != (0,):
-		airyDisc[nan_idx[0][0],nan_idx[1][0]] = I_0 # removing the NaN in the centre of the image if necessary
-	airyDisc *= l_px_m * l_px_m
-	airyDisc = np.swapaxes(airyDisc,0,1)
-	airyDisc = airyDisc.astype(np.float64)
-	P_sum = sum(airyDisc.flatten())
+		I[nan_idx[0][0],nan_idx[1][0]] = I_0 # removing the NaN in the centre of the image if necessary
+
+	""" Converting intensity values to count values in each pixel """
+	# Approximation using top-hat intensity profile in each pixel
+	count_approx = I * l_px_m**2 / oversampleFactor**2
+	count_approx = count_approx.astype(np.float64)
+
+	# Approximation using trapezoidal rule
+	count_cumtrapz = np.zeros((detector_height_px,detector_width_px))
+	cumsum = 0
+	for j in range(detector_width_px):
+		for k in range(detector_height_px):
+			px_grid = I[oversampleFactor*k:oversampleFactor*k+oversampleFactor+1,oversampleFactor*j:oversampleFactor*j+oversampleFactor+1]
+			res1 = integrate.cumtrapz(px_grid, dx = l_px_m/oversampleFactor, axis = 0, initial = 0)
+			res2 = integrate.cumtrapz(res1[-1,:], dx = l_px_m/oversampleFactor, initial = 0)
+			count_cumtrapz[k,j] = res2[-1]
+	# Total energy in image
+	P_sum = sum(count_cumtrapz.flatten())
 
 	if plotIt:
-		plt.figure(figsize=(FIGSIZE,FIGSIZE))
-		# plt.imshow(psf, norm=LogNorm())
-		plt.imshow(airyDisc)
+		plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
+		plt.subplot(1,2,1)
+		plt.imshow(I)
 		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
-		plt.title('Point spread function')
+		plt.title('Intensity (oversampled by a factor of %d)' % oversampleFactor)
+		plt.subplot(1,2,2)
+		plt.imshow(count_cumtrapz)
+		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		plt.title('Count (via trapezoidal rule)')
 		plt.show()
 
-	return airyDisc, P_0, P_sum, I_0
+	return count_cumtrapz, count_approx, I, P_0, P_sum, I_0
 
 ####################################################################################################
 def psfKernel(wavelength_m, f_ratio, l_px_m, detector_size_px,
