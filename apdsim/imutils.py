@@ -55,7 +55,7 @@ def getRawImages(fname,
 
 	return np.squeeze(images_raw), hdulist
 
-#########################################################################################################
+####################################################################################################
 def imageToArray(im):
 	" Convert an Image object im into an array. "
 	width, height = im.size
@@ -63,25 +63,26 @@ def imageToArray(im):
 	image_map = np.array(image_map).reshape(height, width)
 	return image_map
 
-#########################################################################################################
+####################################################################################################
 def rotateAndCrop(image_in_array, 
 	angle = None, 
 	cropArg = None, 
 	plotIt=False):
 	" Rotate and crop an array of N images stored in ndarray image_in_array counterclockwise by a given angle and then crop the image using coordinates (left, upper, right, lower) "
+	image_in_array = image_in_array.astype(np.float64)
 	image_in_array, N, height, width = getImageSize(image_in_array)
-
 	# Crop options:
 	#	1. One number given: crop by the same amount on all sides
 	if cropArg != None:
-		if type(cropArg) == int:
-			cropIdx = (cropArg, cropArg, width - cropArg, height - cropArg)
 		#	2. Two numbers given: crop by the same width and height either side.
-		elif type(cropArg) == tuple and len(cropArg) == 2:
+		if type(cropArg) == tuple and len(cropArg) == 2:
 			cropIdx = (cropArg[1], cropArg[0], width - cropArg[1], height - cropArg[0])
 		#	3. Four numbers given: crop input is given as the (left, top, right, bottom) indices.
 		elif type(cropArg) == tuple and len(cropArg) == 4:
 			cropIdx = cropArg
+		# if type(cropArg) == int:
+		else:
+			cropIdx = (cropArg, cropArg, width - cropArg, height - cropArg)
 
 	# Convert to an Image object.
 	for k in range(N):
