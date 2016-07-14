@@ -1,4 +1,4 @@
-##########################################################################################################
+####################################################################################################
 #
 # 	File:		lisim.py
 #	Author:		Anna Zovaro
@@ -20,7 +20,7 @@
 #		- Cross-correlate the ideal PSF (say, Airy disc) with a subsection of the image containing a guide star--peak of the x-corr indicates the correlation (basically the Strehl) whilst its position gives the shift that needs to be applied 
 #		- Rank in order of the fraction of light concentrated in the brightest pixel of the guide star PSF
 #
-#########################################################################################################
+####################################################################################################
 #
 #	This file is part of lignuini-sim.
 #
@@ -69,8 +69,10 @@ def addTurbulence(images, N_tt, sigma_tt_px,
 	for k in range(N):
 		for j in range(N_tt):
 			print('.', end="")
-			shift_height = np.ceil(np.random.randn() * sigma_tt_px).astype(int)
-			shift_width = np.ceil(np.random.randn() * sigma_tt_px).astype(int)
+			# shift_height = np.ceil(np.random.randn() * sigma_tt_px).astype(int)
+			# shift_width = np.ceil(np.random.randn() * sigma_tt_px).astype(int)
+			shift_height = np.random.randn() * sigma_tt_px
+			shift_width = np.random.randn() * sigma_tt_px
 			image_tt = shift(images[k], (shift_height, shift_width))
 			tt_idxs[k,j] = [shift_height, shift_width]
 
@@ -141,8 +143,7 @@ def shiftAndStack(images,
 		img_peak_idxs[k][1] = - corr_peak_idxs[k][1] + (width - 1)
 
 		# Shift-and-stack the images.
-		# image_stacked += np.roll(np.roll(images[k], -img_peak_idxs[k][0].astype(int), 0), -img_peak_idxs[k][1].astype(int), 1)	
-		image_stacked += shift(images[k], (-img_peak_idxs[k][0].astype(int), -img_peak_idxs[k][1].astype(int)))
+		image_stacked += shift(images[k], (-img_peak_idxs[k][0], -img_peak_idxs[k][1]))
 
 		# Plotting
 		if showAnimatedPlots:
