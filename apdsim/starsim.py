@@ -31,6 +31,7 @@ from __future__ import division
 from apdsim import *
 
 def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
+	t_exp = 1,			# Exposure time (s).
 	N_stars = None,			# Number of random stars to generate.
 	m = None, 				# Vector of star magnitudes.
 	coords = None, 			# Coordinates of stars.
@@ -43,6 +44,7 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 	wavelength_m = None, 
 	bandwidth_m = None, 
 	band = None, 	
+	verbose=False,		# If True, prints a table showing the respective magnitudes and coordinates of each star in the field.
 	plotIt=False):
 	"""
 		Returns a simulated image of a star field imaged through an optical system at a given wavelength_m or in an imaging band with a specified centre wavelength_m and bandwidth with a given collecting area, f ratio, pixel size and detector dimensions. The throughput, QE and gain of the system can be specified if required; otherwise they are all assumed to be unity. 
@@ -59,7 +61,7 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 		print 'ERROR: ether both m and coords OR N_stars be specified!'
 		return
 	else:
-		if len(m.shape) > 0:
+		if not(np.isscalar(m)):
 			N_stars = len(m)
 			if len(m) != coords.shape[0]:
 				print 'ERROR: the length of the star magnitudes vector must be equal to that of the first dimension of the coords array!'
@@ -76,20 +78,26 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 	if wavelength_m == None and band != None:
 		wavelength_m = FILTER_BANDS_M[band][0]
 		bandwidth_m = FILTER_BANDS_M[band][1]
-
-	print '-------------------------------------------------------------------------------------------------------'
-	print '#\tCoordinates\t\tMagnitude\t\tP_0\t\tP_sum\t% in image'
-	print '-------------------------------------------------------------------------------------------------------'
+	
 	starfield = np.zeros(detector_size_px)
 	for k in range(N_stars):
-		pdb.set_trace()
-		# Total expected electron count from the star from the whole aperture.
-		Sigma_electrons = surfaceBrightness2countRate(mu = m[k], A_tel = A_tel, tau = tau, qe = qe, gain = gain, magnitudeSystem = magnitudeSystem, wavelength_m = wavelength_m, bandwidth_m = bandwidth_m)		
+		# Total expected e/s from the star from the whole aperture (NOT per pixel)
+		Sigma_electrons = surfaceBrightness2countRate(mu = m[k], A_tel = A_tel, tau = tau, qe = qe, gain = gain, magnitudeSystem = magnitudeSystem, wavelength_m = wavelength_m, bandwidth_m = bandwidth_m)
+
 		# Adding the star's contribution to the image.
-		star, P_0, P_sum, I_0 =airyDisc(wavelength_m = wavelength_m, f_ratio = f_ratio, l_px_m = l_px_m, detector_size_px = detector_size_px, x_offset = coords[0,k], y_offset = coords[1,k], P_0 = Sigma_electrons)
-		starfield += star
-		print '%d:\t(%6.2f, %6.2f)\t%4.2f\t\t%15.2f\t%15.2f\t%4.2f' % (k+1, coords[0,k], coords[1,k], m[k], P_0, P_sum, 100*P_sum/P_0)
-	print '-------------------------------------------------------------------------------------------------------'
+		star, I, P_0, P_sum, I_0 = airyDisc(wavelength_m = wavelength_m, f_ratio = f_ratio, l_px_m = l_px_m, detector_size_px = detector_size_px, coords = coords[:,k], P_0 = Sigma_electrons)
+
+		# Multiplying by the exposure time to get the electron count.
+		starfield += star * t_exp	
+
+	if verbose:
+		print '-------------------------------------------------------------------------------------------------------'
+		print '#\tCoordinates\t\tMagnitude\t\tP_0\t\tP_sum\t% in image'
+		print '-------------------------------------------------------------------------------------------------------'
+		for k in range(N_stars):
+			print '%d:\t(%6.2f, %6.2f)\t%4.2f\t\t%15.2f\t%15.2f\t%4.2f' % (k+1, coords[0,k], coords[1,k], m[k], P_0, P_sum, 100*P_sum/P_0)
+		print '-------------------------------------------------------------------------------------------------------'
+
 	# Converting to image counts
 	image_count = expectedCount2count(starfield)
 
