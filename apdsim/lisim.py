@@ -88,6 +88,7 @@ def addTurbulence(images, N_tt, sigma_tt_px,
 def shiftAndStack(images, 
 	image_ref=None,
 	N=None, 
+	subPixelShift=True,			# Use a 2D Gaussian fit to locate the maximm in the cross-correlation output.
 	showAnimatedPlots=False,	# Show an animated plot window of the shifting-and-stacking process.
 	plotIt=False):
 	""" 
@@ -130,17 +131,45 @@ def shiftAndStack(images,
 	height = images[0].shape[0]
 	width = images[0].shape[1]
 	
-	corrs = np.ndarray((N, 2 * height - 1, 2 * width - 1))	# Array to hold x-correlation results
+	# corrs = np.ndarray((N, 2 * height - 1, 2 * width - 1))	# Array to hold x-correlation results
+	corrs = np.ndarray((N, height, width))	# Array to hold x-correlation results
 	corr_peak_idxs = np.ndarray((N, 2))		# indices of the peak value in the x-correlation
 	img_peak_idxs = np.ndarray((N, 2))		# shift in x and y computed from the x-correlation
 
 	for k in range(N):
 		print('.', end="")
 		# Cross-correlate image k with the reference image to find the tip and tilt.
-		corrs[k] = signal.fftconvolve(image_ref, images[k][::-1,::-1])
-		corr_peak_idxs[k] = np.unravel_index(np.argmax(corrs[k]), (2 * height - 1, 2 * width - 1))
-		img_peak_idxs[k][0] = - corr_peak_idxs[k][0] + (height - 1)
-		img_peak_idxs[k][1] = - corr_peak_idxs[k][1] + (width - 1)
+		corrs[k] = signal.fftconvolve(image_ref, images[k][::-1,::-1], 'same')
+		corrs[k] /= max(corrs[k].flatten())	# The fitting here does not work if the pixels have large values!
+		if subPixelShift: 
+			# Fitting a Gaussian.
+			Y, X = np.mgrid[-height/2:height/2, -width/2:width/2]			
+			p_init = models.Gaussian2D(x_stddev=1.,y_stddev=1.)
+			fit_p = fitting.LevMarLSQFitter()
+			p_fit = fit_p(p_init, X, Y, corrs[k])
+			# NOTE: the indices have to be swapped around here for some reason!
+			corr_peak_idxs[k] = np.array((p_fit.y_mean.value, p_fit.x_mean.value))
+			img_peak_idxs[k][0] = - corr_peak_idxs[k][0]
+			img_peak_idxs[k][1] = - corr_peak_idxs[k][1]
+			# print("Indices of maximum in Gaussian fit relative to image centre: (%5.2f,%5.2f)" % (corr_peak_idxs[k][0], corr_peak_idxs[k][1]))
+			# Plotting (for debugging purposes)
+			if plotIt:
+				plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
+				plt.subplot(1,2,1)
+				plt.imshow(corrs[k])
+				plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+				plt.title('Cross-correlation')
+				plt.subplot(1,2,2)
+				plt.imshow(p_fit(X,Y))
+				plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+				plt.title('Model fit')
+				plt.show()			
+		else:
+			corr_peak_idxs[k] = np.unravel_index(np.argmax(corrs[k]), corrs[k].shape)
+			img_peak_idxs[k][0] = - corr_peak_idxs[k][0]
+			img_peak_idxs[k][1] = - corr_peak_idxs[k][1]
+
+		# pdb.set_trace()
 
 		# Shift-and-stack the images.
 		image_stacked += shift(images[k], (-img_peak_idxs[k][0], -img_peak_idxs[k][1]))
