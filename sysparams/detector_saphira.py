@@ -36,6 +36,7 @@ from sysparams import *
 gain = 52					# avalanche gain (electrons/photelectron)
 qe = 0.9					# quantum efficiency (worst-case)
 adu_gain = 1 / 2.9			# electrons/ADU 
+saturation = 2**16 - 1		# detector saturation limit
 
 """ Geometry """
 width_px = 320				# width (pixels)
