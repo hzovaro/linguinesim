@@ -71,8 +71,6 @@ def airyDisc(wavelength_m, f_ratio, l_px_m, detector_size_px,
 	I_0 = P_0 * np.pi / 4 / wavelength_m / wavelength_m / f_ratio / f_ratio
 
 	# Calculating the Airy disc
-	# r = np.pi / wavelength_m / f_ratio * np.sqrt(np.power(X,2) + np.power(Y,2))
-	# I = np.power((2 * special.jv(1, r) / r), 2) * I_0 
 	r = lambda x, y: np.pi / wavelength_m / f_ratio * np.sqrt(np.power(x,2) + np.power(y,2))
 	I_fun = lambda x, y : np.power((2 * special.jv(1, r(x,y)) / r(x,y)), 2) * I_0 
 	I = I_fun(X,Y)
@@ -110,7 +108,7 @@ def airyDisc(wavelength_m, f_ratio, l_px_m, detector_size_px,
 		plt.title('Count (via trapezoidal rule)')
 		plt.show()
 
-	return count_cumtrapz, count_approx, I, P_0, P_sum, I_0
+	return count_cumtrapz, I, P_0, P_sum, I_0
 
 ####################################################################################################
 def psfKernel(wavelength_m, f_ratio, l_px_m, detector_size_px,
