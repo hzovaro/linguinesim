@@ -27,12 +27,6 @@
 #	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ############################################################################################
-#
-#	TO DO:
-#	- Better formula for calculating b_n.
-#	- Units of I_e: assume that mu_e is expressed in units of AB magnitudes/arcsec^2.
-#
-############################################################################################
 from __future__ import division
 from apdsim import *
 
@@ -46,7 +40,7 @@ def sersic(n, R_e, R, mu_e,
 		with Sersic index n given half-light radius R_e and mu(R=R_e) = mu_e.
 	"""
 	# Calculating the constraining parameter.
-	F_e = surfaceBrightnessToFlux(mu = mu_e, zeropoint=zeropoint, wavelength_m=wavelength_m)
+	F_e = surfaceBrightness2flux(mu = mu_e, zeropoint=zeropoint, wavelength_m=wavelength_m)
 
 	# Calculating b_n given the Sersic index n.
 	if n > 0.5 and n < 8:
@@ -120,7 +114,9 @@ def sersic2D(n, R_e, mu_e,
 
 ############################################################################################
 def exportGalaxyFITSFile(image_in_array, n, R_e, mu_e, z, R_trunc, i_deg, band, seeing_as, t_exp, N_exp,
-	overwriteExisting = True):
+	overwriteExisting = True,
+	relpath = None
+	):
 	""" 
 		Export a FITS file to be used as input to GALFIT.
 	"""
@@ -131,8 +127,12 @@ def exportGalaxyFITSFile(image_in_array, n, R_e, mu_e, z, R_trunc, i_deg, band, 
 		# 'GAIN' : detector.adu_gain,  # if the image counts are in units of ADU
 		'RDNOISE' : np.sqrt(N_exp) * detector.read_noise * detector.read_noise
 	}
+	if R_trunc == np.inf:
+		R_trunc = 0
 	fname = 'gal_%d_%02d_%02d_%03d_%02d_%01d__%s_%01d_%03d_%03d' % (n, R_e, mu_e, z*1e3, R_trunc, i_deg, band, seeing_as, t_exp*1e3, N_exp)
-	print "Exporting image data to file: ", fname, ".fits"
+	if relpath != None:
+		fname = relpath + '/' + fname
+	print "Exporting image data to file: ", fname,".fits"
 	exportFITSFile(image_in_array = image_in_array, fname = fname, otherHeaderData = headerData, overwriteExisting = overwriteExisting)
 
 
