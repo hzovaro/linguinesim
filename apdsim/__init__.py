@@ -83,12 +83,15 @@ from PIL import Image
 
 import os
 
+import sys
+
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
 from matplotlib import rc
 rc('image', interpolation='none', cmap = 'binary')
 
 from astropy.io import fits
+from astropy.modeling import models, fitting
 
 # Importing detector and telescope properties
 import sysparams.cryo as cryo
