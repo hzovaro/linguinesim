@@ -89,6 +89,7 @@ def shiftAndStack(images,
 	image_ref=None,
 	N=None, 
 	subPixelShift=True,			# Use a 2D Gaussian fit to locate the maximm in the cross-correlation output.
+	buff=25,					# Used in the 2D Gaussian fit.
 	showAnimatedPlots=False,	# Show an animated plot window of the shifting-and-stacking process.
 	plotIt=False):
 	""" 
@@ -143,15 +144,15 @@ def shiftAndStack(images,
 		corrs[k] /= max(corrs[k].flatten())	# The fitting here does not work if the pixels have large values!
 		if subPixelShift: 
 			# Fitting a Gaussian.
-			Y, X = np.mgrid[-height/2:height/2, -width/2:width/2]			
+			# buff = 25
+			Y, X = np.mgrid[-(height-2*buff)/2:(height-2*buff)/2, -(width-2*buff)/2:(width-2*buff)/2]		
 			p_init = models.Gaussian2D(x_stddev=1.,y_stddev=1.)
 			fit_p = fitting.LevMarLSQFitter()
-			p_fit = fit_p(p_init, X, Y, corrs[k])
+			p_fit = fit_p(p_init, X, Y, corrs[k][buff:height-buff, buff:width-buff])
 			# NOTE: the indices have to be swapped around here for some reason!
 			corr_peak_idxs[k] = np.array((p_fit.y_mean.value, p_fit.x_mean.value))
 			img_peak_idxs[k][0] = - corr_peak_idxs[k][0]
 			img_peak_idxs[k][1] = - corr_peak_idxs[k][1]
-			# print("Indices of maximum in Gaussian fit relative to image centre: (%5.2f,%5.2f)" % (corr_peak_idxs[k][0], corr_peak_idxs[k][1]))
 			# Plotting (for debugging purposes)
 			if plotIt:
 				plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
@@ -163,13 +164,12 @@ def shiftAndStack(images,
 				plt.imshow(p_fit(X,Y))
 				plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 				plt.title('Model fit')
-				plt.show()			
+				plt.show()	
+
 		else:
 			corr_peak_idxs[k] = np.unravel_index(np.argmax(corrs[k]), corrs[k].shape)
 			img_peak_idxs[k][0] = - corr_peak_idxs[k][0]
 			img_peak_idxs[k][1] = - corr_peak_idxs[k][1]
-
-		# pdb.set_trace()
 
 		# Shift-and-stack the images.
 		image_stacked += shift(images[k], (-img_peak_idxs[k][0], -img_peak_idxs[k][1]))
