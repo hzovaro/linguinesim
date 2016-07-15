@@ -157,15 +157,17 @@ def flux2countRate(F, A_tel,
 	return Sigma_electrons
 
 ####################################################################################################
-def expectedCount2count(arg, 
+def expectedCount2count(arg,
+	detectorSaturation = np.inf, 
 	t_exp = None):
 	"""
 		Convert an expected photon count (in photons) OR expected photon count rate (in photons/s) to a 'truth' count assuming a Poisson distribution.
 		If t_exp is not specified, it is assumed that the input argument is given in units of photons. 
 		If t_exp is specified, it is assumed that the input argument is given in units of photons/s, in which case the expected count is arg * t_exp.
+		The saturation level of the detector may also be specified if desired. By default this value is infinity.
 	"""
 	if t_exp == None:
 		expectedCount = arg
 	else:
 		expectedCount = arg * t_exp
-	return np.random.poisson(lam=expectedCount, size=expectedCount.shape)
+	return np.random.poisson(lam=np.minimum(expectedCount, detectorSaturation), size=expectedCount.shape)
