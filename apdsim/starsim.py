@@ -45,6 +45,7 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 	bandwidth_m = None, 
 	band = None, 	
 	verbose=False,		# If True, prints a table showing the respective magnitudes and coordinates of each star in the field.
+	detectorSaturation = np.inf,
 	plotIt=False):
 	"""
 		Returns a simulated image of a star field imaged through an optical system at a given wavelength_m or in an imaging band with a specified centre wavelength_m and bandwidth with a given collecting area, f ratio, pixel size and detector dimensions. The throughput, QE and gain of the system can be specified if required; otherwise they are all assumed to be unity. 
@@ -99,17 +100,23 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 		print '-------------------------------------------------------------------------------------------------------'
 
 	# Converting to image counts
-	image_count = expectedCount2count(starfield)
+	image_count = expectedCount2count(starfield, detectorSaturation = detectorSaturation)
 
 	if plotIt:
 		plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
-		plt.suptitle('Starfield')
+		if len(m) == 1:
+			plt.suptitle(r'Starfield, $m = %.2f$' % m)
+		else:
+			plt.suptitle('Starfield')
 		plt.subplot(1,2,1)
 		plt.imshow(starfield, norm=LogNorm())
 		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Expected electron flux')
 		plt.subplot(1,2,2)
-		plt.imshow(image_count, norm=LogNorm())
+		if max(starfield.flatten() > 0):
+			plt.imshow(image_count, norm=LogNorm())
+		else:
+			plt.imshow(image_count)
 		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
 		plt.title('Simulated image')
 		plt.show()
