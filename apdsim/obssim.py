@@ -97,14 +97,14 @@ def airyDisc(wavelength_m, f_ratio, l_px_m, detector_size_px,
 	P_sum = sum(count_cumtrapz.flatten())
 
 	if plotIt:
-		plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
+		mu.newfigure(2,1)
 		plt.subplot(1,2,1)
 		plt.imshow(I)
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('Intensity (oversampled by a factor of %d)' % oversampleFactor)
 		plt.subplot(1,2,2)
 		plt.imshow(count_cumtrapz)
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('Count (via trapezoidal rule)')
 		plt.show()
 
@@ -121,7 +121,8 @@ def psfKernel(wavelength_m, f_ratio, l_px_m, detector_size_px,
 	return airyDisc(wavelength_m=wavelength_m, f_ratio=f_ratio, l_px_m=l_px_m, detector_size_px=detector_size_px, plotIt=plotIt)	
 
 ####################################################################################################
-def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size_px, dest_plate_scale_as,
+def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_as,
+	dest_detector_size_px=None,
 	plotIt=False):
 	" Resize the images stored in array images_raw with a given plate scale to a detector with given dimensions and plate scale. "
 	print("Resizing image(s) to detector...")
@@ -130,6 +131,10 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size
 	images_raw, N, source_height_px, source_width_px = getImageSize(images_raw)
 	source_width_as = source_width_px * source_plate_scale_as
 	source_height_as = source_height_px * source_plate_scale_as
+
+	# If the destination plate scale is not specified, then we simply scale the dimensions of the input image appropriately.
+	if not dest_detector_size_px:
+		dest_detector_size_px = tuple(np.int(source_plate_scale_as / dest_plate_scale_as * x) for x in (source_height_px, source_width_px))
 
 	# Getting the angular extent of the source image:
 	# 	size(pixels on our detector) = size(of source, in as) / plate scale
@@ -170,14 +175,14 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_detector_size
 	images = np.pad(images, ((0, 0), (pad_height_top, pad_height_bottom), (pad_width_left, pad_width_right)), mode='constant')
 
 	if plotIt:
-		plt.figure(figsize=(2*FIGSIZE, FIGSIZE))
+		mu.newfigure(1,2)
 		plt.subplot(1,2,1)
-		plt.imshow(images_raw[0])
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		plt.imshow(images_raw[0],norm=LogNorm())
+		mu.colourbar()
 		plt.title('Input image')
 		plt.subplot(1,2,2)
-		plt.imshow(images[0])
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		plt.imshow(images[0],norm=LogNorm())
+		mu.colourbar()
 		plt.title('Resized image')
 		plt.suptitle('Resizing truth image to detector')
 		plt.show()
@@ -224,18 +229,18 @@ def getDiffractionLimitedImage(image_truth, wavelength_m, f_ratio, l_px_m,
 		image_difflim[k] = signal.fftconvolve(psf, image_truth[k], mode='same')[detector_height_px//2 + detector_height_px%2:detector_height_px+detector_height_px//2 + detector_height_px%2 - 1, detector_width_px//2 + detector_width_px%2:detector_width_px+detector_width_px//2 + detector_width_px%2 - 1]
 
 	if plotIt:
-		plt.figure(figsize=(3*FIGSIZE, FIGSIZE))
+		mu.newfigure(3,1)
 		plt.subplot(1,3,1)
 		plt.imshow(psf)
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('Diffraction-limited PSF of telescope')
 		plt.subplot(1,3,2)
 		plt.imshow(image_truth[0])
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('Truth image')
 		plt.subplot(1,3,3)
 		plt.imshow(image_difflim[0])
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('Diffraction-limited image')
 		plt.suptitle('Diffraction-limiting image')
 		plt.show()
@@ -286,23 +291,23 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 		image_seeing_limited_cropped[k] = image_seeing_limited[k,pad_ud : height + pad_ud, pad_lr : width + pad_lr]		
 
 	if plotIt:
-		plt.figure(figsize=(2*FIGSIZE, 2*FIGSIZE))
+		mu.newfigure(2,2)
 		plt.suptitle('Seeing-limiting image')
 		plt.subplot(2,2,1)
 		plt.imshow(images[0])
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('Input image')
 		plt.subplot(2,2,2)
 		plt.imshow(kernel)
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('Kernel')
 		plt.subplot(2,2,3)
 		plt.imshow(image_seeing_limited[0])
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('Convolved image')
 		plt.subplot(2,2,4)
 		plt.imshow(image_seeing_limited_cropped[0])
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('Cropped, convolved image')
 		plt.show()
 
@@ -334,15 +339,15 @@ def addNoise(images,band,t_exp,
 	print('\n')
 
 	if plotIt:
-		plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
+		mu.newfigure(2,1)
 		plt.suptitle('Adding noise')
 		plt.subplot(1,2,1)
 		plt.imshow(images[0], vmin=min(images[0].flatten()), vmax=max(noisyImages[0].flatten()))
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('Raw input image')
 		plt.subplot(1,2,2)
 		plt.imshow(noisyImages[0], vmin=min(images[0].flatten()), vmax=max(noisyImages[0].flatten()))
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('Noisy image')
 		plt.show()
 
