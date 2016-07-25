@@ -27,8 +27,7 @@
 #	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ####################################################################################################
-from __future__ import division
-from __future__ import print_function
+from __future__ import division, print_function
 from apdsim import *
 
 def airyDisc(wavelength_m, f_ratio, l_px_m, detector_size_px,
@@ -312,6 +311,57 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 		plt.show()
 
 	return np.squeeze(image_seeing_limited_cropped)
+
+####################################################################################################
+def convolvePSF(image, psf, 
+	padFactor=1,
+	plotIt=False):
+	"""
+		 Convolve an input PSF with an input image. 
+	"""
+
+	# Padding the source image.
+	height = image.shape[0]
+	width = image.shape[1]
+	pad_ud = height // padFactor // 2
+	pad_lr = width // padFactor // 2
+	
+	# If the image dimensions are odd, need to ad an extra row/column of zeros.
+	image_padded = np.pad(image, ((pad_ud,pad_ud + height % 2),(pad_lr,pad_lr + width % 2)), mode='constant')
+	conv_height = 2 * pad_ud + height + (height % 2)
+	conv_width = 2 * pad_lr + width + (width % 2)
+
+	# Convolving the kernel with the image.
+	image_conv = np.ndarray((conv_height, conv_width))
+	image_conv_cropped = np.ndarray((height, width))
+
+	image_padded = np.pad(image, ((pad_ud,pad_ud + height % 2),(pad_lr,pad_lr + width % 2)), mode='constant')
+	image_conv = signal.fftconvolve(image_padded, psf, mode='same')
+	image_conv_cropped = image_conv[pad_ud : height + pad_ud, pad_lr : width + pad_lr]		
+
+	if plotIt:
+		mu.newfigure(2,2)
+		plt.suptitle('Seeing-limiting image')
+		plt.subplot(2,2,1)
+		plt.imshow(image)
+		mu.colourbar()
+		plt.title('Input image')
+		plt.subplot(2,2,2)
+		plt.imshow(kernel)
+		mu.colourbar()
+		plt.title('Kernel')
+		plt.subplot(2,2,3)
+		plt.imshow(image_conv)
+		mu.colourbar()
+		plt.title('Convolved image')
+		plt.subplot(2,2,4)
+		plt.imshow(image_conv_cropped)
+		mu.colourbar()
+		plt.title('Cropped, convolved image')
+		plt.show()
+
+	return image_conv_cropped
+
 
 ####################################################################################################
 def addNoise(images,band,t_exp, 
