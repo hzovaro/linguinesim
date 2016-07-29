@@ -42,100 +42,84 @@ from __future__ import division
 from __future__ import print_function
 from apdsim import *
 
-def addTurbulence(images, N_tt, sigma_tt_px,
+def addTurbulence(images, sigma_tt_px,
+	N_tt=1,
 	crop_tt=None):
 	""" 
 		Add turbulence to an input `truth' image. Returns N_tt copies of the input image with randomised turbulence added. 
 		Just tip and tilt for now with a standard deviation of sigma_tt_px in both dimensions.
 	"""
-	print("Adding randomised tip/tilt to image(s)", end="")
+	print("Adding randomised tip/tilt to image(s)",end="")
 
 	# Tip and tilt for now	
 	images, N, height, width = getImageSize(images)
 
+	if N != 1:
+		# Then we add a randomised tip and tilt to each of the N input images.
+		N_tt = N
+	# Otherwise, we make N_tt copies of the image and add a randomised tip and tilt to each.
+
 	# Output array of images
 	if crop_tt == None:
-		images_tt = np.ndarray((N, N_tt, height, width))
+		images_tt = np.ndarray((N_tt, height, width))
 	else:
-		# if type(crop_tt) == int:
 		if len(crop_tt.shape) == 0:
-			images_tt = np.ndarray((N, N_tt, height - 2 * crop_tt, width - 2 * crop_tt))	
+			images_tt = np.ndarray((N_tt, height - 2 * crop_tt, width - 2 * crop_tt))	
 		else:
-			images_tt = np.ndarray((N, N_tt, height - 2 * crop_tt[0], width - 2 * crop_tt[1]))
+			images_tt = np.ndarray((N_tt, height - 2 * crop_tt[0], width - 2 * crop_tt[1]))
 
 	# Array to hold the tip/tilt offsets
-	tt_idxs = np.ndarray((N, N_tt, 2))
+	tt_idxs = np.ndarray((N_tt, 2))
 	
-	for k in range(N):
-		for j in range(N_tt):
-			print('.', end="")
-			# shift_height = np.ceil(np.random.randn() * sigma_tt_px).astype(int)
-			# shift_width = np.ceil(np.random.randn() * sigma_tt_px).astype(int)
-			shift_height = np.random.randn() * sigma_tt_px
-			shift_width = np.random.randn() * sigma_tt_px
-			image_tt = shift(images[k], (shift_height, shift_width))
-			tt_idxs[k,j] = [shift_height, shift_width]
+	# Adding a randomised tip/tilt to each of N_tt images
+	for j in range(N_tt):
+		if N == 1:
+			image = images[0]
+		else:
+			image = images[j]
+		print('.', end="")
 
-			# Cropping the image if necessary
-			if crop_tt == None:
-				images_tt[k,j] = image_tt
-			else:
-				images_tt[k,j] = rotateAndCrop(image_tt, angle=0., cropArg=crop_tt)
-		print('\n')
+		shift_height = np.random.randn() * sigma_tt_px
+		shift_width = np.random.randn() * sigma_tt_px
+		image_tt = shift(image, (shift_height, shift_width))
+		tt_idxs[j] = [shift_height, shift_width]
+
+		# Cropping the image if necessary
+		if crop_tt == None:
+			images_tt[j] = image_tt
+		else:
+			images_tt[j] = rotateAndCrop(image_tt, angle=0., cropArg=crop_tt)
+	print('\n')
+
 	return np.squeeze(images_tt), np.squeeze(tt_idxs)
 
 ####################################################################################################
-def shiftAndStack(images, 
+def xcorrShiftAndStack(images, 
 	image_ref=None,
 	N=None, 
-	subPixelShift=True,			# Use a 2D Gaussian fit to locate the maximm in the cross-correlation output.
-	buff=25,					# Used in the 2D Gaussian fit.
+	subPixelShift=None,			# Use a 2D Gaussian fit to locate the maximm in the cross-correlation output.
+	buff=None,					# Used in the 2D Gaussian fit.
 	showAnimatedPlots=False,	# Show an animated plot window of the shifting-and-stacking process.
 	plotIt=False):
 	""" 
 		Shift and stack the images given in the 3-dimensional array of N images. 
 	"""
-	print("Shifting and stacking images", end="")
+	print("Applying Lucky Imaging technique: cross-correlation shift-and-stack method", end="")
 
-	# Error checking
-	# Need to convert to float if necessary.
-	if type(images.flatten()[0]) != np.float64:
-		images = images.astype(np.float64)
-	if image_ref != None and type(image_ref.flatten()[0]) != np.float64:
-		image_ref = image_ref.astype(np.float64)
+	# Input argument validation
+	if not buff:
+		buff = 25
+	if subPixelShift == None:
+		subPixelShift = True
 
-	if len(images.shape) > 4:
-		print("WARNING: for now, please only input a 3D array of images to shift and stack! I'm operating on the first set of images...")
-		images = np.squeeze(images[0])	
-	
-	if len(images.shape) == 3:
-		if N > images.shape[0]:
-			print("ERROR: if specified, N must be equal to or less than the length of the first dimension of the images array.")
-			return -1
-		if image_ref == None:
-			# If the reference image is not specified, we use the first image in the array as the reference: 
-			# i.e. we align all other images to images[0].
-			if N == None:
-				N = images.shape[0]-1
-			images = np.copy(images[1:])	# Only need to go through images 1:N-1.
-			image_ref = np.copy(images[0])
-		else:
-			if N == None:
-				N = images.shape[0]			
-	else:
-		# Error: cannot shift and stack a single image!
-		print("ERROR: cannot shift and stack a single image! Input array must have N > 1.")
-		return -1
-	
-	image_stacked = np.copy(image_ref)		# shifted-and-stacked image
-
+	images, image_ref, N = _li_error_check(images, N)	
 	height = images[0].shape[0]
 	width = images[0].shape[1]
+	image_stacked = np.copy(image_ref)		# array to hold shifted-and-stacked image	
 	
-	# corrs = np.ndarray((N, 2 * height - 1, 2 * width - 1))	# Array to hold x-correlation results
 	corrs = np.ndarray((N, height, width))	# Array to hold x-correlation results
 	corr_peak_idxs = np.ndarray((N, 2))		# indices of the peak value in the x-correlation
-	img_peak_idxs = np.ndarray((N, 2))		# shift in x and y computed from the x-correlation
+	rel_shift_idxs = np.ndarray((N, 2))		# shift in x and y computed from the x-correlation
 
 	for k in range(N):
 		print('.', end="")
@@ -151,52 +135,57 @@ def shiftAndStack(images,
 			p_fit = fit_p(p_init, X, Y, corrs[k][buff:height-buff, buff:width-buff])
 			# NOTE: the indices have to be swapped around here for some reason!
 			corr_peak_idxs[k] = np.array((p_fit.y_mean.value, p_fit.x_mean.value))
-			img_peak_idxs[k][0] = - corr_peak_idxs[k][0]
-			img_peak_idxs[k][1] = - corr_peak_idxs[k][1]
-			# Plotting (for debugging purposes)
-			if plotIt:
-				plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
-				plt.subplot(1,2,1)
-				plt.imshow(corrs[k])
-				plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
-				plt.title('Cross-correlation')
-				plt.subplot(1,2,2)
-				plt.imshow(p_fit(X,Y))
-				plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
-				plt.title('Model fit')
-				plt.show()	
+			rel_shift_idxs[k][0] = corr_peak_idxs[k][0]
+			rel_shift_idxs[k][1] = corr_peak_idxs[k][1]
+
+			# if plotIt:
+			# 	fig = mu.newfigure(1,2)
+			# 	plt.subplot(1,2,1)
+			# 	plt.imshow(corrs[k])
+			# 	mu.colourbar()
+			# 	plt.title('Cross-correlation')
+			# 	plt.subplot(1,2,2)
+			# 	plt.imshow(p_fit(X,Y))
+			# 	mu.colourbar()
+			# 	plt.title('Model fit')
+			# 	plt.show()	
+			# 	# pdb.set_trace()
+			# 	plt.close(fig)
 
 		else:
 			corr_peak_idxs[k] = np.unravel_index(np.argmax(corrs[k]), corrs[k].shape)
-			img_peak_idxs[k][0] = - corr_peak_idxs[k][0]
-			img_peak_idxs[k][1] = - corr_peak_idxs[k][1]
+			rel_shift_idxs[k][0] = corr_peak_idxs[k][0]
+			rel_shift_idxs[k][1] = corr_peak_idxs[k][1]
 
 		# Shift-and-stack the images.
-		image_stacked += shift(images[k], (-img_peak_idxs[k][0], -img_peak_idxs[k][1]))
+		image_stacked += shift(images[k], (rel_shift_idxs[k][0], rel_shift_idxs[k][1]))
 
 		# Plotting
 		if showAnimatedPlots:
 			if k == 0:
-				plt.figure(figsize=(3*FIGSIZE, FIGSIZE))
+				mu.newfigure(1,3)
+				plt.suptitle('Cross-correlation Lucky Imaging output')
 				plt.subplot(1,3,1)
-				plt.imshow(images[0],origin='lower')
+				plt.title('Mean-combined shifted-and-stacked image')
 				plt.subplot(1,3,2)
+				plt.title('Single exposure')
 				scat2 = plt.scatter(0.0,0.0,c='r',s=20)
 				plt.subplot(1,3,3)
+				plt.title('Cross-correlation')
 				scat3 = plt.scatter(0.0,0.0,c='g',s=40)
 
 			plt.subplot(1,3,1)
-			plt.imshow(image_stacked,origin='lower')
+			plt.imshow(image_stacked)
 
 			plt.subplot(1,3,2)
-			plt.imshow(images[k],origin='lower')	
+			plt.imshow(images[k])	
 			plotcoords = np.ndarray((2))
-			plotcoords[1] = img_peak_idxs[k,0] + width / 2
-			plotcoords[0] = img_peak_idxs[k,1] + height / 2
+			plotcoords[1] = rel_shift_idxs[k,0] + width / 2
+			plotcoords[0] = rel_shift_idxs[k,1] + height / 2
 			scat2.set_offsets(plotcoords)
 
 			plt.subplot(1,3,3)
-			plt.imshow(corrs[k],interpolation='nearest',origin='lower')
+			plt.imshow(corrs[k])
 			corr_peak_coords = np.ndarray((2))
 			corr_peak_coords[0] = corr_peak_idxs[k][1]
 			corr_peak_coords[1] = corr_peak_idxs[k][0]
@@ -204,38 +193,142 @@ def shiftAndStack(images,
 
 			# plt.scatter([peak_idxs[k][0]], [peak_idxs[k][1]], c='r', s=20)
 			plt.draw()
-			plt.pause(1)
+			plt.pause(0.5)
 	print('\n')
+	# Average-combining the images 
+	image_stacked /= N
 
 	if plotIt:
-		plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
-		plt.suptitle('Lucky imaging technique')
+		mu.newfigure(1,2)
+		plt.suptitle('Cross-correlation Lucky Imaging output')
 		plt.subplot(1,2,1)
 		# plt.imshow(images[0], vmin=min(images[0].flatten()), vmax=max(image_stacked.flatten()))
-		plt.imshow(images[0], norm=LogNorm())
+		plt.imshow(images[0])
 		plt.title('Single exposure')
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.subplot(1,2,2)
 		# plt.imshow(image_stacked, vmin=min(images[0].flatten()), vmax=max(image_stacked.flatten()))
-		plt.imshow(image_stacked, norm=LogNorm())
-		plt.title('Shifted-and-stacked image')
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		plt.imshow(image_stacked)
+		plt.title('Mean-combined shifted-and-stacked image')
+		mu.colourbar()
 		plt.show()
 
-	return image_stacked, img_peak_idxs
+	
+	return image_stacked, rel_shift_idxs
 
 ####################################################################################################
-def luckyImaging(images, type, vararg):
+def fourierShiftAndStack(images, 
+	image_ref = None, 
+	plotIt = False):
+	"""
+		A Fourier-space method of Lucky Imaging.
+		Credit: Garrel et al. (2011)
+	"""
+	print("Applying Lucky Imaging technique: Fourier-space method", end="")
+	images, image_ref, N = _li_error_check(images, N)	
+	height = images[0].shape[0]
+	width = images[0].shape[1]
+
+	return image_stacked, other_data
+
+####################################################################################################
+def peakPixelShiftAndStack(images, 
+	N = None,			# How many images we want to iterate through
+	image_ref = None, 	# The reference image. By default the first image in the input images array
+	bid_area = None,	# Subwindow in which to calculate the offsets.
+	plotIt = False,
+	showAnimatedPlots = False):	
+	"""
+		A Lucky Imaging method which uses the brightest pixel in each image to align them.
+		Credit: Aspin et al. (1997)
+	"""
+	print("Applying Lucky Imaging technique: peak pixel shift-and-stack method", end="")
+	images, image_ref, N = _li_error_check(images, image_ref, N)	
+	height = images[0].shape[0]
+	width = images[0].shape[1]
+	image_stacked = np.copy(image_ref)
+
+	# 1. Search in the bid area of the reference image for the peak pixel coordinates.
+	if not bid_area:
+		# If no bid area is specified, then we just search the whole image.
+		sub_image_ref = np.copy(image_ref)
+		sub_images = np.copy(images)
+	else:
+		sub_image_ref = rotateAndCrop(image_in_array = image_ref, cropArg = bid_area)	# (left, upper, right, lower)
+		sub_images = rotateAndCrop(image_in_array = images, cropArg = bid_area)	# (left, upper, right, lower)
+
+	# 2. Iterate through each image and repeat.
+	img_ref_peak_idx = np.asarray(np.unravel_index(np.argmax(sub_image_ref), sub_image_ref.shape))
+	img_peak_idxs = np.zeros((N, 2)) 	# Coordinates of the peak pixel in the subwindow.
+	rel_shift_idxs = np.zeros((N, 2))	# Coordinates by which to shift the image (relative to image_ref)
+	for k in range(N):
+		print('.', end="")
+		img_peak_idxs[k] = np.asarray(np.unravel_index(np.argmax(sub_images[k]), sub_images[k].shape))
+		# 3. Shift the image by the relative amount.
+		rel_shift_idxs[k] = img_ref_peak_idx - img_peak_idxs[k] 
+		image_stacked += shift(images[k], (rel_shift_idxs[k][0], rel_shift_idxs[k][1]))
+
+		# Plotting
+		if showAnimatedPlots:
+			if k == 0:
+				mu.newfigure(1,2)
+				plt.suptitle('Peak pixel Lucky Imaging output')
+				plt.subplot(1,2,2)
+				plt.title('Mean-combined shifted-and-stacked image')
+				plt.subplot(1,2,1)
+				plt.title('Single exposure')
+				scat2 = plt.scatter(0.0,0.0,c='r',s=20)
+				scat3 = plt.scatter(0.0,0.0,c='g',s=20)
+
+			plt.subplot(1,2,2)
+			plt.imshow(image_stacked)
+
+			plt.subplot(1,2,1)
+			plt.imshow(images[k])	
+			plotcoords = np.ndarray((2))
+			plotcoords[1] = -rel_shift_idxs[k,0] + width / 2
+			plotcoords[0] = -rel_shift_idxs[k,1] + height / 2
+			scat2.set_offsets(plotcoords)
+			scat3.set_offsets(np.asarray((img_peak_idxs[k,1], img_peak_idxs[k,0])))
+
+			plt.draw()
+			plt.pause(1)
+	print('\n')
+	# Mean combining
+	image_stacked /= N
+
+	if plotIt:
+		mu.newfigure(1,2)
+		plt.suptitle('Peak pixel Lucky Imaging output')
+		plt.subplot(1,2,1)
+		plt.imshow(sub_images[0])
+		plt.title('Single exposure')
+		plt.subplot(1,2,2)
+		plt.imshow(image_stacked)
+		plt.title('Mean-combined shifted-and-stacked image')
+		plt.show()
+
+	return image_stacked, rel_shift_idxs
+
+####################################################################################################
+def luckyImaging(images, type, 
+	vararg = None,
+	N = None,
+	image_ref = None,
+	plotIt = False,
+	showAnimatedPlots = False):
 	""" 
 		Apply a Lucky Imaging (LI) technique to a sequence of images stored in the input array images. 
 		The type of LI technique used is specified by input string type and any additional arguments which may be required are given in vararg.
 	"""
-	# Converting to an image array
-	images, N, height, width = getImageSize(images)
+	if type == 'xcorr':
+		image_lucky, shift_idxs = xcorrShiftAndStack(images = images, image_ref = image_ref, plotIt=plotIt, showAnimatedPlots=showAnimatedPlots)
+	elif type == 'fourier':
+		image_lucky = fourierLuckyImaging(images = images, image_ref = image_ref, plotIt=plotIt)
+	elif type == 'peak_pixel':
+		image_lucky, shift_idxs = peakPixelShiftAndStack(images = images, image_ref = image_ref, bid_area = vararg, plotIt=plotIt, showAnimatedPlots=showAnimatedPlots)
 
-
-
-	return image_lucky
+	return image_lucky, shift_idxs
 
 ####################################################################################################
 def alignmentError(in_idxs, out_idxs,
@@ -261,3 +354,45 @@ def alignmentError(in_idxs, out_idxs,
 		print('------------------------------------------------')
 
 	return n_errs, errs
+
+####################################################################################################
+def _li_error_check(images, 
+	image_ref = None,
+	N = None):
+	"""
+		A private method to be used to check the inputs to the Lucky Imaging methods. 
+	"""
+	# Need to convert to float if necessary.
+	if type(images.flatten()[0]) != np.float64:
+		images = images.astype(np.float64)
+	if image_ref != None and type(image_ref.flatten()[0]) != np.float64:
+		image_ref = image_ref.astype(np.float64)
+
+	# Checking image dimensions.
+	if len(images.shape) > 4:
+		print("WARNING: for now, please only input a 3D array of images to shift and stack! I'm only going to operate on the first set of images...")
+		images = np.squeeze(images[0])	
+	
+	if len(images.shape) == 3:
+		if N and N > images.shape[0]:
+			print("ERROR: if specified, N must be equal to or less than the length of the first dimension of the images array.")
+			raise UserWarning
+		if image_ref == None:
+			# If the reference image is not specified, we use the first image in the array as the reference: 
+			# i.e. we align all other images to images[0].
+			if not N:
+				N = images.shape[0]-1
+			image_ref = np.copy(images[0])
+			images = np.copy(images[1:])	# Only need to go through images 1:N-1.
+		else:
+			if image_ref.shape != images[0].shape:
+				print("ERROR: if specified, reference image shape must be equal to input image stack shape.")
+				raise UserWarning
+			if not N:
+				N = images.shape[0]			
+	else:
+		# Error: cannot shift and stack a single image!
+		print("ERROR: cannot shift and stack a single image! Input array must have N > 1.")
+		raise UserWarning
+
+	return images, image_ref, N
