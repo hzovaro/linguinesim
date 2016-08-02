@@ -27,11 +27,12 @@
 #	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ####################################################################################################
-from __future__ import division, print_function
+from __future__ import division, print_function 
 from apdsim import *
 
-def airyDisc(wavelength_m, f_ratio, l_px_m, detector_size_px,
-	oversampleFactor=4,
+def airyDisc(wavelength_m, f_ratio, l_px_m, 
+	detector_size_px=None,
+	trapz_oversampling=4,	# Oversampling used in the trapezoidal rule approximation.
 	coords=None,
 	P_0=1,
 	plotIt=False):
@@ -45,25 +46,27 @@ def airyDisc(wavelength_m, f_ratio, l_px_m, detector_size_px,
 		P_0 represents the *ideal* total energy in the airy disc (that is, the total energy incident upon the telescope aperture), whilst P_sum measures the actual total energy in the image (i.e. the pixel values). 
 	"""
 
-	# Detector size 
+	# Output image size 
 	detector_height_px, detector_width_px = detector_size_px[0:2]
+
 	# Intensity map grid size
-	oversampled_height_px = detector_height_px * oversampleFactor
-	oversampled_width_px = detector_width_px * oversampleFactor
+	# Oversampled image size
+	oversampled_height_px = detector_height_px * trapz_oversampling
+	oversampled_width_px = detector_width_px * trapz_oversampling
 	# Coordinates of the centre of the Airy disc in the intensity map grid
 	if coords == None:
 		x_offset = oversampled_height_px/2
 		y_offset = oversampled_width_px/2
 	else:
-		x_offset = coords[0] * oversampleFactor
-		y_offset = coords[1] * oversampleFactor
+		x_offset = coords[0] * trapz_oversampling
+		y_offset = coords[1] * trapz_oversampling
 	dx = oversampled_height_px/2 - x_offset
 	dy = oversampled_width_px/2 - y_offset
 	# Intensity map grid indices (in metres)
 	x = np.arange(-oversampled_height_px//2, +oversampled_height_px//2 + oversampled_height_px%2 + 1, 1) + dx
 	y = np.arange(-oversampled_width_px//2, +oversampled_width_px//2 + oversampled_width_px%2 + 1, 1) + dy
-	x *= l_px_m / oversampleFactor
-	y *= l_px_m / oversampleFactor
+	x *= l_px_m / trapz_oversampling
+	y *= l_px_m / trapz_oversampling
 	Y, X = np.meshgrid(y, x)
 
 	# Central intensity (W m^-2)
@@ -80,7 +83,7 @@ def airyDisc(wavelength_m, f_ratio, l_px_m, detector_size_px,
 
 	""" Converting intensity values to count values in each pixel """
 	# Approximation using top-hat intensity profile in each pixel
-	count_approx = I * l_px_m**2 / oversampleFactor**2
+	count_approx = I * l_px_m**2 / trapz_oversampling**2
 	count_approx = count_approx.astype(np.float64)
 
 	# Approximation using trapezoidal rule
@@ -88,19 +91,20 @@ def airyDisc(wavelength_m, f_ratio, l_px_m, detector_size_px,
 	cumsum = 0
 	for j in range(detector_width_px):
 		for k in range(detector_height_px):
-			px_grid = I[oversampleFactor*k:oversampleFactor*k+oversampleFactor+1,oversampleFactor*j:oversampleFactor*j+oversampleFactor+1]
-			res1 = integrate.cumtrapz(px_grid, dx = l_px_m/oversampleFactor, axis = 0, initial = 0)
-			res2 = integrate.cumtrapz(res1[-1,:], dx = l_px_m/oversampleFactor, initial = 0)
+			px_grid = I[trapz_oversampling*k:trapz_oversampling*k+trapz_oversampling+1,trapz_oversampling*j:trapz_oversampling*j+trapz_oversampling+1]
+			res1 = integrate.cumtrapz(px_grid, dx = l_px_m/trapz_oversampling, axis = 0, initial = 0)
+			res2 = integrate.cumtrapz(res1[-1,:], dx = l_px_m/trapz_oversampling, initial = 0)
 			count_cumtrapz[k,j] = res2[-1]
 	# Total energy in image
 	P_sum = sum(count_cumtrapz.flatten())
+	count_cumtrapz /= P_sum
 
 	if plotIt:
 		mu.newfigure(2,1)
 		plt.subplot(1,2,1)
 		plt.imshow(I)
 		mu.colourbar()
-		plt.title('Intensity (oversampled by a factor of %d)' % oversampleFactor)
+		plt.title('Intensity (oversampled by a factor of %d)' % trapz_oversampling)
 		plt.subplot(1,2,2)
 		plt.imshow(count_cumtrapz)
 		mu.colourbar()
@@ -110,14 +114,34 @@ def airyDisc(wavelength_m, f_ratio, l_px_m, detector_size_px,
 	return count_cumtrapz, I, P_0, P_sum, I_0
 
 ####################################################################################################
-def psfKernel(wavelength_m, f_ratio, l_px_m, detector_size_px,
+def psfKernel(wavelength_m, l_px_m, 
+	f_ratio=None,
+	N_OS=None, 
+	detector_size_px=None,
+	trunc_sigma=10,		
 	plotIt=False):
 	"""
 		Returns an Airy disc PSF corresponding to an optical system with a given f ratio, pixel size and detector size at a specified wavelength_m.
 
-		Note: if you are using this routine to generate a kernel with which to convolve a truth image, make sure the kernel is twice the size of the truth image!
+		If the detector size is not specified, then the PSF is truncated at a radius of 8 * sigma, where sigma corresponds to the HWHM (to speed up convolutions made using this kernel)
+
+		There are two ways to constrain the plate scale of the output PSF. Either the f ratio or the Nyquist sampling factor (where a larger number ==> finer sampling) can be specified, but not both!
 	"""	
-	return airyDisc(wavelength_m=wavelength_m, f_ratio=f_ratio, l_px_m=l_px_m, detector_size_px=detector_size_px, plotIt=plotIt)	
+
+	# Now, we have to calculate what the EFFECTIVE f ratio needs to be to achieve the desired Nyquist oversampling in the returned PSF.
+	if not f_ratio:
+		f_ratio = 2 * N_OS_psf / wavelength_m * np.deg2rad(206265 / 3600) * l_px_m * 1e3
+	elif not N_OS:
+		N_OS = wavelength_m * f_ratio / 2 / np.deg2rad(206265 / 3600) / (l_px_m * 1e3)
+
+	if not detector_size_px:
+		psf_size = trunc_sigma * N_OS * 2
+		detector_size_px = (psf_size,psf_size)	
+
+	# In the inputs to this function, do we need to specify the oversampling factor AND the f ratio and/or pixel widths?
+	kernel = airyDisc(wavelength_m=wavelength_m, f_ratio=f_ratio, l_px_m=l_px_m, detector_size_px=detector_size_px, plotIt=plotIt)[0]	
+
+	return kernel
 
 ####################################################################################################
 def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_as,
@@ -133,7 +157,7 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_a
 
 	# If the destination plate scale is not specified, then we simply scale the dimensions of the input image appropriately.
 	if not dest_detector_size_px:
-		dest_detector_size_px = tuple(np.int(source_plate_scale_as / dest_plate_scale_as * x) for x in (source_height_px, source_width_px))
+		dest_detector_size_px = tuple(np.round(source_plate_scale_as / dest_plate_scale_as * x) for x in (source_height_px, source_width_px))
 
 	# Getting the angular extent of the source image:
 	# 	size(pixels on our detector) = size(of source, in as) / plate scale
@@ -176,11 +200,11 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_a
 	if plotIt:
 		mu.newfigure(1,2)
 		plt.subplot(1,2,1)
-		plt.imshow(images_raw[0],norm=LogNorm())
+		plt.imshow(images_raw[0])
 		mu.colourbar()
 		plt.title('Input image')
 		plt.subplot(1,2,2)
-		plt.imshow(images[0],norm=LogNorm())
+		plt.imshow(images[0])
 		mu.colourbar()
 		plt.title('Resized image')
 		plt.suptitle('Resizing truth image to detector')
@@ -188,47 +212,52 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_a
 
 	return np.squeeze(images)
 
-# ##################################################################################
-def getDiffractionLimitedImage(image_truth, wavelength_m, f_ratio, l_px_m, 
+###################################################################################
+def getDiffractionLimitedImage(image_truth, f_ratio_1, l_px_m, wavelength_1_m, 
+	N_OS_psf=8,
+	wavelength_2_m=None,
+	f_ratio_2=None,
 	detector_size_px=None,
 	plotIt=False):
-	" Convolve the PSF of a given telescope in a given band (J, H or K) with image_truth to simulate diffraction-limited imaging. "
-	" It is assumed that the truth image has the appropriate plate scale of, but may be larger than, the detector. "
-	" If the detector size is not given, then it is assumed that the input image and detector have the same dimensions. "
-	print("Diffraction-limiting truth image(s)...")
+	""" Convolve the PSF of a given telescope at a given wavelength with image_truth to simulate diffraction-limited imaging. 
+	It is assumed that the truth image has the appropriate plate scale of, but may be larger than, the detector. 
+	If the detector size is not given, then it is assumed that the input image and detector have the same dimensions. 
 
+	The flow should really be like this:
+		1. Generate the PSF with N_OS = 4, say.
+		2. Rescale the image to achieve the same plate scale.
+		3. Convolve.
+		4. Resample back down to the original plate scale.
+
+	"""
+	print("Diffraction-limiting truth image(s)...")
 	image_truth, N, height, width = getImageSize(image_truth)
-	if detector_size_px != None:
-		detector_height_px, detector_width_px = detector_size_px[0:2]
-		if height < detector_height_px or width < detector_width_px:
-			print("ERROR: the truth image must be larger than or the same size as the detector!")
-			return -1		
-	else:
-		detector_height_px = height
-		detector_width_px = width	
+
+	# For now we assume the input image has infinite diameter (and so is limited by the resolution of the input image)
+	f_ratio = f_ratio_1
+	wavelength_m = wavelength_1_m
+
+	# Because we specify the PSF in terms of Nyquist sampling, we need to express N_OS in terms of the f ratio and wavelength of the input image.
+	N_OS_input = wavelength_m / 2 / (206265 * l_px_m * 1e3 / f_ratio / 3600 * np.pi / 180) 
 
 	# Calculating the PSF
-	psf = psfKernel(wavelength_m, f_ratio, l_px_m, (2*detector_height_px, 2*detector_width_px))
-	# x = np.arange(-detector_height_px//2, +detector_height_px//2 + detector_height_px%2, 1) * l_px_m
-	# y = np.arange(-detector_width_px//2, +detector_width_px//2 + detector_width_px%2, 1) * l_px_m
-	# X, Y = np.meshgrid(x, y)
-	# # x in units of m
-	# r = np.pi / wavelength_m / f_ratio * np.sqrt(np.power(X,2) + np.power(Y,2))
-	# # Calculating the PSF
-	# psf = np.power(2 * special.jv(1, r) / r, 2)
-	# # Normalising
-	# psf[psf.shape[0]/2,psf.shape[1]/2] = 1	# removing the NaN in the centre of the image
-	# P = sum(psf.flatten())
-	# psf /= P
-	# psf = np.swapaxes(psf,0,1)
-	# psf = psf.astype(np.float64)
+	psf = psfKernel(wavelength_m=wavelength_m, N_OS_psf=N_OS_psf, l_px_m=l_px_m)
+	pdb.set_trace()
+	# TODO need to check that the PSF is not larger than image_truth_large
+
 	# Convolving the PSF and the truth image to obtain the simulated diffraction-limited image
 	image_difflim = np.ndarray((N, height, width))
 	for k in range(N):
-		image_difflim[k] = signal.fftconvolve(psf, image_truth[k], mode='same')[detector_height_px//2 + detector_height_px%2:detector_height_px+detector_height_px//2 + detector_height_px%2 - 1, detector_width_px//2 + detector_width_px%2:detector_width_px+detector_width_px//2 + detector_width_px%2 - 1]
+		# Resample the image up to the appropriate plate scale.
+		image_truth_large = resizeImagesToDetector(image_truth[k], 1/N_OS_input, 1/N_OS_psf)
+		# Convolve with the PSF.
+		image_difflim_large = signal.fftconvolve(image_truth_large, psf, mode='same')
+		# Resize the image to its original plate scale.
+		image_difflim[k] = resizeImagesToDetector(image_difflim_large, 1/N_OS_psf, 1/N_OS_input)
+
 
 	if plotIt:
-		mu.newfigure(3,1)
+		mu.newfigure(1,3)
 		plt.subplot(1,3,1)
 		plt.imshow(psf)
 		mu.colourbar()
@@ -297,7 +326,7 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 		mu.colourbar()
 		plt.title('Input image')
 		plt.subplot(2,2,2)
-		plt.imshow(kernel)
+		plt.imshow(kernel, extent=axes_kernel)
 		mu.colourbar()
 		plt.title('Kernel')
 		plt.subplot(2,2,3)
@@ -347,17 +376,17 @@ def convolvePSF(image, psf,
 		mu.colourbar()
 		plt.title('Input image')
 		plt.subplot(2,2,2)
-		plt.imshow(kernel)
+		plt.imshow(psf)
 		mu.colourbar()
 		plt.title('Kernel')
 		plt.subplot(2,2,3)
 		plt.imshow(image_conv)
 		mu.colourbar()
-		plt.title('Convolved image')
+		plt.title('Convolved image (padded)')
 		plt.subplot(2,2,4)
 		plt.imshow(image_conv_cropped)
 		mu.colourbar()
-		plt.title('Cropped, convolved image')
+		plt.title('Convolved image (original size)')
 		plt.show()
 
 	return image_conv_cropped
@@ -389,7 +418,7 @@ def addNoise(images,band,t_exp,
 	print('\n')
 
 	if plotIt:
-		mu.newfigure(2,1)
+		mu.newfigure(1,2)
 		plt.suptitle('Adding noise')
 		plt.subplot(1,2,1)
 		plt.imshow(images[0], vmin=min(images[0].flatten()), vmax=max(noisyImages[0].flatten()))
@@ -402,3 +431,8 @@ def addNoise(images,band,t_exp,
 		plt.show()
 
 	return (np.squeeze(noisyImages), etc_output)
+
+##########################################################################################
+def strehl(psf, psf_dl):
+	""" Calculate the Strehl ratio of an aberrated input PSF given the diffraction-limited PSF. """
+	return np.amax(psf) / np.amax(psf_dl)
