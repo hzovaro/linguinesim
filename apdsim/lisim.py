@@ -41,18 +41,27 @@
 from __future__ import division
 from __future__ import print_function
 from apdsim import *
+import pyxao
 
-def addTurbulence(images, sigma_tt_px,
+def addTurbulence(images, 
+	sigma_tt_px=None,
+	tt_idxs=None,
 	N_tt=1,
 	crop_tt=None):
 	""" 
 		Add turbulence to an input `truth' image. Returns N_tt copies of the input image with randomised turbulence added. 
 		Just tip and tilt for now with a standard deviation of sigma_tt_px in both dimensions.
+
+		The tip and tilt values are either random numbers drawn from a Gaussian distribution with standard deviation sigma_tt_px, or shifts specified in the input vector with shape (N, 2).
 	"""
 	print("Adding randomised tip/tilt to image(s)",end="")
 
 	# Tip and tilt for now	
 	images, N, height, width = getImageSize(images)
+
+	if not plt.is_numlike(sigma_tt_px) and not plt.is_numlike(tt_idxs):
+		print("ERROR: either sigma_tt_px OR tt_idxs must be specified!")
+		raise UserWarning
 
 	if N != 1:
 		# Then we add a randomised tip and tilt to each of the N input images.
@@ -60,7 +69,7 @@ def addTurbulence(images, sigma_tt_px,
 	# Otherwise, we make N_tt copies of the image and add a randomised tip and tilt to each.
 
 	# Output array of images
-	if crop_tt == None:
+	if not plt.is_numlike(crop_tt):
 		images_tt = np.ndarray((N_tt, height, width))
 	else:
 		if len(crop_tt.shape) == 0:
@@ -69,7 +78,8 @@ def addTurbulence(images, sigma_tt_px,
 			images_tt = np.ndarray((N_tt, height - 2 * crop_tt[0], width - 2 * crop_tt[1]))
 
 	# Array to hold the tip/tilt offsets
-	tt_idxs = np.ndarray((N_tt, 2))
+	if not plt.is_numeric(tt_idxs):
+		tt_idxs = np.ndarray((N_tt, 2))
 	
 	# Adding a randomised tip/tilt to each of N_tt images
 	for j in range(N_tt):
@@ -79,10 +89,17 @@ def addTurbulence(images, sigma_tt_px,
 			image = images[j]
 		print('.', end="")
 
-		shift_height = np.random.randn() * sigma_tt_px
-		shift_width = np.random.randn() * sigma_tt_px
+		if plt.is_numlike(sigma_tt_px):
+			# If no vector of tip/tilt values is specified, then we use random numbers.
+			shift_height = np.random.randn() * sigma_tt_px
+			shift_width = np.random.randn() * sigma_tt_px
+			tt_idxs[j] = [shift_height, shift_width]
+		else:
+			# Otherwise we take them from the input vector.
+			shift_height = tt_idxs[j,0]
+			shift_width = tt_idxs[j,1]
+		
 		image_tt = shift(image, (shift_height, shift_width))
-		tt_idxs[j] = [shift_height, shift_width]
 
 		# Cropping the image if necessary
 		if crop_tt == None:
@@ -92,6 +109,127 @@ def addTurbulence(images, sigma_tt_px,
 	print('\n')
 
 	return np.squeeze(images_tt), np.squeeze(tt_idxs)
+
+################################################################################################################
+def getAtmPSFs(wavelength_m, r0_500nm, N_frames, psf_as_px, dt, D_out, D_in, v_wind_m, wind_angle_rad, elevation_m,
+	wave_height_px = 256,
+	normalise_psf = True,
+	plotIt = False,
+	save = False,	# Whether to save the output PSFs
+	fname = None	# File name (.npz)
+	):
+	"""
+		Returns a time series of PSFs (normalised by default) of a telescope with inner and outer primary mirror diameters D_in and D_out respectively in the presence of atmospheric turbulence. 
+ 
+		The diffraction-limited PSF of the system is also returned.
+	"""
+	wavefrontPupil = {	
+		'type':'annulus',
+		'dout': D_out,
+		'din' : D_in
+	}
+
+	# Wave parameters
+	m_per_px = D_out / wave_height_px		# Physical mapping of wave onto primary mirror size
+
+	# AO system parameters
+	wavelength_lgs_m = 589e-9
+	wavelength_science_m = wavelength_m
+	# N_lenslets = 10		# per side
+	N_actuators = 9 	# per side
+	# px_per_subap = np.floor(wave_height_px / N_lenslets)
+	# lenslet_pitch_m = px_per_subap * m_per_px 	# Lenslet pitch scaled up to the size of the primary
+	# wfs_sampling = 1
+	actuator_pitch_m = D_out / N_actuators
+	edge_radius = 1.4	
+	influence_fun = 'gaussian'
+	pokeStroke = 1e-7	
+	psf_ix = 1		# Index in the list of wavefronts passed to the DM instance corresponding to the PSF to return
+	# nphot = None	# WFS noise level
+
+	# Seeing conditions
+	r0_lgs = [np.power((wavelength_lgs_m / 500e-9), 1.2) * r0_500nm]
+	r0_science = [np.power((wavelength_science_m / 500e-9), 1.2) * r0_500nm]
+	elevations = [elevation_m]				# Turbulent layer heights
+	wind_angle =[wind_angle_rad]		# w.r.t. x-axis
+	airmass = [1.0]					# Air mass ??
+	v_wind = [v_wind_m]					# Wind speed (m/s)
+
+	####################################################
+	# Setting up AO system
+	""" Wavefronts """
+	wf_wfs = pyxao.Wavefront(wave = wavelength_lgs_m, m_per_px = m_per_px, sz = wave_height_px, pupil = wavefrontPupil)
+	wf_science = pyxao.Wavefront(wave = wavelength_science_m, m_per_px = m_per_px, sz = wave_height_px, pupil = wavefrontPupil)
+
+	# wavefronts_wfs = [wf_wfs]				# Wavefronts sensed by the WFS
+	wavefronts_dm = [wf_wfs, wf_science] 	# Wavefronts corrected by the DM (in a CL AO system, it's all of them!)
+
+	# wfs = pyxao.ShackHartmann(geometry = 'square', wavefronts = wavefronts_wfs, lenslet_pitch = lenslet_pitch_m, central_lenslet = False, sampling = wfs_sampling)
+
+	dm = pyxao.DeformableMirror(influence_function = influence_fun, 
+		wavefronts = wavefronts_dm, central_actuator = True, actuator_pitch = actuator_pitch_m, geometry = 'square', edge_radius = edge_radius)
+
+	ao = pyxao.SCFeedBackAO(dm = dm, wfs = None, image_ixs = 1)
+
+	atm_wfs = pyxao.Atmosphere(sz = wave_height_px, m_per_px = m_per_px,
+		elevations = elevations, r_0 = r0_lgs, angle_wind = wind_angle,
+		v_wind = v_wind, airmass = airmass)
+
+	atm_science = pyxao.Atmosphere(sz = wave_height_px, m_per_px = m_per_px, elevations = elevations, r_0 = r0_science, angle_wind = wind_angle, v_wind = v_wind, airmass = airmass)
+
+	# wavefronts_wfs[0].add_atmosphere(atm_wfs)
+	wavefronts_dm[0].add_atmosphere(atm_wfs)
+	wavefronts_dm[1].add_atmosphere(atm_science)
+
+	# Calculating the Nyquist oversampling factor
+	psf_rad_px = np.deg2rad(psf_as_px / 3600)
+	N_OS = wavefronts_dm[psf_ix].wave / wavefronts_dm[psf_ix].D / 2 / psf_rad_px
+
+	# Turbulence.
+	psf_atm, psf_mean, psf_perfect = ao.open_loop(dt = dt, niter = N_frames, 
+		nframesbetweenplots = 1,
+		plotIt = plotIt,
+		psf_ix = psf_ix,
+		plate_scale_as_px = psf_as_px,
+		normalise_psf = normalise_psf
+		)[0:3]
+
+	# No turbulence.
+	psf_dl = mu.centreCrop(wf_science.psf_dl(plate_scale_as_px = psf_as_px), psf_atm[0].shape)
+	if normalise_psf:
+		psf_dl /= sum(psf_dl.flatten())
+
+	# Saving to file
+	if save:
+		if not fname:
+			fname = "please_rename_me"
+		np.savez(fname, 
+			N_frames = N_frames,
+			psf_atm = psf_atm,
+			psf_dl = psf_dl,
+			plate_scale_as_px = psf_as_px,
+			N_OS = N_OS,
+			dt = dt,
+			wavelength_m = wavelength_m, 
+			r0_500nm = r0_500nm,
+			r0_science = r0_science,
+			r0_lgs = r0_lgs,
+			elevations = elevations,
+			v_wind = v_wind,
+			wind_angle = wind_angle,
+			airmass = airmass,
+			wave_height_px = wave_height_px,
+			D_out = D_out,
+			D_in = D_in
+			)
+
+	# Output the seeing-limited 
+	return psf_atm, psf_dl
+
+##########################################################################################
+def strehl(psf, psf_dl):
+	""" Calculate the Strehl ratio of an aberrated input PSF given the diffraction-limited PSF. """
+	return np.amax(psf) / np.amax(psf_dl)
 
 ####################################################################################################
 def xcorrShiftAndStack(images, 
@@ -112,7 +250,7 @@ def xcorrShiftAndStack(images,
 	if subPixelShift == None:
 		subPixelShift = True
 
-	images, image_ref, N = _li_error_check(images, N)	
+	images, image_ref, N = _li_error_check(images, image_ref, N)	
 	height = images[0].shape[0]
 	width = images[0].shape[1]
 	image_stacked = np.copy(image_ref)		# array to hold shifted-and-stacked image	
@@ -214,7 +352,7 @@ def xcorrShiftAndStack(images,
 		plt.show()
 
 	
-	return image_stacked, rel_shift_idxs
+	return image_stacked, -rel_shift_idxs
 
 ####################################################################################################
 def fourierShiftAndStack(images, 
@@ -236,6 +374,7 @@ def peakPixelShiftAndStack(images,
 	N = None,			# How many images we want to iterate through
 	image_ref = None, 	# The reference image. By default the first image in the input images array
 	bid_area = None,	# Subwindow in which to calculate the offsets.
+	fsr = 1,			# Frame selection rate.
 	plotIt = False,
 	showAnimatedPlots = False):	
 	"""
@@ -258,19 +397,28 @@ def peakPixelShiftAndStack(images,
 		sub_images = rotateAndCrop(image_in_array = images, cropArg = bid_area)	# (left, upper, right, lower)
 
 	# 2. Iterate through each image and repeat.
-	img_ref_peak_idx = np.asarray(np.unravel_index(np.argmax(sub_image_ref), sub_image_ref.shape))
+	img_ref_peak_idx = np.asarray(np.unravel_index(np.argmax(sub_image_ref), sub_image_ref.shape)) # coordinates to align all the images to.
 	img_peak_idxs = np.zeros((N, 2)) 	# Coordinates of the peak pixel in the subwindow.
 	rel_shift_idxs = np.zeros((N, 2))	# Coordinates by which to shift the image (relative to image_ref)
-	for k in range(N):
+
+	# Finding the peak value in each image.
+	# pdb.set_trace()
+	img_peak_vals = np.amax(sub_images,(1,2))
+	sorted_idx = np.argsort(img_peak_vals)[::-1]
+	final_idx = np.ceil(N * fsr)
+
+	firstLoop = True
+	for k in sorted_idx[:final_idx]:
 		print('.', end="")
 		img_peak_idxs[k] = np.asarray(np.unravel_index(np.argmax(sub_images[k]), sub_images[k].shape))
+
 		# 3. Shift the image by the relative amount.
-		rel_shift_idxs[k] = img_ref_peak_idx - img_peak_idxs[k] 
+		rel_shift_idxs[k] = (img_ref_peak_idx - img_peak_idxs[k])
 		image_stacked += shift(images[k], (rel_shift_idxs[k][0], rel_shift_idxs[k][1]))
 
 		# Plotting
 		if showAnimatedPlots:
-			if k == 0:
+			if firstLoop:
 				mu.newfigure(1,2)
 				plt.suptitle('Peak pixel Lucky Imaging output')
 				plt.subplot(1,2,2)
@@ -279,6 +427,7 @@ def peakPixelShiftAndStack(images,
 				plt.title('Single exposure')
 				scat2 = plt.scatter(0.0,0.0,c='r',s=20)
 				scat3 = plt.scatter(0.0,0.0,c='g',s=20)
+				firstLoop = False
 
 			plt.subplot(1,2,2)
 			plt.imshow(image_stacked)
@@ -286,8 +435,8 @@ def peakPixelShiftAndStack(images,
 			plt.subplot(1,2,1)
 			plt.imshow(images[k])	
 			plotcoords = np.ndarray((2))
-			plotcoords[1] = -rel_shift_idxs[k,0] + width / 2
-			plotcoords[0] = -rel_shift_idxs[k,1] + height / 2
+			plotcoords[1] = rel_shift_idxs[k,0] + width / 2
+			plotcoords[0] = rel_shift_idxs[k,1] + height / 2
 			scat2.set_offsets(plotcoords)
 			scat3.set_offsets(np.asarray((img_peak_idxs[k,1], img_peak_idxs[k,0])))
 
@@ -308,11 +457,93 @@ def peakPixelShiftAndStack(images,
 		plt.title('Mean-combined shifted-and-stacked image')
 		plt.show()
 
-	return image_stacked, rel_shift_idxs
+	return image_stacked, -rel_shift_idxs
+
+####################################################################################################
+def centroidShiftAndStack(images, 
+	N = None,			# How many images we want to iterate through
+	image_ref = None, 	# The reference image. By default the first image in the input images array
+	bid_area = None,	# Subwindow in which to calculate the offsets.
+	plotIt = False,
+	showAnimatedPlots = False):	
+	"""
+		A Lucky Imaging method which uses the brightest pixel in each image to align them.
+		Credit: Aspin et al. (1997)
+	"""
+	print("Applying Lucky Imaging technique: centroiding shift-and-stack method", end="")
+	images, image_ref, N = _li_error_check(images, image_ref, N)	
+	height = images[0].shape[0]
+	width = images[0].shape[1]
+	image_stacked = np.copy(image_ref)
+
+	# 1. Search in the bid area of the reference image for the peak pixel coordinates.
+	if not bid_area:
+		# If no bid area is specified, then we just search the whole image.
+		sub_image_ref = np.copy(image_ref)
+		sub_images = np.copy(images)
+	else:
+		sub_image_ref = rotateAndCrop(image_in_array = image_ref, cropArg = bid_area)	# (left, upper, right, lower)
+		sub_images = rotateAndCrop(image_in_array = images, cropArg = bid_area)	# (left, upper, right, lower)
+
+	# 2. Iterate through each image and repeat.
+	img_ref_peak_idx = _centroid(image_ref)
+	img_peak_idxs = np.zeros((N, 2)) 	# Coordinates of the peak pixel in the subwindow.
+	rel_shift_idxs = np.zeros((N, 2))	# Coordinates by which to shift the image (relative to image_ref)
+	for k in range(N):
+		print('.', end="")
+		img_peak_idxs[k] = _centroid(images[k])
+		# 3. Shift the image by the relative amount.
+		rel_shift_idxs[k] = (img_ref_peak_idx - img_peak_idxs[k])
+		image_stacked += shift(images[k], (rel_shift_idxs[k][0], rel_shift_idxs[k][1]))
+
+		# Plotting
+		if showAnimatedPlots:
+			if k == 0:
+				mu.newfigure(1,2)
+				plt.suptitle('Centroiding Lucky Imaging output')
+				plt.subplot(1,2,2)
+				plt.title('Mean-combined shifted-and-stacked image')
+				plt.subplot(1,2,1)
+				plt.title('Single exposure')
+				scat2 = plt.scatter(0.0,0.0,c='r',s=20)
+				scat3 = plt.scatter(0.0,0.0,c='g',s=20)
+
+			plt.subplot(1,2,2)
+			plt.imshow(image_stacked)
+
+			plt.subplot(1,2,1)
+			plt.imshow(images[k])	
+			plotcoords = np.ndarray((2))
+			plotcoords[1] = rel_shift_idxs[k,0] + height / 2
+			plotcoords[0] = rel_shift_idxs[k,1] + width / 2
+			scat2.set_offsets(plotcoords)
+			scat3.set_offsets(np.asarray((img_peak_idxs[k,1], img_peak_idxs[k,0])))
+
+			plt.draw()
+			pdb.set_trace()
+			plt.pause(0.5)
+	print('\n')
+	# Mean combining
+	image_stacked /= N
+
+	if plotIt:
+		mu.newfigure(1,2)
+		plt.suptitle('Centroiding Lucky Imaging output')
+		plt.subplot(1,2,1)
+		plt.imshow(sub_images[0])
+		plt.title('Single exposure')
+		plt.subplot(1,2,2)
+		plt.imshow(image_stacked)
+		plt.title('Mean-combined shifted-and-stacked image')
+		plt.show()
+
+	return image_stacked, -rel_shift_idxs
+
 
 ####################################################################################################
 def luckyImaging(images, type, 
-	vararg = None,
+	fsr = 1,			# for peak pixel method
+	bid_area = None,	# for peak pixel method
 	N = None,
 	image_ref = None,
 	plotIt = False,
@@ -326,24 +557,29 @@ def luckyImaging(images, type,
 	elif type == 'fourier':
 		image_lucky = fourierLuckyImaging(images = images, image_ref = image_ref, plotIt=plotIt)
 	elif type == 'peak_pixel':
-		image_lucky, shift_idxs = peakPixelShiftAndStack(images = images, image_ref = image_ref, bid_area = vararg, plotIt=plotIt, showAnimatedPlots=showAnimatedPlots)
-
+		image_lucky, shift_idxs = peakPixelShiftAndStack(images = images, image_ref = image_ref, fsr = fsr, bid_area = bid_area, plotIt=plotIt, showAnimatedPlots=showAnimatedPlots)
+	elif type == 'centroid':
+		image_lucky, shift_idxs = centroidShiftAndStack(images = images, image_ref = image_ref, plotIt=plotIt, showAnimatedPlots=showAnimatedPlots)
 	return image_lucky, shift_idxs
 
 ####################################################################################################
 def alignmentError(in_idxs, out_idxs,
 	verbose=True):
 	"""
-		Compute the alignment errors arising in the Lucky Imaging shifting-and-stacking process given an input array of tip and tilt coordinates applied to the input images and the coordinates of the shifts applied in the shifting-and-stacking process. 
+		Compute the alignment errors arising in the Lucky Imaging shifting-and-stacking process given an input array of tip and tilt coordinates applied to the input images and the coordinates of the shifts applied in the shifting-and-stacking process.
+
+		The total number of errors, the mean error and an array containing each alignment error is returned.i 
 	"""
 	N = in_idxs.shape[0]
 	errs = np.zeros((N))
 	n_errs = 0
+	thresh = 0.1	# Threshold for misalignment
 		
 	for k in range(N):
 		errs[k] = np.sqrt(np.power(in_idxs[k,0] - out_idxs[k,0],2) + np.power(in_idxs[k,1] - out_idxs[k,1],2))
-		if errs[k] > 0:
+		if errs[k] > thresh:
 			n_errs += 1
+	avg_err = np.mean(errs)
 			
 	if verbose:
 		print('------------------------------------------------')
@@ -352,8 +588,10 @@ def alignmentError(in_idxs, out_idxs,
 		for k in range(N):
 			print('(%6.2f,%6.2f)\t(%6.2f,%6.2f)\t%4.2f' % (in_idxs[k,0],in_idxs[k,1],out_idxs[k,0],out_idxs[k,1],errs[k]))
 		print('------------------------------------------------')
+		print('\t\t\tMean\t%4.2f' % avg_err)
 
-	return n_errs, errs
+	
+	return n_errs, errs, avg_err
 
 ####################################################################################################
 def _li_error_check(images, 
@@ -396,3 +634,19 @@ def _li_error_check(images,
 		raise UserWarning
 
 	return images, image_ref, N
+
+####################################################################################################
+def _centroid(image):
+	""" Returns the centroid coordinates of an image. """
+	height = image.shape[0]
+	width = image.shape[1]
+	x = np.arange(height)
+	y = np.arange(width)
+	X, Y = np.meshgrid(y,x)
+	M_10 = np.sum((X * image).flatten())
+	M_01 = np.sum((Y * image).flatten())
+	M_00 = np.sum(image.flatten())
+
+	centroid = np.asarray([M_01 / M_00, M_10 / M_00])
+
+	return centroid
