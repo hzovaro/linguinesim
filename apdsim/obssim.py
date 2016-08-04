@@ -11,20 +11,20 @@
 #
 ####################################################################################################
 #
-#	This file is part of lignuini-sim.
+#	This file is part of lingiune-sim.
 #
-#	lignuini-sim is free software: you can redistribute it and/or modify
+#	lingiune-sim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	lignuini-sim is distributed in the hope that it will be useful,
+#	lingiune-sim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with lingiune-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ####################################################################################################
 from __future__ import division, print_function 
@@ -130,12 +130,13 @@ def psfKernel(wavelength_m, l_px_m,
 
 	# Now, we have to calculate what the EFFECTIVE f ratio needs to be to achieve the desired Nyquist oversampling in the returned PSF.
 	if not f_ratio:
-		f_ratio = 2 * N_OS_psf / wavelength_m * np.deg2rad(206265 / 3600) * l_px_m * 1e3
+		f_ratio = 2 * N_OS / wavelength_m * np.deg2rad(206265 / 3600) * l_px_m
 	elif not N_OS:
-		N_OS = wavelength_m * f_ratio / 2 / np.deg2rad(206265 / 3600) / (l_px_m * 1e3)
+		N_OS = wavelength_m * f_ratio / 2 / np.deg2rad(206265 / 3600) / l_px_m
+		pdb.set_trace()		
 
 	if not detector_size_px:
-		psf_size = trunc_sigma * N_OS * 2
+		psf_size = int(np.round(trunc_sigma * N_OS * 2))
 		detector_size_px = (psf_size,psf_size)	
 
 	# In the inputs to this function, do we need to specify the oversampling factor AND the f ratio and/or pixel widths?
@@ -393,44 +394,63 @@ def convolvePSF(image, psf,
 
 
 ####################################################################################################
-def addNoise(images,band,t_exp, 
+def addNoise(images,
+	noise_frames=None, 
+	band=None,
+	t_exp=None,
+	etc_input=None,
 	worstCaseSpider=False,
 	plotIt=False):
 	""" Add noise to an array of input images assuming an exposure time t_exp. """
-	print ('Adding noise to image(s)', end="")
+	print ('Adding noise to image(s)...')
 
 	# Creating an array in which to store the noisy images
 	images, N, height, width = getImageSize(images)
 
-	noisyImages = np.copy(images)
+	images_noisy = np.copy(images)
+
+	# Determine whether or not we need to generate new noise frames
+	if plt.is_numlike(noise_frames):
+		generate_new_noise_frames = False
+	else:
+		noise_frames = np.zeros(images_noisy.shape)
+		generate_new_noise_frames = True
 
 	# Getting noise parameters from the ETC.
-	etc_output = exposureTimeCalc(band = band,t_exp = t_exp, worstCaseSpider = worstCaseSpider)
+	if not etc_input and generate_new_noise_frames:
+		if plt.is_numlike(t_exp) and band:
+			etc_output = exposureTimeCalc(band = band,t_exp = t_exp, worstCaseSpider = worstCaseSpider)
+		else:
+			print("ERROR: if no ETC input is specified, then to calculate the noise levels you must also specify t_exp and the imaging band!")
+			raise UserWarning
+	else:
+		etc_output = etc_input
 
 	# Adding noise to each image.
 	for k in range(N):
-		print('.', end="")
-		frame_sky = np.random.poisson(lam=etc_output['N_sky'], size=(height, width))
-		frame_dark = np.random.poisson(lam=etc_output['N_dark'], size=(height, width))
-		frame_cryo = np.random.poisson(lam=etc_output['N_cryo'], size=(height, width))
-		frame_RN = np.random.poisson(lam=etc_output['N_RN'], size=(height, width))
-		noisyImages[k] += frame_sky + frame_cryo + frame_RN + frame_dark	
+		if generate_new_noise_frames:
+			frame_sky = np.random.poisson(lam=etc_output['N_sky'], size=(height, width))
+			frame_dark = np.random.poisson(lam=etc_output['N_dark'], size=(height, width))
+			frame_cryo = np.random.poisson(lam=etc_output['N_cryo'], size=(height, width))
+			frame_RN = np.random.poisson(lam=etc_output['N_RN'], size=(height, width))
+			noise_frames[k] = frame_sky + frame_cryo + frame_RN + frame_dark
+		images_noisy[k] += noise_frames[k].astype(int)
 	print('\n')
 
 	if plotIt:
 		mu.newfigure(1,2)
 		plt.suptitle('Adding noise')
 		plt.subplot(1,2,1)
-		plt.imshow(images[0], vmin=min(images[0].flatten()), vmax=max(noisyImages[0].flatten()))
+		plt.imshow(images[0], vmin=min(images[0].flatten()), vmax=max(images_noisy[0].flatten()))
 		mu.colourbar()
 		plt.title('Raw input image')
 		plt.subplot(1,2,2)
-		plt.imshow(noisyImages[0], vmin=min(images[0].flatten()), vmax=max(noisyImages[0].flatten()))
+		plt.imshow(images_noisy[0], vmin=min(images[0].flatten()), vmax=max(images_noisy[0].flatten()))
 		mu.colourbar()
 		plt.title('Noisy image')
 		plt.show()
 
-	return (np.squeeze(noisyImages), etc_output)
+	return (np.squeeze(images_noisy), np.squeeze(noise_frames), etc_output)
 
 ##########################################################################################
 def strehl(psf, psf_dl):
