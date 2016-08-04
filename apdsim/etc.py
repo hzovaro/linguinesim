@@ -206,7 +206,7 @@ def getCryostatTE(plotIt=True):
 		wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
 
 		# Plotting
-		plt.figure(figsize=(FIGSIZE*1.25,FIGSIZE))
+		mu.newfigure(1.5,1.5)
 		plt.rc('text', usetex=True)
 		plt.plot(T_cryo, I_cryo, 'r', label='Cryostat thermal emission, $\lambda_c = %.1f \mu$m' % (detector.wavelength_cutoff*1e6))
 		plt.plot(T_cryo, I_cryo_h, 'r--', label='Cryostat thermal emission, $\lambda_c = %.1f \mu$m' % (detector.wavelength_cutoff_h*1e6))
@@ -255,7 +255,7 @@ def getSkyTE(T_sky, plotIt=True):
 		wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
 
 		# Plotting
-		plt.figure(figsize=(FIGSIZE,FIGSIZE))
+		mu.newfigure(1,1)
 		plt.plot(wavelengths*1e6, D, 'g--', label=r'Dark current')
 		# Imager mode
 		for key in I_sky:
@@ -300,7 +300,7 @@ def getTelescopeTE(T_sky, plotIt=True, worstCaseSpider=False):
 		else:
 			# WORST CASE: assume the spider is 100% emissive at telescope temperature (i.e. not reflective at all)
 			I_spider = \
-				thermalEmissionIntensity(T = telescope.T, 	wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = 1.0)\
+				thermalEmissionIntensity(T = telescope.T, 	wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = 1.0 * telescope.A_spider_eff / telescope.A_M1_total)\
 		
 		# Cryostat window (acting as a grey body)
 		I_window = thermalEmissionIntensity(T = cryo.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = cryo.eps_win)
@@ -314,7 +314,7 @@ def getTelescopeTE(T_sky, plotIt=True, worstCaseSpider=False):
 		wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
 
 		# Plotting
-		plt.figure(figsize=(FIGSIZE,FIGSIZE))
+		mu.newfigure(1,1)
 		plt.plot(wavelengths*1e6, D, 'g--', label=r'Dark current')
 
 		for key in FILTER_BANDS_M:
@@ -340,15 +340,15 @@ def plotBackgroundNoiseSources():
 		'J' : 0,
 		'K' : 0
 	}
-	counts['H'] = exposureTimeCalc(band='H', t_exp=1)
-	counts['J'] = exposureTimeCalc(band='J', t_exp=1)
-	counts['K'] = exposureTimeCalc(band='K', t_exp=1)
-	N_tel_worstcase = getTelescopeTE(worstCaseSpider=True, plotIt=False)
+	counts['H'] = exposureTimeCalc(band='H', t_exp=1, worstCaseSpider=False)
+	counts['J'] = exposureTimeCalc(band='J', t_exp=1, worstCaseSpider=False)
+	counts['K'] = exposureTimeCalc(band='K', t_exp=1, worstCaseSpider=False)
+	N_tel_worstcase = getTelescopeTE(T_sky = sky.T, worstCaseSpider=True, plotIt=False)
 	D = np.ones(1000)*detector.dark_current
 	wavelengths = np.linspace(1.0, 2.5, 1000)*1e-6
 
 	# Plotting
-	plt.figure(figsize=(FIGSIZE,FIGSIZE))
+	mu.newfigure(1.5,1.5)
 	plt.plot(wavelengths*1e6, D, 'g--', label=r'Dark current')
 	plotColors = {
 		'H' : 'orangered',
@@ -360,14 +360,14 @@ def plotBackgroundNoiseSources():
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_emp'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='o', ecolor=plotColors[key], mfc=plotColors[key], label='Empirical sky background')
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_thermal'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='^', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal sky background')
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_tel'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope background')
-			# eb=plt.errorbar(FILTER_BANDS_M[key][0]*1e6, N_tel_worstcase[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope background (worst-case)')
-			# eb[-1][0].set_linestyle('--')
+			eb=plt.errorbar(FILTER_BANDS_M[key][0]*1e6, N_tel_worstcase[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope background (worst-case)')
+			eb[-1][0].set_linestyle('--')
 		else:
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_emp'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='o', ecolor=plotColors[key], mfc=plotColors[key])
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_thermal'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='^', ecolor=plotColors[key], mfc=plotColors[key])
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_tel'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key])
-			# eb=plt.errorbar(FILTER_BANDS_M[key][0]*1e6, N_tel_worstcase[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key])
-			# eb[-1][0].set_linestyle('--')
+			eb=plt.errorbar(FILTER_BANDS_M[key][0]*1e6, N_tel_worstcase[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key])
+			eb[-1][0].set_linestyle('--')
 
 		plt.text(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_emp']*5, key)
 
