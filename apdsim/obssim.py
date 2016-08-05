@@ -118,7 +118,7 @@ def psfKernel(wavelength_m, l_px_m,
 	f_ratio=None,
 	N_OS=None, 
 	detector_size_px=None,
-	trunc_sigma=10,		
+	trunc_sigma=10.25,	# 10.25 corresponds to the 10th Airy ring		
 	plotIt=False):
 	"""
 		Returns an Airy disc PSF corresponding to an optical system with a given f ratio, pixel size and detector size at a specified wavelength_m.
@@ -136,7 +136,7 @@ def psfKernel(wavelength_m, l_px_m,
 		pdb.set_trace()		
 
 	if not detector_size_px:
-		psf_size = int(np.round(trunc_sigma * N_OS * 2))
+		psf_size = int(np.round(trunc_sigma * N_OS * 4))
 		detector_size_px = (psf_size,psf_size)	
 
 	# In the inputs to this function, do we need to specify the oversampling factor AND the f ratio and/or pixel widths?
@@ -214,10 +214,9 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_a
 	return np.squeeze(images)
 
 ###################################################################################
-def getDiffractionLimitedImage(image_truth, f_ratio_1, l_px_m, wavelength_1_m, 
-	N_OS_psf=8,
-	wavelength_2_m=None,
-	f_ratio_2=None,
+def getDiffractionLimitedImage(image_truth, l_px_m, f_ratio, wavelength_m, 
+	f_ratio_in=None, wavelength_in_m=None, # f-ratio and imaging wavelength of the input image (if it has N_os > 1)
+	N_OS_psf=4,
 	detector_size_px=None,
 	plotIt=False):
 	""" Convolve the PSF of a given telescope at a given wavelength with image_truth to simulate diffraction-limited imaging. 
@@ -234,16 +233,31 @@ def getDiffractionLimitedImage(image_truth, f_ratio_1, l_px_m, wavelength_1_m,
 	print("Diffraction-limiting truth image(s)...")
 	image_truth, N, height, width = getImageSize(image_truth)
 
-	# For now we assume the input image has infinite diameter (and so is limited by the resolution of the input image)
-	f_ratio = f_ratio_1
-	wavelength_m = wavelength_1_m
+	# If the input image is already sampled by N_os > 1, then the PSF that we convolve with the image needs to add in quadrature with the PSF that has already been convolved with the image to get to the scaling we want.
+	if f_ratio_in != None and wavelength_in_m != None:
+		# Then we need to add the PSFs in quadrature.
+		f_ratio_out = f_ratio
+		wavelength_out_m = wavelength_m
+
+		efl = 1
+		D_in = efl / f_ratio_in
+		D_out = efl / f_ratio_out
+		FWHM_in = wavelength_in_m / D_in
+		FWHM_out = wavelength_out_m / D_out
+		FWHM_prime = np.sqrt(FWHM_out**2 - FWHM_in**2)
+
+		wavelength_prime_m = wavelength_in_m
+		D_prime = wavelength_prime_m / FWHM_prime
+		f_ratio_prime = efl / D_prime
+
+		f_ratio = f_ratio_prime
+		wavelength_m = wavelength_prime_m
 
 	# Because we specify the PSF in terms of Nyquist sampling, we need to express N_OS in terms of the f ratio and wavelength of the input image.
-	N_OS_input = wavelength_m / 2 / (206265 * l_px_m * 1e3 / f_ratio / 3600 * np.pi / 180) 
+	N_OS_input = wavelength_m * f_ratio / 2 / l_px_m / (np.deg2rad(206265 / 3600))
 
 	# Calculating the PSF
-	psf = psfKernel(wavelength_m=wavelength_m, N_OS_psf=N_OS_psf, l_px_m=l_px_m)
-	pdb.set_trace()
+	psf = psfKernel(wavelength_m=wavelength_m, N_OS=N_OS_psf, l_px_m=l_px_m)
 	# TODO need to check that the PSF is not larger than image_truth_large
 
 	# Convolving the PSF and the truth image to obtain the simulated diffraction-limited image
