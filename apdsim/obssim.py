@@ -32,7 +32,7 @@ from apdsim import *
 
 def airyDisc(wavelength_m, f_ratio, l_px_m, 
 	detector_size_px=None,
-	trapz_oversampling=4,	# Oversampling used in the trapezoidal rule approximation.
+	trapz_oversampling=8,	# Oversampling used in the trapezoidal rule approximation.
 	coords=None,
 	P_0=1,
 	plotIt=False):
@@ -100,13 +100,13 @@ def airyDisc(wavelength_m, f_ratio, l_px_m,
 	count_cumtrapz /= P_sum
 
 	if plotIt:
-		mu.newfigure(2,1)
+		mu.newfigure(1,2)
 		plt.subplot(1,2,1)
-		plt.imshow(I)
+		plt.imshow(I, norm=LogNorm())
 		mu.colourbar()
 		plt.title('Intensity (oversampled by a factor of %d)' % trapz_oversampling)
 		plt.subplot(1,2,2)
-		plt.imshow(count_cumtrapz)
+		plt.imshow(count_cumtrapz, norm=LogNorm())
 		mu.colourbar()
 		plt.title('Count (via trapezoidal rule)')
 		plt.show()
@@ -114,9 +114,11 @@ def airyDisc(wavelength_m, f_ratio, l_px_m,
 	return count_cumtrapz, I, P_0, P_sum, I_0
 
 ####################################################################################################
-def psfKernel(wavelength_m, l_px_m, 
+def psfKernel(wavelength_m, 
+	l_px_m=None, 
 	f_ratio=None,
 	N_OS=None, 
+	T_OS=8,
 	detector_size_px=None,
 	trunc_sigma=10.25,	# 10.25 corresponds to the 10th Airy ring		
 	plotIt=False):
@@ -133,14 +135,16 @@ def psfKernel(wavelength_m, l_px_m,
 		f_ratio = 2 * N_OS / wavelength_m * np.deg2rad(206265 / 3600) * l_px_m
 	elif not N_OS:
 		N_OS = wavelength_m * f_ratio / 2 / np.deg2rad(206265 / 3600) / l_px_m
-		pdb.set_trace()		
+		pdb.set_trace()	
+	elif not l_px_m:
+		l_px_m = wavelength_m * f_ratio / 2 / np.deg2rad(206265 / 3600) / N_OS	
 
 	if not detector_size_px:
 		psf_size = int(np.round(trunc_sigma * N_OS * 4))
 		detector_size_px = (psf_size,psf_size)	
 
 	# In the inputs to this function, do we need to specify the oversampling factor AND the f ratio and/or pixel widths?
-	kernel = airyDisc(wavelength_m=wavelength_m, f_ratio=f_ratio, l_px_m=l_px_m, detector_size_px=detector_size_px, plotIt=plotIt)[0]	
+	kernel = airyDisc(wavelength_m=wavelength_m, f_ratio=f_ratio, l_px_m=l_px_m, detector_size_px=detector_size_px, trapz_oversampling=T_OS, plotIt=plotIt)[0]	
 
 	return kernel
 
@@ -261,14 +265,19 @@ def getDiffractionLimitedImage(image_truth, l_px_m, f_ratio, wavelength_m,
 	# TODO need to check that the PSF is not larger than image_truth_large
 
 	# Convolving the PSF and the truth image to obtain the simulated diffraction-limited image
-	image_difflim = np.ndarray((N, height, width))
+	# image_difflim = np.ndarray((N, height, width))
 	for k in range(N):
 		# Resample the image up to the appropriate plate scale.
 		image_truth_large = resizeImagesToDetector(image_truth[k], 1/N_OS_input, 1/N_OS_psf)
 		# Convolve with the PSF.
 		image_difflim_large = signal.fftconvolve(image_truth_large, psf, mode='same')
 		# Resize the image to its original plate scale.
-		image_difflim[k] = resizeImagesToDetector(image_difflim_large, 1/N_OS_psf, 1/N_OS_input)
+		if k == 0:
+			im = resizeImagesToDetector(image_difflim_large, 1/N_OS_psf, 1/N_OS_input)
+			image_difflim = np.ndarray((N, im.shape[0], im.shape[1]))
+			image_difflim[0] = im
+		else:
+			image_difflim[k] = resizeImagesToDetector(image_difflim_large, 1/N_OS_psf, 1/N_OS_input)
 
 
 	if plotIt:
