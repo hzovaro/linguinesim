@@ -22,25 +22,26 @@
 #
 ####################################################################################################
 #
-#	This file is part of lignuini-sim.
+#	This file is part of lingiune-sim.
 #
-#	lignuini-sim is free software: you can redistribute it and/or modify
+#	lingiune-sim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	lignuini-sim is distributed in the hope that it will be useful,
+#	lingiune-sim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with lingiune-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ####################################################################################################
 from __future__ import division
 from __future__ import print_function
 from apdsim import *
+import time
 import pyxao
 
 def addTurbulence(images, 
@@ -54,10 +55,10 @@ def addTurbulence(images,
 
 		The tip and tilt values are either random numbers drawn from a Gaussian distribution with standard deviation sigma_tt_px, or shifts specified in the input vector with shape (N, 2).
 	"""
-	print("Adding randomised tip/tilt to image(s)",end="")
 
 	# Tip and tilt for now	
 	images, N, height, width = getImageSize(images)
+	print("Adding tip/tilt to {:d} images".format(N))
 
 	if not plt.is_numlike(sigma_tt_px) and not plt.is_numlike(tt_idxs):
 		print("ERROR: either sigma_tt_px OR tt_idxs must be specified!")
@@ -78,7 +79,7 @@ def addTurbulence(images,
 			images_tt = np.ndarray((N_tt, height - 2 * crop_tt[0], width - 2 * crop_tt[1]))
 
 	# Array to hold the tip/tilt offsets
-	if not plt.is_numeric(tt_idxs):
+	if not plt.is_numlike(tt_idxs):
 		tt_idxs = np.ndarray((N_tt, 2))
 	
 	# Adding a randomised tip/tilt to each of N_tt images
@@ -87,7 +88,6 @@ def addTurbulence(images,
 			image = images[0]
 		else:
 			image = images[j]
-		print('.', end="")
 
 		if plt.is_numlike(sigma_tt_px):
 			# If no vector of tip/tilt values is specified, then we use random numbers.
@@ -106,17 +106,17 @@ def addTurbulence(images,
 			images_tt[j] = image_tt
 		else:
 			images_tt[j] = rotateAndCrop(image_tt, angle=0., cropArg=crop_tt)
-	print('\n')
-
 	return np.squeeze(images_tt), np.squeeze(tt_idxs)
 
 ################################################################################################################
-def getAtmPSFs(wavelength_m, r0_500nm, N_frames, psf_as_px, dt, D_out, D_in, v_wind_m, wind_angle_rad, elevation_m,
-	wave_height_px = 256,
-	normalise_psf = True,
+def getAoPsfs(wavelength_science_m, N_frames, psf_as_px, dt, D_out, D_in, 
+	r0_500nm, v_wind_m, wind_angle_deg, elevations_m, airmass,	# Atmospheric parameters
+	mode,
+	N_actuators, dm_geometry, central_actuator,	# AOI: actuator in the middle
+	N_lenslets, wavelength_wfs_m, wfs_geometry, central_lenslet, wfs_fratio, # fratio ~60-70 for AOI
+	wave_height_px,	# Grid size in FFT (larger = better)
 	plotIt = False,
-	save = False,	# Whether to save the output PSFs
-	fname = None	# File name (.npz)
+	save = False, fname = "ao_psfs"
 	):
 	"""
 		Returns a time series of PSFs (normalised by default) of a telescope with inner and outer primary mirror diameters D_in and D_out respectively in the presence of atmospheric turbulence. 
@@ -133,76 +133,74 @@ def getAtmPSFs(wavelength_m, r0_500nm, N_frames, psf_as_px, dt, D_out, D_in, v_w
 	m_per_px = D_out / wave_height_px		# Physical mapping of wave onto primary mirror size
 
 	# AO system parameters
-	wavelength_lgs_m = 589e-9
-	wavelength_science_m = wavelength_m
-	# N_lenslets = 10		# per side
-	N_actuators = 9 	# per side
-	# px_per_subap = np.floor(wave_height_px / N_lenslets)
-	# lenslet_pitch_m = px_per_subap * m_per_px 	# Lenslet pitch scaled up to the size of the primary
-	# wfs_sampling = 1
 	actuator_pitch_m = D_out / N_actuators
+	lenslet_pitch_m = D_out / N_lenslets
 	edge_radius = 1.4	
 	influence_fun = 'gaussian'
 	pokeStroke = 1e-7	
-	psf_ix = 1		# Index in the list of wavefronts passed to the DM instance corresponding to the PSF to return
-	# nphot = None	# WFS noise level
 
 	# Seeing conditions
-	r0_lgs = [np.power((wavelength_lgs_m / 500e-9), 1.2) * r0_500nm]
-	r0_science = [np.power((wavelength_science_m / 500e-9), 1.2) * r0_500nm]
-	elevations = [elevation_m]				# Turbulent layer heights
-	wind_angle =[wind_angle_rad]		# w.r.t. x-axis
-	airmass = [1.0]					# Air mass ??
-	v_wind = [v_wind_m]					# Wind speed (m/s)
+	r0_wfs = np.power((wavelength_wfs_m / 500e-9), 1.2) * r0_500nm
+	r0_science = np.power((wavelength_science_m / 500e-9), 1.2) * r0_500nm
 
 	####################################################
 	# Setting up AO system
-	""" Wavefronts """
-	wf_wfs = pyxao.Wavefront(wave = wavelength_lgs_m, m_per_px = m_per_px, sz = wave_height_px, pupil = wavefrontPupil)
+	wf_wfs = pyxao.Wavefront(wave = wavelength_wfs_m, m_per_px = m_per_px, sz = wave_height_px, pupil = wavefrontPupil)
 	wf_science = pyxao.Wavefront(wave = wavelength_science_m, m_per_px = m_per_px, sz = wave_height_px, pupil = wavefrontPupil)
-
-	# wavefronts_wfs = [wf_wfs]				# Wavefronts sensed by the WFS
 	wavefronts_dm = [wf_wfs, wf_science] 	# Wavefronts corrected by the DM (in a CL AO system, it's all of them!)
+	wavefronts_wfs = [wf_wfs]				# Wacefronts sensed by the WFS
+	psf_ix = 1		# Index in the list of wavefronts passed to the DM instance corresponding to the PSF to return
 
-	# wfs = pyxao.ShackHartmann(geometry = 'square', wavefronts = wavefronts_wfs, lenslet_pitch = lenslet_pitch_m, central_lenslet = False, sampling = wfs_sampling)
+	dm = pyxao.DeformableMirror(
+		wavefronts = wavefronts_dm, 
+		influence_function = 'gaussian', 
+		central_actuator = central_actuator, 
+		actuator_pitch = actuator_pitch_m, 
+		geometry = dm_geometry, 
+		edge_radius = 1.4)
 
-	dm = pyxao.DeformableMirror(influence_function = influence_fun, 
-		wavefronts = wavefronts_dm, central_actuator = True, actuator_pitch = actuator_pitch_m, geometry = 'square', edge_radius = edge_radius)
+	wfs = pyxao.ShackHartmann(
+		wavefronts = wavefronts_wfs, 
+		lenslet_pitch = lenslet_pitch_m, 
+		geometry = wfs_geometry, 
+		central_lenslet = central_lenslet, 		
+		sampling = 1)
+		# fratio = wfs_fratio)
 
-	ao = pyxao.SCFeedBackAO(dm = dm, wfs = None, image_ixs = 1)
+	ao = pyxao.SCFeedBackAO(dm = dm, wfs = wfs, image_ixs = psf_ix)
+	
+	ao.find_response_matrix()
+	ao.compute_reconstructor(threshold=0.1)
 
-	atm_wfs = pyxao.Atmosphere(sz = wave_height_px, m_per_px = m_per_px,
-		elevations = elevations, r_0 = r0_lgs, angle_wind = wind_angle,
-		v_wind = v_wind, airmass = airmass)
+	# The atmosphere is a PHASE SCREEN: it's the same at all wavelengths! We don't need to make a new atmosphere instance for each wavelength
+	# If you need convincing, see minerva_red.py
+	atm = pyxao.Atmosphere(sz = wave_height_px, m_per_px = m_per_px,
+		elevations = elevations_m, r_0 = r0_500nm, wave_ref = 500e-9, angle_wind = wind_angle_deg,
+		v_wind = v_wind_m, airmass = airmass, seed = 3)
 
-	atm_science = pyxao.Atmosphere(sz = wave_height_px, m_per_px = m_per_px, elevations = elevations, r_0 = r0_science, angle_wind = wind_angle, v_wind = v_wind, airmass = airmass)
-
-	# wavefronts_wfs[0].add_atmosphere(atm_wfs)
-	wavefronts_dm[0].add_atmosphere(atm_wfs)
-	wavefronts_dm[1].add_atmosphere(atm_science)
+	wf_wfs.add_atmosphere(atm)
+	wf_science.add_atmosphere(atm)
 
 	# Calculating the Nyquist oversampling factor
 	psf_rad_px = np.deg2rad(psf_as_px / 3600)
-	N_OS = wavefronts_dm[psf_ix].wave / wavefronts_dm[psf_ix].D / 2 / psf_rad_px
+	N_OS = wf_science.wave / D_out / 2 / psf_rad_px
 
-	# Turbulence.
-	psf_atm, psf_mean, psf_perfect = ao.open_loop(dt = dt, niter = N_frames, 
-		nframesbetweenplots = 1,
-		plotIt = plotIt,
-		psf_ix = psf_ix,
-		plate_scale_as_px = psf_as_px,
-		normalise_psf = normalise_psf
-		)[0:3]
+	# Running the AO loop.
+	psfs_cropped, psf_mean, psf_mean_all = ao.run_loop(dt = dt,                    # WFS photon noise.
+                mode = mode,
+                niter = N_frames,
+                psf_ix = psf_ix,                     # Index in the list of wavefronts of the PSF you want to be returned
+                plate_scale_as_px = psf_as_px,       # Plate scale of the output images/PSFs
+                detector_size_px = (80,80),    # For now this is only used in plotting
+                nframesbetweenplots = 5,
+                plotIt = plotIt
+                )
 
 	# No turbulence.
-	psf_dl = mu.centreCrop(wf_science.psf_dl(plate_scale_as_px = psf_as_px), psf_atm[0].shape)
-	if normalise_psf:
-		psf_dl /= sum(psf_dl.flatten())
+	psf_dl = mu.centreCrop(wf_science.psf_dl(plate_scale_as_px = psf_as_px), psfs_cropped[0].shape)
 
 	# Saving to file
 	if save:
-		if not fname:
-			fname = "please_rename_me"
 		np.savez(fname, 
 			N_frames = N_frames,
 			psf_atm = psf_atm,
@@ -224,7 +222,7 @@ def getAtmPSFs(wavelength_m, r0_500nm, N_frames, psf_as_px, dt, D_out, D_in, v_w
 			)
 
 	# Output the seeing-limited 
-	return psf_atm, psf_dl
+	return psfs_cropped, psf_dl
 
 ##########################################################################################
 def strehl(psf, psf_dl):
@@ -242,7 +240,7 @@ def xcorrShiftAndStack(images,
 	""" 
 		Shift and stack the images given in the 3-dimensional array of N images. 
 	"""
-	print("Applying Lucky Imaging technique: cross-correlation shift-and-stack method", end="")
+	print("Applying Lucky Imaging technique: cross-correlation shift-and-stack method")
 
 	# Input argument validation
 	if not buff:
@@ -260,7 +258,6 @@ def xcorrShiftAndStack(images,
 	rel_shift_idxs = np.ndarray((N, 2))		# shift in x and y computed from the x-correlation
 
 	for k in range(N):
-		print('.', end="")
 		# Cross-correlate image k with the reference image to find the tip and tilt.
 		corrs[k] = signal.fftconvolve(image_ref, images[k][::-1,::-1], 'same')
 		corrs[k] /= max(corrs[k].flatten())	# The fitting here does not work if the pixels have large values!
@@ -332,9 +329,8 @@ def xcorrShiftAndStack(images,
 			# plt.scatter([peak_idxs[k][0]], [peak_idxs[k][1]], c='r', s=20)
 			plt.draw()
 			plt.pause(0.5)
-	print('\n')
 	# Average-combining the images 
-	image_stacked /= N
+	image_stacked /= N + 1	# Need to add 1 because of the reference image
 
 	if plotIt:
 		mu.newfigure(1,2)
@@ -362,7 +358,7 @@ def fourierShiftAndStack(images,
 		A Fourier-space method of Lucky Imaging.
 		Credit: Garrel et al. (2011)
 	"""
-	print("Applying Lucky Imaging technique: Fourier-space method", end="")
+	print("Applying Lucky Imaging technique: Fourier-space method")
 	images, image_ref, N = _li_error_check(images, N)	
 	height = images[0].shape[0]
 	width = images[0].shape[1]
@@ -373,7 +369,7 @@ def fourierShiftAndStack(images,
 def peakPixelShiftAndStack(images, 
 	N = None,			# How many images we want to iterate through
 	image_ref = None, 	# The reference image. By default the first image in the input images array
-	bid_area = None,	# Subwindow in which to calculate the offsets.
+	bid_area = None,	# Subwindow in which to calculate the offsets. By default the entire image.
 	fsr = 1,			# Frame selection rate.
 	plotIt = False,
 	showAnimatedPlots = False):	
@@ -381,7 +377,7 @@ def peakPixelShiftAndStack(images,
 		A Lucky Imaging method which uses the brightest pixel in each image to align them.
 		Credit: Aspin et al. (1997)
 	"""
-	print("Applying Lucky Imaging technique: peak pixel shift-and-stack method", end="")
+	print("Applying Lucky Imaging technique: peak pixel shift-and-stack method, FSR = {:.2f}%".format(fsr*100))
 	images, image_ref, N = _li_error_check(images, image_ref, N)	
 	height = images[0].shape[0]
 	width = images[0].shape[1]
@@ -406,10 +402,10 @@ def peakPixelShiftAndStack(images,
 	img_peak_vals = np.amax(sub_images,(1,2))
 	sorted_idx = np.argsort(img_peak_vals)[::-1]
 	final_idx = np.ceil(N * fsr)
+	N_frames_used = np.ceil(N * fsr) + 1	# The +1 includes the reference image!
 
 	firstLoop = True
 	for k in sorted_idx[:final_idx]:
-		print('.', end="")
 		img_peak_idxs[k] = np.asarray(np.unravel_index(np.argmax(sub_images[k]), sub_images[k].shape))
 
 		# 3. Shift the image by the relative amount.
@@ -442,13 +438,12 @@ def peakPixelShiftAndStack(images,
 
 			plt.draw()
 			plt.pause(1)
-	print('\n')
 	# Mean combining
-	image_stacked /= N
+	image_stacked /= N_frames_used
 
 	if plotIt:
 		mu.newfigure(1,2)
-		plt.suptitle('Peak pixel Lucky Imaging output')
+		plt.suptitle('Peak pixel Lucky Imaging output, FSR = {:.2f}%, {:d} frames used'.format(fsr * 100, int(N_frames_used)))
 		plt.subplot(1,2,1)
 		plt.imshow(sub_images[0])
 		plt.title('Single exposure')
@@ -470,7 +465,7 @@ def centroidShiftAndStack(images,
 		A Lucky Imaging method which uses the brightest pixel in each image to align them.
 		Credit: Aspin et al. (1997)
 	"""
-	print("Applying Lucky Imaging technique: centroiding shift-and-stack method", end="")
+	print("Applying Lucky Imaging technique: centroiding shift-and-stack method")
 	images, image_ref, N = _li_error_check(images, image_ref, N)	
 	height = images[0].shape[0]
 	width = images[0].shape[1]
@@ -490,7 +485,6 @@ def centroidShiftAndStack(images,
 	img_peak_idxs = np.zeros((N, 2)) 	# Coordinates of the peak pixel in the subwindow.
 	rel_shift_idxs = np.zeros((N, 2))	# Coordinates by which to shift the image (relative to image_ref)
 	for k in range(N):
-		print('.', end="")
 		img_peak_idxs[k] = _centroid(images[k])
 		# 3. Shift the image by the relative amount.
 		rel_shift_idxs[k] = (img_ref_peak_idx - img_peak_idxs[k])
@@ -520,11 +514,10 @@ def centroidShiftAndStack(images,
 			scat3.set_offsets(np.asarray((img_peak_idxs[k,1], img_peak_idxs[k,0])))
 
 			plt.draw()
-			pdb.set_trace()
+			# pdb.set_trace()
 			plt.pause(0.5)
-	print('\n')
 	# Mean combining
-	image_stacked /= N
+	image_stacked /= N + 1	# Need to add 1 because of the reference image
 
 	if plotIt:
 		mu.newfigure(1,2)
