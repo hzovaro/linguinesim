@@ -51,18 +51,22 @@ eps_M1_eff = A_M1_hole / A_M1_total * eps_M1_hole + A_M1_reflective / A_M1_total
 # ACTUAL radii
 r_M2_outer = 0.355 / 2						# ACTUAL radius of M2
 r_M2_baffle = 0.500 / 2						# ACTUAL radius of baffle
-r_M2_oversize = r_M2_baffle - r_M2_outer 	# ACTUAL annular radius of oversized-ness 
+r_M2_oversize = r_M2_baffle - r_M2_outer 	# ACTUAL annular radius of oversized-ness
 
 # EFFECTIVE radii (scaled up to M1 size)
-r_M2_oversize_eff = r_M2_oversize / r_M2_baffle * r_M1_outer			# EFFECTIVE oversized-ness radius of M2 (scaled up to M1)
-r_M2_outer_eff = r_M1_outer + r_M2_oversize_eff						# EFFECTIVE radius of M2 (scaled up to M1)
+r_M2_outer_eff = r_M1_outer									# EFFECTIVE radius of M2
+r_M2_baffle_eff = r_M1_outer / r_M2_outer * r_M2_baffle		# EFFECTIVE radius of baffle
+r_M2_oversize_eff = r_M2_baffle_eff - r_M2_outer_eff 		# EFFECTIVE annular radius of oversized-ness 
 
-A_M2_total_eff = np.power(r_M2_outer_eff, 2) * np.pi
-A_M2_reflective_eff = A_M1_total
+# r_M2_oversize_eff = r_M2_oversize / r_M2_baffle * r_M1_outer			# EFFECTIVE oversized-ness radius of M2 (scaled up to M1)
+# r_M2_outer_eff = r_M1_outer + r_M2_oversize_eff						# EFFECTIVE radius of M2 (scaled up to M1)
+
+A_M2_total_eff = np.power(r_M2_outer_eff, 2) * np.pi 	# EFFECTIVE total area (reflective + baffle)
+A_M2_reflective_eff = A_M1_total					# EFFECTIVE reflective area 
 A_M2_oversize_eff = A_M2_total_eff - A_M1_total		# EFFECTIVE oversized area of M2 (scaled up to M1)
 
 eps_M2_reflective = 0.091		# emissivity of reflective part
-eps_baffle = 1.0	# emissivity of oversized portion
+eps_baffle = 1.0				# emissivity of baffle
 eps_M2_eff = A_M2_oversize_eff / A_M2_total_eff * eps_baffle + A_M2_reflective_eff / A_M2_total_eff * eps_M2_reflective
 
 """ Tertiary """
@@ -80,6 +84,8 @@ tau = 0.909 * 0.909 * 0.909	# telescope transmission
 r_M1 = r_M1_outer
 r_M2 = r_M2_outer
 D_M1 = 2 * r_M1
+D_out = D_M1
+D_in = 2 * r_M2_baffle
 A_collecting = A_M1_reflective
 
 """ f ratio & plate scale """

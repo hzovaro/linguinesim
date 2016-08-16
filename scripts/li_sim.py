@@ -12,20 +12,20 @@
 #
 ############################################################################################
 #
-#	This file is part of lignuini-sim.
+#	This file is part of lingiune-sim.
 #
-#	lignuini-sim is free software: you can redistribute it and/or modify
+#	lingiune-sim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	lignuini-sim is distributed in the hope that it will be useful,
+#	lingiune-sim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with lingiune-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ############################################################################################
 from __future__ import division
@@ -64,15 +64,15 @@ detector_height_px = image_diffraction_limited.shape[0]
 detector_width_px = image_diffraction_limited.shape[1]
 
 # 3. Seeing-limit the image by convolving with a Gaussian with a specified FWHM.
-# image_seeing_limited = getSeeingLimitedImage(image_diffraction_limited, seeing_diameter_as, plate_scale_as, plotIt=True)
+image_seeing_limited = getSeeingLimitedImage(image_diffraction_limited, seeing_diameter_as, plate_scale_as, plotIt=True)
 
 # 4. Generate N images with randomised tip and tilt.
-# images_tt, tt_idx = addTurbulence(image_seeing_limited, N_tt = N_exp, sigma_tt_px = sigma_tt_px)
-images_tt, tt_idxs = addTurbulence(image_diffraction_limited, N_tt = N_exp, sigma_tt_px = sigma_tt_px)
+# images_tt, tt_idx = addTipTilt(image_seeing_limited, N_tt = N_exp, sigma_tt_px = sigma_tt_px)
+images_tt, tt_idxs = addTipTilt(image_diffraction_limited, N_tt = N_exp, sigma_tt_px = sigma_tt_px)
 images_noisy_tt, etc_output = addNoise(images_tt, band = band, t_exp = t_exp, plotIt = True)
 
 # 5. Shift-and-stack the images.
-image_stacked = shiftAndStack(images = images_noisy_tt, image_ref=image_diffraction_limited, plotIt=False)
+image_stacked, img_peak_idxs = xcorrShiftAndStack(images = images_noisy_tt, image_ref=image_diffraction_limited, plotIt=False)
 
 # Plotting
 subplot_x = 3

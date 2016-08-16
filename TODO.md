@@ -1,9 +1,10 @@
 ############################################################################################
 
 Organisational stuff:
-- Make a Wiki - discuss preferred format with Francis
+- Make a Wiki - discuss preferred format with Francis. Preferably somewhere with LaTeX formatting
 - LaTeX template for paper w/ section headings 
 - Make short-term and long-term plans
+- Astro computing course?
 
 ############################################################################################
 
@@ -21,7 +22,6 @@ Galfit simulations:
 - better way of calculating b_n
 - weird pixelation effect: occurs during call to image.rotate()
 - modify sersic2D function to take as input z, R_trunc, detector width & detector plate scale instead
-
 
 ############################################################################################
  

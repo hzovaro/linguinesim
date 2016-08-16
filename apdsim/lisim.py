@@ -452,7 +452,7 @@ def luckyImaging(images, li_method, mode,
 
 	toc = time.time()
 	if timeIt:
-		print("Elapsed time for {:d} images in {} mode: {:.5f}".format(N, mode, (toc-tic)))
+		print("Elapsed time for {:d} {}-by-{} images in {} mode: {:.5f}".format(N, image_ref.shape[0], image_ref.shape[1], mode, (toc-tic)))
 
 	# If we're using an FSR < 1 in the peak pixel method, then we must do the following:
 	#	1. Get our method to return a list of peak pixel values.

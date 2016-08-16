@@ -11,20 +11,20 @@
 #
 #########################################################################################################
 #
-#	This file is part of lignuini-sim.
+#	This file is part of lingiune-sim.
 #
-#	lignuini-sim is free software: you can redistribute it and/or modify
+#	lingiune-sim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	lignuini-sim is distributed in the hope that it will be useful,
+#	lingiune-sim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with lingiune-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 #########################################################################################################
 #
@@ -104,7 +104,7 @@ else:
 	images_resized /= maxval
 
 # 2. Multiply by the flux * t_exp
-flux = surfaceBrightnessToElectronCount(mu = 12, 
+flux = surfaceBrightness2countRate(mu = 12, 
 		band = band, 
 		plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX, 
 		A_tel = telescope.A_collecting, 
@@ -136,7 +136,7 @@ image_difflim = rotateAndCrop(image_difflim_padded, angle=0.,
 	cropArg = pad_tt)
 
 # Return N images with tip/tilt added.
-images_tt, tt_idxs = addTurbulence(image_difflim_padded, 
+images_tt, tt_idxs = addTipTilt(image_difflim_padded, 
 	N_tt = N_exp, 
 	crop_tt = pad_tt,
 	sigma_tt_px = sigma_tt_px)
@@ -151,7 +151,7 @@ images_noisy, etc_output = addNoise(images_tt,
 N_vals = np.array([50])
 images_stacked = np.ndarray((len(N_vals), images_tt.shape[1], images_tt.shape[2]))
 for k in range(len(N_vals)):
-	images_stacked[k] = shiftAndStack(images_noisy, image_ref=image_difflim, N=N_vals[k], plotIt=False)
+	images_stacked[k] = xcorrShiftAndStack(images_noisy, image_ref=image_difflim, N=N_vals[k], plotIt=False)
 
 # Plotting.
 # vmin = min(images_hst.flatten())

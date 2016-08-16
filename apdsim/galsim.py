@@ -11,20 +11,20 @@
 #
 ############################################################################################
 #
-#	This file is part of lignuini-sim.
+#	This file is part of lingiune-sim.
 #
-#	lignuini-sim is free software: you can redistribute it and/or modify
+#	lingiune-sim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	lignuini-sim is distributed in the hope that it will be useful,
+#	lingiune-sim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with lingiune-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ############################################################################################
 from __future__ import division
@@ -36,7 +36,7 @@ def sersic(n, R_e, R, mu_e,
 	):
 	"""
 		Returns the Sersic profile at radial distance R in units of surface brightness mu
-		(given in magnitudes/arcsec^2, by fault in AB magnitudes) and in flux units 
+		(given in magnitudes/arcsec^2, by default in AB magnitudes) and in flux units 
 		with Sersic index n given half-light radius R_e and mu(R=R_e) = mu_e.
 	"""
 	# Calculating the constraining parameter.
@@ -94,18 +94,18 @@ def sersic2D(n, R_e, mu_e,
 		F_map[key][R>R_trunc] = 0
 
 	if plotIt:
-		plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
+		mu.newfigure(2,1)
 		plt.subplot(1,2,1)
 		plt.imshow(F_map['F_nu_cgs'], norm=LogNorm(), extent = [-dR*gridsize/2,dR*gridsize/2,-dR*gridsize/2,dR*gridsize/2])
 		plt.xlabel(r'$R$ (%s)' % R_units)
 		plt.ylabel(r'$R$ (%s)' % R_units)
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('2D intensity map')
 		plt.subplot(1,2,2)
 		plt.imshow(mu_map, extent = [-dR*gridsize/2,dR*gridsize/2,-dR*gridsize/2,dR*gridsize/2])
 		plt.xlabel(r'$R$ (%s)' % R_units)
 		plt.ylabel(r'$R$ (%s)' % R_units)
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('2D surface brightness map')
 		plt.suptitle('2D Sersic profiles')
 		plt.show()
@@ -135,4 +135,110 @@ def exportGalaxyFITSFile(image_in_array, n, R_e, mu_e, z, R_trunc, i_deg, band, 
 	print "Exporting image data to file: ", fname,".fits"
 	exportFITSFile(image_in_array = image_in_array, fname = fname, otherHeaderData = headerData, overwriteExisting = overwriteExisting)
 
+############################################################################################
+# The following functions are for use with GALFIT.
+############################################################################################
+def simulateSersicGalaxy(im_out_fname, # Output FITS file name
+	height_px, 	# Height of output file
+	width_px, 	# Width of output file
+	mu_e,		# Surface brightness magnitude at effective radius
+	R_e_px,		# Effective (half-light) radius (can be float)
+	n, 			# Sersic index
+	plate_scale_as_px, 	# Plate scale
+	axis_ratio,	# Axis ratio (a/b)
+	zeropoint = -AB_MAGNITUDE_ZEROPOINT, # Careful of the minus sign!
+	pos_px = None, # Position of galaxy in frame 
+	theta_pa_deg = 0,	# Rotation angle
+	object_type = 'sersic2',
+	galfit_input_fname = "galfit_input.txt",
+	plotIt = False
+	):
+	"""
+		Return a simulated image of a galaxy (made using GALFIT) given the inputs.
+	"""
 
+	# Writing the parameters file.
+	galfit_input_fname, im_out_fname = writeGALFITparamsFile(galfit_input_fname, im_out_fname, height_px, width_px, mu_e, R_e_px, n, plate_scale_as_px, axis_ratio, zeropoint, pos_px, theta_pa_deg, object_type)
+
+	# Calling GALFIT.
+	callGALFIT(galfit_input_fname)
+
+	# Reading the file created by GALFIT.
+	print("Loading GALFIT image data...")
+	data = getRawImages(im_out_fname)
+	im_raw = data[0]
+
+	# Plotting.
+	if plotIt:
+		mu.newfigure()
+		plt.imshow(im_raw)
+		plt.title("GALFIT-generated image")
+		mu.colourbar()
+		plt.show()
+
+	return im_raw
+
+############################################################################################
+from subprocess import call
+def callGALFIT(galfit_input_fname):
+	""" 
+		Call GALFIT on the file galfit_input_fname.
+	"""
+	print("Calling GALFIT...")
+	call(["galfit", galfit_input_fname])
+
+############################################################################################
+def writeGALFITparamsFile(
+	galfit_input_fname,	# Name of GALFIT input parameters file
+	im_out_fname, 		# Output FITS file name
+	height_px, 			# Height of output file
+	width_px, 			# Width of output file
+	mu_e,				# Surface brightness magnitude at effective radius
+	R_e_px,				# Effective (half-light) radius (can be float)
+	n, 					# Sersic index
+	plate_scale_as_px, 	# Plate scale
+	axis_ratio,			# Axis ratio (a/b)
+	zeropoint = -AB_MAGNITUDE_ZEROPOINT, # Careful of the minus sign!
+	pos_px = None, 		# Position of galaxy in frame 
+	theta_pa_deg = 0,	# Rotation angle
+	object_type = 'sersic2',
+	):
+	"""
+		Write a .txt file that can be used as input to GALFIT containing control and fitting parameters.
+	"""
+	
+	# By default, the galaxy is centered in the middle of the image plane.
+	if not pos_px:
+		# pos_px = (height_px/2, width_px/2)
+		pos_px = (width_px/2, height_px/2)
+
+	# Checking the file names.
+	if galfit_input_fname.lower().endswith('.txt') == False:
+		galfit_input_fname += '.txt'
+	if im_out_fname.lower().endswith('.fits') == False:
+		im_out_fname += '.fits'
+
+	# Writing the input parameters file.
+	print("Writing GALFIT input parameters profile to file {}...".format(galfit_input_fname))
+	with open(galfit_input_fname, "w") as text_file:
+		text_file.write("# IMAGE and GALFIT CONTROL PARAMETERS\n")
+		text_file.write("B)\t{}\n".format(im_out_fname))
+		# text_file.write("H)\t0\t{:d}\t0\t{:d}\n".format(height_px, width_px))
+		text_file.write("H)\t0\t{:d}\t0\t{:d}\n".format(width_px, height_px))
+		text_file.write("J)\t{:.10f}\n".format(zeropoint))
+		text_file.write("K)\t{:.10f}\t{:.10f}\n".format(plate_scale_as_px, plate_scale_as_px))
+		text_file.write("O)\tregular\n")
+		text_file.write("P)\t0\n")
+		# Object fitting
+		text_file.write("\n# INITIAL FITTING PARAMETERS\n")
+		text_file.write("# Object 1\n")
+		text_file.write("0)\t{}\n".format(object_type))
+		text_file.write("1)\t{:.10f}\t{:.10f}\n".format(pos_px[0], pos_px[1]))
+		text_file.write("3)\t{:.10f}\n".format(mu_e))
+		text_file.write("4)\t{:.10f}\n".format(R_e_px))
+		text_file.write("5)\t{:d}\n".format(n))
+		text_file.write("9)\t{:.10f}\n".format(axis_ratio))
+		text_file.write("10)\t{:.10f}\n".format(theta_pa_deg))
+		text_file.write("Z)\t0\n")
+
+	return galfit_input_fname, im_out_fname

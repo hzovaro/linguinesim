@@ -11,20 +11,20 @@
 #
 ############################################################################################
 #
-#	This file is part of lignuini-sim.
+#	This file is part of lingiune-sim.
 #
-#	lignuini-sim is free software: you can redistribute it and/or modify
+#	lingiune-sim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	lignuini-sim is distributed in the hope that it will be useful,
+#	lingiune-sim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with lingiune-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ############################################################################################
 from __future__ import division
@@ -50,7 +50,7 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 	"""
 		Returns a simulated image of a star field imaged through an optical system at a given wavelength_m or in an imaging band with a specified centre wavelength_m and bandwidth with a given collecting area, f ratio, pixel size and detector dimensions. The throughput, QE and gain of the system can be specified if required; otherwise they are all assumed to be unity. 
 
-		The magnitudes and coordinates can either be specified by the user or generated randomly. For now, coordinates must be specified in units of pixels; sub-pixel positioning of stars has not been implemented.
+		The magnitudes and coordinates can either be specified by the user or generated randomly. 
 	"""
 	detector_height_px, detector_width_px = detector_size_px[0:2]
 	if N_stars != None:
@@ -103,21 +103,21 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 	image_count = expectedCount2count(starfield, detectorSaturation = detectorSaturation)
 
 	if plotIt:
-		plt.figure(figsize=(2*FIGSIZE,FIGSIZE))
+		mu.newfigure(2,1)
 		if len(m) == 1:
 			plt.suptitle(r'Starfield, $m = %.2f$' % m)
 		else:
 			plt.suptitle('Starfield')
 		plt.subplot(1,2,1)
 		plt.imshow(starfield, norm=LogNorm())
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('Expected electron flux')
 		plt.subplot(1,2,2)
 		if max(starfield.flatten() > 0):
 			plt.imshow(image_count, norm=LogNorm())
 		else:
 			plt.imshow(image_count)
-		plt.colorbar(fraction=COLORBAR_FRACTION, pad=COLORBAR_PAD)
+		mu.colourbar()
 		plt.title('Simulated image')
 		plt.show()
 

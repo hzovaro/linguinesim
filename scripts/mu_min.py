@@ -12,31 +12,20 @@
 #
 ############################################################################################
 #
-#	This file is part of lignuini-sim.
+#	This file is part of lingiune-sim.
 #
-#	lignuini-sim is free software: you can redistribute it and/or modify
+#	lingiune-sim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	lignuini-sim is distributed in the hope that it will be useful,
+#	lingiune-sim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
-#
-############################################################################################
-#
-#	TO DO:
-#	- better way of calculating b_n
-#	- weird pixelation effect: occurs during call to image.rotate()
-#	- Ultimate goal: what is the minimum surface brightness of galaxies that we can reliably
-#	image with LINGUINI? 
-#	- modify sersic2D function to take as input z, R_trunc, detector width & detector plate scale instead
-#	- appropriate ordering 
-#	- PSF: should the central intensity be 1? Or something else?
+#	along with lingiune-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ############################################################################################
 from __future__ import division
@@ -56,11 +45,11 @@ plt.close('all')
 
 " Inputs "
 # Galaxy:
-z = 0.095		# Redshift
+z = 0.01		# Redshift
 D_A_Mpc = distances(z)['D_A_Mpc']	# Angular diameter distance of galaxy (Mpc)
 D_A_kpc = D_A_Mpc * 1e3 			# Angular diameter distance of galaxy (kpc)
-R_e = 20			# Half-light or effective radius (kpc) - that is, the radius enclosing half the total light from the galaxy
-R_trunc = 50	# Truncation radius of disc
+R_e = 4			# Half-light or effective radius (kpc) - that is, the radius enclosing half the total light from the galaxy
+R_trunc = np.inf	# Truncation radius of disc
 mu_e = 13		# Surface brightness at the half-light radius (AB mag/arcsec^2)
 n = 4			# Sersic index
 i_deg = 75		# inclination (degrees)
@@ -89,19 +78,20 @@ R, dR, F, mu = sersic2D(n=n, R_e=R_e, R_trunc=R_trunc, mu_e=mu_e,
 
 # 3. Convolving the image with the PSF of the 2.3 m.
 # 3a. Convert to counts.
-counts_truth = fluxToElectronCount(F = F, A_tel = telescope.A_collecting, plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX, band = band, magnitudeSystem = 'AB', tau = telescope.tau, qe = detector.qe, gain = detector.gain)
-image_truth = t_exp * counts_truth
+countrate_truth = flux2countRate(F = F, A_tel = telescope.A_collecting, plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX, band = band, magnitudeSystem = 'AB', tau = telescope.tau, qe = detector.qe, gain = detector.gain)
+image_truth = expectedCount2count(countrate_truth, t_exp)
+
 # 3b. Diffraction limit the image
-counts_difflim = getDiffractionLimitedImage(image_truth = counts_truth, wavelength = FILTER_BANDS_M[band][0], f_ratio = telescope.f_ratio, l_px_m = detector.l_px_m, detector_size_px = detector.size_px, plotIt = True)
-image_difflim = t_exp * counts_difflim
+countrate_difflim = getDiffractionLimitedImage(image_truth = countrate_truth, wavelength = FILTER_BANDS_M[band][0], f_ratio = telescope.f_ratio, l_px_m = detector.l_px_m, detector_size_px = detector.size_px, plotIt = True)
+image_difflim = expectedCount2count(countrate_difflim, t_exp)
 
 # 4. Making N_exp copies with randomised tip and tilt.
-images_tt, tt_idxs = addTurbulence(image_difflim, N_tt = N_exp, sigma_tt_px = sigma_tt_px)
+images_tt, tt_idxs = addTipTilt(image_difflim, N_tt = N_exp, sigma_tt_px = sigma_tt_px)
 
 # 5. Adding noise to each copy.
 images_tt_noisy, etc_output = addNoise(images = images_tt, band = band, t_exp = t_exp, plotIt = True)
 
 # 6. Shifting-and-stacking.
-image_stacked = shiftAndStack(images = images_tt_noisy, image_ref = image_difflim, plotIt = True)
+image_stacked = xcorrShiftAndStack(images = images_tt_noisy, image_ref = image_difflim, plotIt = True)
 
-exportGalaxyFITSFile(image_stacked, n, R_e, mu_e, z, R_trunc, i_deg, band, seeing_as, t_exp, N_exp)
+exportGalaxyFITSFile(image_stacked, n, R_e, mu_e, z, R_trunc, i_deg, band, seeing_as, t_exp, N_exp, relpath='../galfit')
