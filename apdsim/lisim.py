@@ -46,9 +46,8 @@ import pyxao
 
 def addTipTilt(images, 
 	sigma_tt_px=None,
-	tt_idxs=None,
-	N_tt=1,
-	crop_tt=None):
+	tt_input_idxs=None,
+	N_tt=1):
 	""" 
 		Add turbulence to an input `truth' image. Returns N_tt copies of the input image with randomised turbulence added. 
 		Just tip and tilt for now with a standard deviation of sigma_tt_px in both dimensions.
@@ -58,56 +57,56 @@ def addTipTilt(images,
 
 	# Tip and tilt for now	
 	images, N, height, width = getImageSize(images)
+	if N != 1:		
+		N_tt = N # Then we add a randomised tip and tilt to each of the N input images.		
+	# Otherwise, we make N_tt copies of the image and add a randomised tip and tilt to each.
+
+	print("Adding tip/tilt to {:d} images".format(N_tt))	
 	
+	if not plt.is_numlike(tt_idxs):
+		tt_idxs = np.ndarray((N_tt, 2))
+		tt_idx = None
+	else:
+		sigma_tt_px = None
+
+	# PARALLELISE
+	for j in range(N_tt):
+		if N == 1:			
+			image = images[0]	# If the user only inputs 1 image, then we use the same image each time.
+		else:
+			image = images[j]
+
+		if plt.is_numlike(tt_input_idxs):
+			tt_idx = tt_input_idxs[j]			
+
+		images_tt[j], tt_idxs[j] = addTipTilt_single(image, sigma_tt_px, tt_idx)
+
+	return np.squeeze(images_tt), tt_idxs
+
+####################################################################################################
+def addTipTilt_single(image, 
+	sigma_tt_px=None, 
+	tt_idxs=None):
 
 	if not plt.is_numlike(sigma_tt_px) and not plt.is_numlike(tt_idxs):
 		print("ERROR: either sigma_tt_px OR tt_idxs must be specified!")
 		raise UserWarning
-
-	if N != 1:
-		# Then we add a randomised tip and tilt to each of the N input images.
-		N_tt = N
-	# Otherwise, we make N_tt copies of the image and add a randomised tip and tilt to each.
-	print("Adding tip/tilt to {:d} images".format(N_tt))
 	
-	# Output array of images
-	if not plt.is_numlike(crop_tt):
-		images_tt = np.ndarray((N_tt, height, width))
+	# Adding a randomised tip/tilt to the image
+	if plt.is_numlike(sigma_tt_px):
+		# If no vector of tip/tilt values is specified, then we use random numbers.
+		shift_height = np.random.randn() * sigma_tt_px
+		shift_width = np.random.randn() * sigma_tt_px
+		tt_idxs = [shift_height, shift_width]
 	else:
-		if len(crop_tt.shape) == 0:
-			images_tt = np.ndarray((N_tt, height - 2 * crop_tt, width - 2 * crop_tt))	
-		else:
-			images_tt = np.ndarray((N_tt, height - 2 * crop_tt[0], width - 2 * crop_tt[1]))
-
-	# Array to hold the tip/tilt offsets
-	if not plt.is_numlike(tt_idxs):
-		tt_idxs = np.ndarray((N_tt, 2))
+		# Otherwise we take them from the input vector.
+		shift_height = tt_idxs[0]
+		shift_width = tt_idxs[1]
 	
-	# Adding a randomised tip/tilt to each of N_tt images
-	for j in range(N_tt):
-		if N == 1:
-			image = images[0]
-		else:
-			image = images[j]
+	image_tt = shift(image, (shift_height, shift_width))
 
-		if plt.is_numlike(sigma_tt_px):
-			# If no vector of tip/tilt values is specified, then we use random numbers.
-			shift_height = np.random.randn() * sigma_tt_px
-			shift_width = np.random.randn() * sigma_tt_px
-			tt_idxs[j] = [shift_height, shift_width]
-		else:
-			# Otherwise we take them from the input vector.
-			shift_height = tt_idxs[j,0]
-			shift_width = tt_idxs[j,1]
-		
-		image_tt = shift(image, (shift_height, shift_width))
-
-		# Cropping the image if necessary
-		if crop_tt == None:
-			images_tt[j] = image_tt
-		else:
-			images_tt[j] = rotateAndCrop(image_tt, angle=0., cropArg=crop_tt)
-	return np.squeeze(images_tt), np.squeeze(tt_idxs)
+	return image_tt, tt_idxs
+	
 
 ####################################################################################################
 def getAoPsfs(wavelength_science_m, N_frames, psf_as_px, dt, D_out, D_in, 
@@ -229,95 +228,6 @@ def getAoPsfs(wavelength_science_m, N_frames, psf_as_px, dt, D_out, D_in,
 def strehl(psf, psf_dl):
 	""" Calculate the Strehl ratio of an aberrated input PSF given the diffraction-limited PSF. """
 	return np.amax(psf) / np.amax(psf_dl)
-
-####################################################################################################
-# def peakPixelShiftAndStack(images, 
-	# N = None,			# How many images we want to iterate through
-	# image_ref = None, 	# The reference image. By default the first image in the input images array
-	# bid_area = None,	# Subwindow in which to calculate the offsets. By default the entire image.
-	# fsr = 1,			# Frame selection rate.
-	# plotIt = False,
-	# showAnimatedPlots = False):	
-	# """
-	# 	A Lucky Imaging method which uses the brightest pixel in each image to align them.
-	# 	Credit: Aspin et al. (1997)
-	# """
-	# print("Applying Lucky Imaging technique: peak pixel shift-and-stack method, FSR = {:.2f}%".format(fsr*100))
-	# images, image_ref, N = _li_error_check(images, image_ref, N)	
-	# height = images[0].shape[0]
-	# width = images[0].shape[1]
-	# image_stacked = np.copy(image_ref)
-
-	# # 1. Search in the bid area of the reference image for the peak pixel coordinates.
-	# if not bid_area:
-	# 	# If no bid area is specified, then we just search the whole image.
-	# 	sub_image_ref = np.copy(image_ref)
-	# 	sub_images = np.copy(images)
-	# else:
-	# 	sub_image_ref = rotateAndCrop(image_in_array = image_ref, cropArg = bid_area)	# (left, upper, right, lower)
-	# 	sub_images = rotateAndCrop(image_in_array = images, cropArg = bid_area)	# (left, upper, right, lower)
-
-	# # 2. Iterate through each image and repeat.
-	# img_ref_peak_idx = np.asarray(np.unravel_index(np.argmax(sub_image_ref), sub_image_ref.shape)) # coordinates to align all the images to.
-	# img_peak_idxs = np.zeros((N, 2)) 	# Coordinates of the peak pixel in the subwindow.
-	# rel_shift_idxs = np.zeros((N, 2))	# Coordinates by which to shift the image (relative to image_ref)
-
-	# # Finding the peak value in each image.
-	# # pdb.set_trace()
-	# img_peak_vals = np.amax(sub_images,(1,2))
-	# sorted_idx = np.argsort(img_peak_vals)[::-1]
-	# final_idx = np.ceil(N * fsr)
-	# N_frames_used = np.ceil(N * fsr) + 1	# The +1 includes the reference image!
-
-	# firstLoop = True
-	# for k in sorted_idx[:final_idx]:
-	# 	img_peak_idxs[k] = np.asarray(np.unravel_index(np.argmax(sub_images[k]), sub_images[k].shape))
-
-	# 	# 3. Shift the image by the relative amount.
-	# 	rel_shift_idxs[k] = (img_ref_peak_idx - img_peak_idxs[k])
-	# 	image_stacked += shift(images[k], (rel_shift_idxs[k][0], rel_shift_idxs[k][1]))
-
-	# 	# Plotting
-	# 	if showAnimatedPlots:
-	# 		if firstLoop:
-	# 			mu.newfigure(1,2)
-	# 			plt.suptitle('Peak pixel Lucky Imaging output')
-	# 			plt.subplot(1,2,2)
-	# 			plt.title('Mean-combined shifted-and-stacked image')
-	# 			plt.subplot(1,2,1)
-	# 			plt.title('Single exposure')
-	# 			scat2 = plt.scatter(0.0,0.0,c='r',s=20)
-	# 			scat3 = plt.scatter(0.0,0.0,c='g',s=20)
-	# 			firstLoop = False
-
-	# 		plt.subplot(1,2,2)
-	# 		plt.imshow(image_stacked)
-
-	# 		plt.subplot(1,2,1)
-	# 		plt.imshow(images[k])	
-	# 		plotcoords = np.ndarray((2))
-	# 		plotcoords[1] = rel_shift_idxs[k,0] + width / 2
-	# 		plotcoords[0] = rel_shift_idxs[k,1] + height / 2
-	# 		scat2.set_offsets(plotcoords)
-	# 		scat3.set_offsets(np.asarray((img_peak_idxs[k,1], img_peak_idxs[k,0])))
-
-	# 		plt.draw()
-	# 		plt.pause(1)
-	# # Mean combining
-	# image_stacked /= N_frames_used
-
-	# if plotIt:
-	# 	mu.newfigure(1,2)
-	# 	plt.suptitle('Peak pixel Lucky Imaging output, FSR = {:.2f}%, {:d} frames used'.format(fsr * 100, int(N_frames_used)))
-	# 	plt.subplot(1,2,1)
-	# 	plt.imshow(sub_images[0])
-	# 	plt.title('Single exposure')
-	# 	plt.subplot(1,2,2)
-	# 	plt.imshow(image_stacked)
-	# 	plt.title('Mean-combined shifted-and-stacked image')
-	# 	plt.show()
-
-	# return image_stacked, -rel_shift_idxs
 
 ####################################################################################################
 def shift_pp(image, img_ref_peak_idx, fsr, bid_area):
