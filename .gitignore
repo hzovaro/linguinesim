@@ -5,6 +5,5 @@
 *.fits
 
 # Directories
-scripts/sample-images/*
-scripts/gemini_nir_noise.py
-scripts/cosmo_calc.py
+scripts/
+cosmocalc/
