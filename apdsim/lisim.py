@@ -337,76 +337,7 @@ def shift_pp(image, img_ref_peak_idx, fsr, bid_area):
 
 	peak_pixel_val = max(sub_image.flatten())	# Maximum pixel value (for now, not used)
 
-	return image_shifted, -rel_shift_idx
-
-####################################################################################################
-# def centroidShiftAndStack(images, 
-# 	N = None,			# How many images we want to iterate through
-# 	image_ref = None, 	# The reference image. By default the first image in the input images array
-# 	bid_area = None,	# Subwindow in which to calculate the offsets.
-# 	plotIt = False,
-# 	showAnimatedPlots = False):	
-# 	"""
-# 		A Lucky Imaging method which uses the brightest pixel in each image to align them.
-# 		Credit: Aspin et al. (1997)
-# 	"""
-# 	print("Applying Lucky Imaging technique: centroiding shift-and-stack method")
-# 	images, image_ref, N = _li_error_check(images, image_ref, N)	
-# 	height = images[0].shape[0]
-# 	width = images[0].shape[1]
-# 	image_stacked = np.copy(image_ref)
-
-# 	# 2. Iterate through each image and repeat.
-# 	img_ref_peak_idx = _centroid(image_ref)
-# 	img_peak_idxs = np.zeros((N, 2)) 	# Coordinates of the peak pixel in the subwindow.
-# 	rel_shift_idxs = np.zeros((N, 2))	# Coordinates by which to shift the image (relative to image_ref)
-# 	for k in range(N):
-# 		img_peak_idxs[k] = _centroid(images[k])
-# 		# 3. Shift the image by the relative amount.
-# 		rel_shift_idxs[k] = (img_ref_peak_idx - img_peak_idxs[k])
-# 		image_stacked += shift(images[k], (rel_shift_idxs[k][0], rel_shift_idxs[k][1]))
-
-# 		# Plotting
-# 		if showAnimatedPlots:
-# 			if k == 0:
-# 				mu.newfigure(1,2)
-# 				plt.suptitle('Centroiding Lucky Imaging output')
-# 				plt.subplot(1,2,2)
-# 				plt.title('Mean-combined shifted-and-stacked image')
-# 				plt.subplot(1,2,1)
-# 				plt.title('Single exposure')
-# 				scat2 = plt.scatter(0.0,0.0,c='r',s=20)
-# 				scat3 = plt.scatter(0.0,0.0,c='g',s=20)
-
-# 			plt.subplot(1,2,2)
-# 			plt.imshow(image_stacked)
-
-# 			plt.subplot(1,2,1)
-# 			plt.imshow(images[k])	
-# 			plotcoords = np.ndarray((2))
-# 			plotcoords[1] = rel_shift_idxs[k,0] + height / 2
-# 			plotcoords[0] = rel_shift_idxs[k,1] + width / 2
-# 			scat2.set_offsets(plotcoords)
-# 			scat3.set_offsets(np.asarray((img_peak_idxs[k,1], img_peak_idxs[k,0])))
-
-# 			plt.draw()
-# 			# pdb.set_trace()
-# 			plt.pause(0.5)
-# 	# Mean combining
-# 	image_stacked /= N + 1	# Need to add 1 because of the reference image
-
-# 	if plotIt:
-# 		mu.newfigure(1,2)
-# 		plt.suptitle('Centroiding Lucky Imaging output')
-# 		plt.subplot(1,2,1)
-# 		plt.imshow(sub_images[0])
-# 		plt.title('Single exposure')
-# 		plt.subplot(1,2,2)
-# 		plt.imshow(image_stacked)
-# 		plt.title('Mean-combined shifted-and-stacked image')
-# 		plt.show()
-
-# 	return image_stacked, -rel_shift_idxs
+	return image_shifted, -rel_shift_idx, peak_pixel_val
 
 ####################################################################################################
 def shift_centroid(image, img_ref_peak_idx):
@@ -443,10 +374,10 @@ def shift_xcorr(image, image_ref, buff, subPixelShift):
 	
 	image_shifted = shift(image, rel_shift_idx)	
 
-	return image_shifted, -rel_shift_idx
+	return image_shifted, tuple(-x for x in rel_shift_idx)
 
 ####################################################################################################
-def luckyImaging(images, type, mode,
+def luckyImaging(images, li_method, mode,
 	image_ref = None,	# reference image
 	fsr = 1,			# for peak pixel method
 	bid_area = None,	# for peak pixel method
@@ -459,15 +390,15 @@ def luckyImaging(images, type, mode,
 		Apply a Lucky Imaging (LI) technique to a sequence of images stored in the input array images. 
 		The type of LI technique used is specified by input string type and any additional arguments which may be required are given in vararg.
 	"""
-
 	images, image_ref, N = _li_error_check(images, image_ref, N)
+	print("Applying Lucky Imaging technique '{}' to input series of {:d} images...".format(li_method, N))
 	
 	# For each of these functions, the output must be of the form 
 	#	image_shifted, rel_shift_idxs	
-	if type == 'xcorr':
+	if li_method == 'xcorr':
 		shift_fun = partial(shift_xcorr, image_ref=image_ref, buff=buff, subPixelShift=subPixelShift)
 	
-	elif type == 'peak_pixel':
+	elif li_method == 'peak_pixel':
 		# Determining the reference coordinates.
 		if bid_area:			
 			sub_image_ref = rotateAndCrop(image_in_array = image_ref, cropArg = bid_area)
@@ -477,7 +408,7 @@ def luckyImaging(images, type, mode,
 
 		shift_fun = partial(shift_pp, img_ref_peak_idx=img_ref_peak_idx, bid_area=bid_area, fsr=fsr)
 	
-	elif type == 'centroid':
+	elif li_method == 'centroid':
 		img_ref_peak_idx = _centroid(image_ref)
 		shift_fun = partial(shift_centroid, img_ref_peak_idx=img_ref_peak_idx)
 	
@@ -501,13 +432,20 @@ def luckyImaging(images, type, mode,
 		# Extracting the output arguments.
 		images_shifted = np.array(zip(*results)[0]) 
 		rel_shift_idxs = np.array(zip(*results)[1])
+		if li_method == 'peak_pixel' and fsr < 1:
+			peak_pixel_vals = np.array(zip(*results)[2])
 
 	elif mode == 'serial':
 		# Loop through each image individually.
 		images_shifted = np.zeros( (N, image_ref.shape[0], image_ref.shape[1]) )	
 		rel_shift_idxs = np.zeros( (N, 2) )
 		for k in range(N):
-			images_shifted[k], rel_shift_idxs[k] = shift_fun(image=images[k])
+			if li_method == 'peak_pixel':
+				if k == 0:
+					peak_pixel_vals = np.zeros(N)
+				images_shifted[k], rel_shift_idxs[k], peak_pixel_vals[k] = shift_fun(image=images[k])
+			else:
+				images_shifted[k], rel_shift_idxs[k] = shift_fun(image=images[k])
 	else:
 		print("ERROR: mode must be either parallel or serial!")
 		raise UserWarning
@@ -516,13 +454,17 @@ def luckyImaging(images, type, mode,
 	if timeIt:
 		print("Elapsed time for {:d} images in {} mode: {:.5f}".format(N, mode, (toc-tic)))
 
-	# Now, stacking the images.
-	image_stacked = (image_ref + np.sum(images_shifted, 0)) / (N + 1)
-
 	# If we're using an FSR < 1 in the peak pixel method, then we must do the following:
 	#	1. Get our method to return a list of peak pixel values.
 	#	2. Sort that list in descending order and get the indices of the corresponding images in the range [0, FSR * N)
 	#	3. Add these images together. 
+	if li_method == 'peak_pixel' and fsr < 1:
+		sorted_idx = np.argsort(peak_pixel_vals)[::-1]	# Array holding indices of images
+		N = np.ceil(fsr * N)
+		image_stacked = (image_ref + np.sum(images_shifted[sorted_idx[:N]], 0)) / (N + 1)
+	else:
+		# Now, stacking the images. Need to change N if FSR < 1.
+		image_stacked = (image_ref + np.sum(images_shifted, 0)) / (N + 1)	
 
 	return image_stacked, rel_shift_idxs
 
