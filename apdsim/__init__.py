@@ -19,20 +19,20 @@
 #
 ####################################################################################################
 #
-#	This file is part of lignuini-sim.
+#	This file is part of lingiune-sim.
 #
-#	lignuini-sim is free software: you can redistribute it and/or modify
+#	lingiune-sim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	lignuini-sim is distributed in the hope that it will be useful,
+#	lingiune-sim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with lignuini-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with lingiune-sim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ####################################################################################################                                                             
 from __future__ import division
@@ -47,10 +47,10 @@ VEGA_MAGNITUDE_ZEROPOINT = {
 }
 AB_MAGNITUDE_ZEROPOINT = 48.6
 
-# Plotting
-FIGSIZE = 5
-COLORBAR_FRACTION = 0.046
-COLORBAR_PAD = 0.04
+# # Plotting
+# FIGSIZE = 5
+# COLORBAR_FRACTION = 0.046
+# COLORBAR_PAD = 0.04
 
 # Near-IR filter bands
 FILTER_BANDS_UM = {
@@ -73,22 +73,25 @@ import scipy.optimize as opt
 import scipy.signal as signal
 import scipy.special as special
 from scipy.ndimage.interpolation import shift
-
+import miscutils as mu
 import numpy as np
-
 import pdb
 
+# Image processing library
 import PIL
 from PIL import Image
 
 import os
-
 import sys
+
+# Multithreading/processing packages
+from functools import partial
+from multiprocessing import Pool as ThreadPool
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
 from matplotlib import rc
-rc('image', interpolation='none', cmap = 'binary')
+rc('image', interpolation='none', cmap = 'binary_r')
 
 from astropy.io import fits
 from astropy.modeling import models, fitting
