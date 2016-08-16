@@ -44,7 +44,7 @@ from apdsim import *
 import time
 import pyxao
 
-def addTurbulence(images, 
+def addTipTilt(images, 
 	sigma_tt_px=None,
 	tt_idxs=None,
 	N_tt=1,
@@ -58,7 +58,7 @@ def addTurbulence(images,
 
 	# Tip and tilt for now	
 	images, N, height, width = getImageSize(images)
-	print("Adding tip/tilt to {:d} images".format(N))
+	
 
 	if not plt.is_numlike(sigma_tt_px) and not plt.is_numlike(tt_idxs):
 		print("ERROR: either sigma_tt_px OR tt_idxs must be specified!")
@@ -68,7 +68,8 @@ def addTurbulence(images,
 		# Then we add a randomised tip and tilt to each of the N input images.
 		N_tt = N
 	# Otherwise, we make N_tt copies of the image and add a randomised tip and tilt to each.
-
+	print("Adding tip/tilt to {:d} images".format(N_tt))
+	
 	# Output array of images
 	if not plt.is_numlike(crop_tt):
 		images_tt = np.ndarray((N_tt, height, width))
@@ -272,21 +273,6 @@ def xcorrShiftAndStack(images,
 			corr_peak_idxs[k] = np.array((p_fit.y_mean.value, p_fit.x_mean.value))
 			rel_shift_idxs[k][0] = corr_peak_idxs[k][0]
 			rel_shift_idxs[k][1] = corr_peak_idxs[k][1]
-
-			# if plotIt:
-			# 	fig = mu.newfigure(1,2)
-			# 	plt.subplot(1,2,1)
-			# 	plt.imshow(corrs[k])
-			# 	mu.colourbar()
-			# 	plt.title('Cross-correlation')
-			# 	plt.subplot(1,2,2)
-			# 	plt.imshow(p_fit(X,Y))
-			# 	mu.colourbar()
-			# 	plt.title('Model fit')
-			# 	plt.show()	
-			# 	# pdb.set_trace()
-			# 	plt.close(fig)
-
 		else:
 			corr_peak_idxs[k] = np.unravel_index(np.argmax(corrs[k]), corrs[k].shape)
 			rel_shift_idxs[k][0] = corr_peak_idxs[k][0]
@@ -531,7 +517,6 @@ def centroidShiftAndStack(images,
 		plt.show()
 
 	return image_stacked, -rel_shift_idxs
-
 
 ####################################################################################################
 def luckyImaging(images, type, 
