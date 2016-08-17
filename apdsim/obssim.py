@@ -11,24 +11,24 @@
 #
 ####################################################################################################
 #
-#	This file is part of lingiune-sim.
+#	This file is part of linguinesim.
 #
-#	lingiune-sim is free software: you can redistribute it and/or modify
+#	linguinesim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	lingiune-sim is distributed in the hope that it will be useful,
+#	linguinesim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with lingiune-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with linguinesim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ####################################################################################################
 from __future__ import division, print_function 
-from apdsim import *
+from linguinesim.apdsim import *
 
 def airyDisc(wavelength_m, f_ratio, l_px_m, 
 	detector_size_px=None,
@@ -217,6 +217,70 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_a
 
 	return np.squeeze(images)
 
+####################################################################################################
+def resizeImageToDetector(image_raw, source_plate_scale_as, dest_plate_scale_as,
+	dest_detector_size_px=None,
+	plotIt=False):
+	" Resize the images stored in array images_raw with a given plate scale to a detector with given dimensions and plate scale. "
+
+	# 1. Get the original size and shape of the input images.
+	source_height_px, source_width_px = image_raw.shape
+	source_width_as = source_width_px * source_plate_scale_as
+	source_height_as = source_height_px * source_plate_scale_as
+
+	# If the destination plate scale is not specified, then we simply scale the dimensions of the input image appropriately.
+	if not dest_detector_size_px:
+		dest_detector_size_px = tuple(np.round(source_plate_scale_as / dest_plate_scale_as * x) for x in (source_height_px, source_width_px))
+
+	# Getting the angular extent of the source image:
+	# 	size(pixels on our detector) = size(of source, in as) / plate scale
+	detector_height_px = dest_detector_size_px[0]
+	detector_width_px = dest_detector_size_px[1]
+	dest_width_px = source_width_as / dest_plate_scale_as
+	dest_height_px = source_height_as / dest_plate_scale_as
+
+	# Rescaling images to the appropriate size for our detector.
+	im = Image.fromarray(image_raw)
+	# NOTE: due to the way the Image package works, height and width indices are swapped
+	im = im.resize((int(np.ceil(dest_width_px)), int(np.ceil(dest_height_px))), resample=PIL.Image.LANCZOS)
+	image = imageToArray(im)
+
+	height_px, width_px = image.shape		
+	# Resizing to the size of the detector.
+	if dest_height_px > detector_height_px:
+		image = image[:, height_px//2-detector_height_px//2:height_px//2+detector_height_px//2, :]
+		pad_height_top = 0
+		pad_height_bottom = 0
+	else:
+		pad_height_top = np.floor((detector_height_px - height_px)/2.).astype(np.int)
+		pad_height_bottom = np.ceil((detector_height_px - height_px)/2.).astype(np.int)
+
+	if dest_width_px > detector_width_px:
+		image = image[:, width_px//2-detector_width_px//2:width_px//2+detector_width_px//2]
+		pad_width_left = 0
+		pad_width_right = 0
+	else: 
+		pad_width_left = np.floor((detector_width_px - width_px)/2.).astype(np.int)
+		pad_width_right = np.ceil((detector_width_px - width_px)/2.).astype(np.int)
+
+	# Padding the resized images if necessary.
+	image = np.pad(image, ((pad_height_top, pad_height_bottom), (pad_width_left, pad_width_right)), mode='constant')
+
+	if plotIt:
+		mu.newfigure(1,2)
+		plt.subplot(1,2,1)
+		plt.imshow(image_raw)
+		mu.colourbar()
+		plt.title('Input image')
+		plt.subplot(1,2,2)
+		plt.imshow(image)
+		mu.colourbar()
+		plt.title('Resized image')
+		plt.suptitle('Resizing truth image to detector')
+		plt.show()
+
+	return image
+
 ###################################################################################
 def getDiffractionLimitedImage(image_truth, l_px_m, f_ratio, wavelength_m, 
 	f_ratio_in=None, wavelength_in_m=None, # f-ratio and imaging wavelength of the input image (if it has N_os > 1)
@@ -374,8 +438,7 @@ def convolvePSF(image, psf,
 	"""
 
 	# Padding the source image.
-	height = image.shape[0]
-	width = image.shape[1]
+	height, width = image.shape
 	pad_ud = height // padFactor // 2
 	pad_lr = width // padFactor // 2
 	
@@ -427,36 +490,16 @@ def addNoise(images,
 	""" Add noise to an array of input images assuming an exposure time t_exp. """
 	print ('Adding noise to image(s)...')
 
-	# Creating an array in which to store the noisy images
-	images, N, height_px, width_px = getImageSize(images)
-	images_noisy = np.copy(images)
-
 	# Determine whether or not we need to generate new noise frames
 	if not plt.is_numlike(noise_frames):
 		# Then we need to generate new noise frames.
+		images, N, height_px, width_px = getImageSize(images)
 		noise_frames_dict, etc_output = noiseFramesFromEtc(N, height_px, width_px, band, t_exp, etc_input, worstCaseSpider)
 		noise_frames = noise_frames_dict['total']
+		return np.squeeze(images + noise_frames), np.squeeze(noise_frames), etc_output
 	else:
 		# Otherwise, we just add the input. The ETC output is none since we didn't use it.
-		etc_output = None	
-
-	# Adding the noise.
-	images_noisy += noise_frames
-
-	if plotIt:
-		mu.newfigure(1,2)
-		plt.suptitle('Adding noise')
-		plt.subplot(1,2,1)
-		plt.imshow(images[0], vmin=min(images[0].flatten()), vmax=max(images_noisy[0].flatten()))
-		mu.colourbar()
-		plt.title('Raw input image')
-		plt.subplot(1,2,2)
-		plt.imshow(images_noisy[0], vmin=min(images[0].flatten()), vmax=max(images_noisy[0].flatten()))
-		mu.colourbar()
-		plt.title('Noisy image')
-		plt.show()
-
-	return (np.squeeze(images_noisy), np.squeeze(noise_frames), etc_output)
+		return images + noise_frames, noise_frames, None		
 
 ####################################################################################################
 def noiseFramesFromEtc(N, height_px, width_px,

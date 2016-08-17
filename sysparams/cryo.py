@@ -28,7 +28,7 @@
 #
 #########################################################################################################
 from __future__ import division
-from sysparams import *
+from linguinesim.sysparams import *
 
 """ Efficiency properties """
 Tr_win = 0.98	# Transmission of cryostat window

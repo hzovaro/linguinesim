@@ -28,7 +28,7 @@
 #
 #########################################################################################################
 from __future__ import division
-from sysparams import *
+from linguinesim.sysparams import *
 
 """ Sky brightness (magnitudes per square arcsec) """
 # Source: http://www.mso.anu.edu.au/pfrancis/reference/reference/node4.html

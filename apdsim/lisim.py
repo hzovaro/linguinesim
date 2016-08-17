@@ -22,27 +22,27 @@
 #
 ####################################################################################################
 #
-#	This file is part of lingiune-sim.
+#	This file is part of linguinesim.
 #
-#	lingiune-sim is free software: you can redistribute it and/or modify
+#	linguinesim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	lingiune-sim is distributed in the hope that it will be useful,
+#	linguinesim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with lingiune-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with linguinesim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ####################################################################################################
 from __future__ import division
 from __future__ import print_function
-from apdsim import *
+from linguinesim.apdsim import *
 import time
-import pyxao
+import aosim.pyxao
 
 def addTipTilt(images, 
 	sigma_tt_px=None,
@@ -301,7 +301,8 @@ def luckyImaging(images, li_method, mode,
 		The type of LI technique used is specified by input string type and any additional arguments which may be required are given in vararg.
 	"""
 	images, image_ref, N = _li_error_check(images, image_ref, N)
-	print("Applying Lucky Imaging technique '{}' to input series of {:d} images...".format(li_method, N))
+	if not timeIt:
+		print("Applying Lucky Imaging technique '{}' to input series of {:d} images...".format(li_method, N))
 	
 	# For each of these functions, the output must be of the form 
 	#	image_shifted, rel_shift_idxs	
@@ -362,7 +363,7 @@ def luckyImaging(images, li_method, mode,
 
 	toc = time.time()
 	if timeIt:
-		print("Elapsed time for {:d} {}-by-{} images in {} mode: {:.5f}".format(N, image_ref.shape[0], image_ref.shape[1], mode, (toc-tic)))
+		print("APPLYING LUCKY IMAGING TECHNIQUE {}: Elapsed time for {:d} {}-by-{} images in {} mode: {:.5f}".format(li_method, N, image_ref.shape[0], image_ref.shape[1], mode, (toc-tic)))
 
 	# If we're using an FSR < 1 in the peak pixel method, then we must do the following:
 	#	1. Get our method to return a list of peak pixel values.
@@ -380,7 +381,7 @@ def luckyImaging(images, li_method, mode,
 
 ####################################################################################################
 def alignmentError(in_idxs, out_idxs,
-	verbose=True):
+	verbose=False):
 	"""
 		Compute the alignment errors arising in the Lucky Imaging shifting-and-stacking process given an input array of tip and tilt coordinates applied to the input images and the coordinates of the shifts applied in the shifting-and-stacking process.
 
@@ -419,7 +420,7 @@ def _li_error_check(images,
 	# Need to convert to float if necessary.
 	if type(images.flatten()[0]) != np.float64:
 		images = images.astype(np.float64)
-	if image_ref != None and type(image_ref.flatten()[0]) != np.float64:
+	if image_ref is not None and type(image_ref.flatten()[0]) != np.float64:
 		image_ref = image_ref.astype(np.float64)
 
 	# Checking image dimensions.
@@ -431,7 +432,7 @@ def _li_error_check(images,
 		if N and N > images.shape[0]:
 			print("ERROR: if specified, N must be equal to or less than the length of the first dimension of the images array.")
 			raise UserWarning
-		if image_ref == None:
+		if image_ref is None:
 			# If the reference image is not specified, we use the first image in the array as the reference: 
 			# i.e. we align all other images to images[0].
 			if not N:

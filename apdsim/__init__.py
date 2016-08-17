@@ -19,20 +19,20 @@
 #
 ####################################################################################################
 #
-#	This file is part of lingiune-sim.
+#	This file is part of linguinesim.
 #
-#	lingiune-sim is free software: you can redistribute it and/or modify
+#	linguinesim is free software: you can redistribute it and/or modify
 #	it under the terms of the GNU General Public License as published by
 #	the Free Software Foundation, either version 3 of the License, or
 #	(at your option) any later version.
 #
-#	lingiune-sim is distributed in the hope that it will be useful,
+#	linguinesim is distributed in the hope that it will be useful,
 #	but WITHOUT ANY WARRANTY; without even the implied warranty of
 #	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #	GNU General Public License for more details.
 #
 #	You should have received a copy of the GNU General Public License
-#	along with lingiune-sim.  If not, see <http://www.gnu.org/licenses/>.
+#	along with linguinesim.  If not, see <http://www.gnu.org/licenses/>.
 #
 ####################################################################################################                                                             
 from __future__ import division
@@ -86,7 +86,7 @@ import sys
 
 # Multithreading/processing packages
 from functools import partial
-from multiprocessing import Pool as ThreadPool
+from multiprocessing.dummy import Pool as ThreadPool
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
@@ -97,21 +97,22 @@ from astropy.io import fits
 from astropy.modeling import models, fitting
 
 # Importing detector and telescope properties
-import sysparams.cryo as cryo
-import sysparams.detector_saphira as detector
-import sysparams.telescope_anu23m as telescope
-import sysparams.sky_sso as sky
+# from linguinesim import sysparams
+import linguinesim.sysparams.cryo as cryo
+import linguinesim.sysparams.detector_saphira as detector
+import linguinesim.sysparams.telescope_anu23m as telescope
+import linguinesim.sysparams.sky_sso as sky
 SYSTEM_PLATE_SCALE_AS_PX = detector.l_px_m * telescope.plate_scale_as_m
 SYSTEM_PLATE_SCALE_RAD_PX = np.deg2rad(SYSTEM_PLATE_SCALE_AS_PX / 3600)
 OMEGA_PX_RAD = SYSTEM_PLATE_SCALE_RAD_PX * SYSTEM_PLATE_SCALE_RAD_PX
 
 # Importing modules
-from apdsim.imutils import *
-from apdsim.etcutils import *
-from apdsim.etc import *
-from apdsim.obssim import *
-from apdsim.lisim import *
-from apdsim.galsim import *
-from apdsim.starsim import *
+from linguinesim.apdsim.imutils import *
+from linguinesim.apdsim.etcutils import *
+from linguinesim.apdsim.etc import *
+from linguinesim.apdsim.obssim import *
+from linguinesim.apdsim.lisim import *
+from linguinesim.apdsim.galsim import *
+from linguinesim.apdsim.starsim import *
 
 

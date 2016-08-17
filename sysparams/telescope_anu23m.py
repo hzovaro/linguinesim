@@ -29,7 +29,7 @@
 #
 #########################################################################################################
 from __future__ import division
-from sysparams import *
+from linguinesim.sysparams import *
 
 """ Mirror geometry & thermal properties """
 T = 273 + 10		# telescope temperature (K)

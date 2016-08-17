@@ -30,7 +30,7 @@
 #
 #########################################################################################################
 from __future__ import division
-from sysparams import *
+from linguinesim.sysparams import *
 
 """ Efficiency properties """
 gain = 52					# avalanche gain (electrons/photelectron)
