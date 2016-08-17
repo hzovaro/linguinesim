@@ -177,4 +177,4 @@ def expectedCount2count(arg,
 		expectedCount = arg
 	else:
 		expectedCount = arg * t_exp
-	return np.random.poisson(lam=np.minimum(np.maximum(expectedCount, 0), detectorSaturation), size=expectedCount.shape)
+	return np.maximum(np.random.poisson(lam=expectedCount, size=expectedCount.shape), detectorSaturation)
