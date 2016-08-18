@@ -37,7 +37,7 @@ from linguinesim.apdsim import *
 		- Other header keys:
 			- ATODGAIN, BANDWID, CENTRWV, INSTRUME, TELESCOP, OBJECT, NAXIS, NAXIS1, NAXIS2,
 """
-def getRawImages(fname, 
+def imageFromFitsFile(fname, 
 	plotIt=False,
 	idx=0):
 	" Return an array of the image(s) stored in the FITS file fname. "
