@@ -80,7 +80,11 @@ import pdb
 # Image processing library
 import PIL
 from PIL import Image
-
+try:
+	from PIL.Image import LANCZOS as RESAMPLE_FILTER
+except:
+	from PIL.Image import BILINEAR as RESAMPLE_FILTER
+	
 import os
 import sys
 
