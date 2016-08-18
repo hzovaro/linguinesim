@@ -176,7 +176,7 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_a
 	for k in range(N):
 		im = Image.fromarray(images_raw[k])
 		# NOTE: due to the way the Image package works, height and width indices are swapped
-		im = im.resize((int(np.ceil(dest_width_px)), int(np.ceil(dest_height_px))), resample=PIL.Image.LANCZOS)
+		im = im.resize((int(np.ceil(dest_width_px)), int(np.ceil(dest_height_px))), resample=RESAMPLE_FILTER)
 		images[k] = imageToArray(im)
 
 	height_idx = 1	# Array index corresponding to image height.
@@ -242,7 +242,7 @@ def resizeImageToDetector(image_raw, source_plate_scale_as, dest_plate_scale_as,
 	# Rescaling images to the appropriate size for our detector.
 	im = Image.fromarray(image_raw)
 	# NOTE: due to the way the Image package works, height and width indices are swapped
-	im = im.resize((int(np.ceil(dest_width_px)), int(np.ceil(dest_height_px))), resample=PIL.Image.LANCZOS)
+	im = im.resize((int(np.ceil(dest_width_px)), int(np.ceil(dest_height_px))), resample=RESAMPLE_FILTER)
 	image = imageToArray(im)
 
 	height_px, width_px = image.shape		
