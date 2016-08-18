@@ -181,7 +181,6 @@ def expectedCount2count(arg,
 	# If any of the input values are negative, then we have to clip them to zero.
 	if len(expectedCount[expectedCount<0].flatten()) > 0:
 		print("WARNING: input image has {:d} negative values! Clamping negative values to zero...".format(len(expectedCount[expectedCount<0].flatten())))
-		pdb.set_trace()
 		expectedCount = expectedCount.clip(0)
 
 	if detectorSaturation == np.inf:
