@@ -163,10 +163,14 @@ def simulateSersicGalaxy(im_out_fname, # Output FITS file name
 	# Calling GALFIT.
 	callGALFIT(galfit_input_fname)
 
-	# Reading the file created by GALFIT.
-	print("Loading GALFIT image data...")
-	data = getRawImages(im_out_fname)
-	im_raw = data[0]
+	# Editing the header to include the input parameters.
+	hdulist = fits.open(im_out_fname, mode='update')
+	hdulist[0].header['R_E_PX'] = R_e_px
+	hdulist[0].header['MU_E'] = mu_e
+	hdulist[0].header['SER_IDX'] = n
+	im_raw = hdulist[0].data
+	hdulist.flush()
+	hdulist.close()
 
 	# Plotting.
 	if plotIt:
