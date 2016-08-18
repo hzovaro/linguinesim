@@ -273,8 +273,11 @@ def shift_xcorr(image, image_ref, buff, subPixelShift):
 	
 	if subPixelShift: 
 		# Fitting a Gaussian.
-		Y, X = np.mgrid[-(height-2*buff)/2:(height-2*buff)/2, -(width-2*buff)/2:(width-2*buff)/2]		
-		p_init = models.Gaussian2D(x_stddev=1.,y_stddev=1.)
+		Y, X = np.mgrid[-(height-2*buff)/2:(height-2*buff)/2, -(width-2*buff)/2:(width-2*buff)/2]
+		try:		
+			p_init = models.Gaussian2D(x_stddev=1.,y_stddev=1.)
+		except:
+			p_init = models.Gaussian2D(x_mean=1.,y_mean=1.,x_stddev=1.,y_stddev=1.,amplitue=1.)
 		fit_p = fitting.LevMarLSQFitter()
 		p_fit = fit_p(p_init, X, Y, corr[buff:height-buff, buff:width-buff])		
 		rel_shift_idx = (p_fit.y_mean.value, p_fit.x_mean.value)	# NOTE: the indices have to be swapped around here for some reason!		
