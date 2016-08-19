@@ -30,6 +30,194 @@
 from __future__ import division, print_function 
 from linguinesim.apdsim import *
 
+####################################################################################################
+def addTipTilt(images, 
+	sigma_tt_px=None,
+	tt_input_idxs=None,
+	N_tt=1):
+	""" 
+		Add turbulence to an input `truth' image. Returns N_tt copies of the input image with randomised turbulence added. 
+		Just tip and tilt for now with a standard deviation of sigma_tt_px in both dimensions.
+
+		The tip and tilt values are either random numbers drawn from a Gaussian distribution with standard deviation sigma_tt_px, or shifts specified in the input vector with shape (N, 2).
+	"""
+
+	# Tip and tilt for now	
+	images, N, height, width = getImageSize(images)
+	if N != 1:		
+		N_tt = N # Then we add a randomised tip and tilt to each of the N input images.		
+	# Otherwise, we make N_tt copies of the image and add a randomised tip and tilt to each.
+
+	print("Adding tip/tilt to {:d} images".format(N_tt))	
+	
+	if not plt.is_numlike(tt_idxs):
+		tt_idxs = np.ndarray((N_tt, 2))
+		tt_idx = None
+	else:
+		sigma_tt_px = None
+
+	# PARALLELISE
+	for j in range(N_tt):
+		if N == 1:			
+			image = images[0]	# If the user only inputs 1 image, then we use the same image each time.
+		else:
+			image = images[j]
+
+		if plt.is_numlike(tt_input_idxs):
+			tt_idx = tt_input_idxs[j]			
+
+		images_tt[j], tt_idxs[j] = addTipTilt_single(image, sigma_tt_px, tt_idx)
+
+	return np.squeeze(images_tt), tt_idxs
+
+####################################################################################################
+def addTipTilt_single(image, 
+	sigma_tt_px=None, 
+	tt_idxs=None):
+
+	if not plt.is_numlike(sigma_tt_px) and not plt.is_numlike(tt_idxs):
+		print("ERROR: either sigma_tt_px OR tt_idxs must be specified!")
+		raise UserWarning
+	
+	# Adding a randomised tip/tilt to the image
+	if plt.is_numlike(sigma_tt_px):
+		# If no vector of tip/tilt values is specified, then we use random numbers.
+		shift_height = np.random.randn() * sigma_tt_px
+		shift_width = np.random.randn() * sigma_tt_px
+		tt_idxs = [shift_height, shift_width]
+	else:
+		# Otherwise we take them from the input vector.
+		shift_height = tt_idxs[0]
+		shift_width = tt_idxs[1]
+	
+	image_tt = shift(image, (shift_height, shift_width))
+
+	return image_tt, tt_idxs
+	
+
+####################################################################################################
+def getAoPsfs(wavelength_science_m, N_frames, psf_as_px, dt, D_out, D_in, 
+	r0_500nm, v_wind_m, wind_angle_deg, elevations_m, airmass,	# Atmospheric parameters
+	mode,
+	wave_height_px,	# Grid size in FFT (larger = better)
+	N_actuators, dm_geometry, central_actuator,	# AOI: actuator in the middle
+	N_lenslets, wavelength_wfs_m, wfs_geometry, central_lenslet, # fratio ~60-70 for AOI
+	plotIt = False,
+	save = False, fname = "ao_psfs"
+	):
+	"""
+		Returns a time series of PSFs (normalised by default) of a telescope with inner and outer primary mirror diameters D_in and D_out respectively in the presence of atmospheric turbulence. 
+ 
+		The diffraction-limited PSF of the system is also returned.
+	"""
+	wavefrontPupil = {	
+		'type':'annulus',
+		'dout': D_out,
+		'din' : D_in
+	}
+
+	# Wave parameters
+	m_per_px = D_out / wave_height_px		# Physical mapping of wave onto primary mirror size
+
+	# AO system parameters
+	actuator_pitch_m = D_out / N_actuators
+	lenslet_pitch_m = D_out / N_lenslets
+	edge_radius = 1.4	
+	influence_fun = 'gaussian'
+	pokeStroke = 1e-7	
+
+	# Seeing conditions
+	r0_wfs = np.power((wavelength_wfs_m / 500e-9), 1.2) * r0_500nm
+	r0_science = np.power((wavelength_science_m / 500e-9), 1.2) * r0_500nm
+
+	####################################################
+	# Setting up AO system
+	wf_wfs = pyxao.Wavefront(wave = wavelength_wfs_m, m_per_px = m_per_px, sz = wave_height_px, pupil = wavefrontPupil)
+	wf_science = pyxao.Wavefront(wave = wavelength_science_m, m_per_px = m_per_px, sz = wave_height_px, pupil = wavefrontPupil)
+	wavefronts_dm = [wf_wfs, wf_science] 	# Wavefronts corrected by the DM (in a CL AO system, it's all of them!)
+	wavefronts_wfs = [wf_wfs]				# Wacefronts sensed by the WFS
+	psf_ix = 1		# Index in the list of wavefronts passed to the DM instance corresponding to the PSF to return
+
+	dm = pyxao.DeformableMirror(
+		wavefronts = wavefronts_dm, 
+		influence_function = 'gaussian', 
+		central_actuator = central_actuator, 
+		actuator_pitch = actuator_pitch_m, 
+		geometry = dm_geometry, 
+		edge_radius = 1.4)
+
+	wfs = pyxao.ShackHartmann(
+		wavefronts = wavefronts_wfs, 
+		lenslet_pitch = lenslet_pitch_m, 
+		geometry = wfs_geometry, 
+		central_lenslet = central_lenslet, 		
+		sampling = 1)
+		# fratio = wfs_fratio)
+
+	ao = pyxao.SCFeedBackAO(dm = dm, wfs = wfs, image_ixs = psf_ix)
+	
+	if mode != 'open_loop':
+		ao.find_response_matrix()
+		ao.compute_reconstructor(threshold=0.1)
+
+	# The atmosphere is a PHASE SCREEN: it's the same at all wavelengths! We don't need to make a new atmosphere instance for each wavelength
+	# If you need convincing, see minerva_red.py
+	atm = pyxao.Atmosphere(sz = wave_height_px, m_per_px = m_per_px,
+		elevations = elevations_m, r_0 = r0_500nm, wave_ref = 500e-9, angle_wind = wind_angle_deg,
+		v_wind = v_wind_m, airmass = airmass, seed = 3)
+
+	wf_wfs.add_atmosphere(atm)
+	wf_science.add_atmosphere(atm)
+
+	# Calculating the Nyquist oversampling factor
+	psf_rad_px = np.deg2rad(psf_as_px / 3600)
+	N_OS = wf_science.wave / D_out / 2 / psf_rad_px
+
+	# Running the AO loop.
+	psfs_cropped, psf_mean, psf_mean_all = ao.run_loop(dt = dt,                    # WFS photon noise.
+                mode = mode,
+                niter = N_frames,
+                psf_ix = psf_ix,                     # Index in the list of wavefronts of the PSF you want to be returned
+                plate_scale_as_px = psf_as_px,       # Plate scale of the output images/PSFs
+                detector_size_px = (80,80),    		# For now this is only used in plotting
+                nframesbetweenplots = 5,
+                plotIt = plotIt
+                )
+
+	# No turbulence.
+	psf_dl = mu.centreCrop(wf_science.psf_dl(plate_scale_as_px = psf_as_px), psfs_cropped[0].shape)
+
+	# Saving to file
+	if save:
+		np.savez(fname, 
+			N_frames = N_frames,
+			psf_atm = psf_atm,
+			psf_dl = psf_dl,
+			plate_scale_as_px = psf_as_px,
+			N_OS = N_OS,
+			dt = dt,
+			wavelength_m = wavelength_m, 
+			r0_500nm = r0_500nm,
+			r0_science = r0_science,
+			r0_lgs = r0_lgs,
+			elevations = elevations,
+			v_wind = v_wind,
+			wind_angle = wind_angle,
+			airmass = airmass,
+			wave_height_px = wave_height_px,
+			D_out = D_out,
+			D_in = D_in
+			)
+
+	# Output the seeing-limited 
+	return psfs_cropped, psf_dl
+
+####################################################################################################
+def strehl(psf, psf_dl):
+	""" Calculate the Strehl ratio of an aberrated input PSF given the diffraction-limited PSF. """
+	return np.amax(psf) / np.amax(psf_dl)
+
+####################################################################################################
 def airyDisc(wavelength_m, f_ratio, l_px_m, 
 	detector_size_px=None,
 	trapz_oversampling=8,	# Oversampling used in the trapezoidal rule approximation.
