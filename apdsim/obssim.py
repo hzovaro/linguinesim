@@ -523,7 +523,7 @@ def getDiffractionLimitedImage(image_truth, l_px_m, f_ratio, wavelength_m,
 		# Resample the image up to the appropriate plate scale.
 		image_truth_large = resizeImagesToDetector(image_truth[k], 1/N_OS_input, 1/N_OS_psf)
 		# Convolve with the PSF.
-		image_difflim_large = signal.fftconvolve(image_truth_large, psf, mode='same')
+		image_difflim_large = fftwconvolve.fftconvolve(image_truth_large, psf, mode='same')
 		# Resize the image to its original plate scale.
 		if k == 0:
 			im = resizeImagesToDetector(image_difflim_large, 1/N_OS_psf, 1/N_OS_input)
@@ -592,7 +592,7 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 	for k in range(N):
 		print('.',end="")
 		image_padded = np.pad(images[k], ((pad_ud,pad_ud + height % 2),(pad_lr,pad_lr + width % 2)), mode='constant')
-		image_seeing_limited[k] = signal.fftconvolve(image_padded, kernel, mode='same')
+		image_seeing_limited[k] = fftwconvolve.fftconvolve(image_padded, kernel, mode='same')
 		image_seeing_limited_cropped[k] = image_seeing_limited[k,pad_ud : height + pad_ud, pad_lr : width + pad_lr]		
 
 	if plotIt:
