@@ -90,7 +90,16 @@ import sys
 
 # Multithreading/processing packages
 from functools import partial
-from multiprocessing.dummy import Pool as ThreadPool
+# from multiprocessing.dummy import Pool as ThreadPool	# dummy = Threads
+from multiprocessing import Pool as Pool			# no dummy = Processes
+
+try:
+    import pyfftw
+    pyfftw.interfaces.cache.enable()
+    pyfftw.interfaces.cache.set_keepalive_time(1.0)
+    NTHREADS = 1
+except:
+	NTHREADS = 0
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
@@ -118,5 +127,7 @@ from linguinesim.apdsim.obssim import *
 from linguinesim.apdsim.lisim import *
 from linguinesim.apdsim.galsim import *
 from linguinesim.apdsim.starsim import *
+from linguinesim.apdsim import fftwconvolve as fftwconvolve
+
 
 
