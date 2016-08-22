@@ -179,7 +179,12 @@ def luckyImaging(images, li_method, mode,
 		images = images.tolist()	# Need to convert the image array to a list.
 
 		# Executing in parallel.
-		pool = Pool()
+		if NTHREADS == 0:
+			# We are safe to use threads if NTHREADS==0 since we don't use pyfftw in this case.
+			pool = ThreadPool()
+		else:
+			# Otherwise, we use processes instead.
+			pool = ProcPool()
 		results = pool.map(shift_fun, images, 1)
 		pool.close()
 		pool.join()
