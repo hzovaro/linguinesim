@@ -97,7 +97,7 @@ try:
     import pyfftw    
     pyfftw.interfaces.cache.enable()
     pyfftw.interfaces.cache.set_keepalive_time(1.0)
-    NTHREADS = 1
+    NTHREADS = 2
     print("WARNING: using pyfftw in some routines with NTHREADS = {:d}".format(NTHREADS))
 except:
 	NTHREADS = 0
