@@ -41,13 +41,14 @@
 from __future__ import division
 from __future__ import print_function
 from linguinesim.apdsim import *
+from linguinesim.apdsim import fftwconvolve as fftwconvolve
 import time
 import aosim.pyxao as pyxao
 
 ####################################################################################################
 def luckyImage(im, psf, tt, noise_frame, scale_factor, master_frame, etc_input):
 	""" 
-		This function can be used to generate a stack of images that are input to the Lucky Imaging algorithms.
+		This function can be used to generate a short-exposure 'lucky' image that can be input to the Lucky Imaging algorithms.
 			Input: 	one 'raw' countrate image of a galaxy; one PSF with which to convolve it (at the same plate scale)
 			Output: a 'Lucky' exposure. 			
 			Process: convolve with PSF --> resize to detector --> add tip and tilt (from a premade vector of tip/tilt values) --> convert to counts --> add noise --> subtract the master sky/dark current. 
@@ -105,7 +106,10 @@ def shift_xcorr(image, image_ref, buff, subPixelShift):
 		image = np.array(image)
 
 	height, width = image.shape
-	corr = signal.fftconvolve(image_ref, image[::-1,::-1], 'same')
+	if NTHREADS==0:
+		corr = signal.fftconvolve(image_ref, image[::-1,::-1], 'same')
+	else:
+		corr = fftwconvolve.fftconvolve(image_ref, image[::-1,::-1], 'same')
 	corr /= max(corr.flatten())	# The fitting here does not work if the pixels have large values!
 	
 	if subPixelShift: 
@@ -175,7 +179,7 @@ def luckyImaging(images, li_method, mode,
 		images = images.tolist()	# Need to convert the image array to a list.
 
 		# Executing in parallel.
-		pool = ThreadPool()
+		pool = Pool()
 		results = pool.map(shift_fun, images, 1)
 		pool.close()
 		pool.join()
