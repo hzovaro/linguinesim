@@ -94,12 +94,14 @@ from functools import partial
 from multiprocessing import Pool as Pool			# no dummy = Processes
 
 try:
-    import pyfftw
+    import pyfftw    
     pyfftw.interfaces.cache.enable()
     pyfftw.interfaces.cache.set_keepalive_time(1.0)
     NTHREADS = 1
+    print("WARNING: using pyfftw in some routines with NTHREADS = {:d}".format(NTHREADS))
 except:
 	NTHREADS = 0
+	print("WARNING: not using pyfftw; NTHREADS = {:d}".format(NTHREADS))
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
