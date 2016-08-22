@@ -29,6 +29,7 @@
 ####################################################################################################
 from __future__ import division, print_function 
 from linguinesim.apdsim import *
+from linguinesim.apdsim import fftwconvolve as fftwconvolve
 
 ####################################################################################################
 def addTipTilt(images, 
@@ -640,7 +641,7 @@ def convolvePSF(image, psf,
 	image_conv_cropped = np.ndarray((height, width))
 
 	image_padded = np.pad(image, ((pad_ud,pad_ud + height % 2),(pad_lr,pad_lr + width % 2)), mode='constant')
-	image_conv = signal.fftconvolve(image_padded, psf, mode='same')
+	image_conv = fftwconvolve.fftconvolve(image_padded, psf, mode='same')	
 	image_conv_cropped = image_conv[pad_ud : height + pad_ud, pad_lr : width + pad_lr]		
 
 	if plotIt:
