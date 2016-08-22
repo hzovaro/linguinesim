@@ -43,11 +43,10 @@
 
 from __future__ import division, print_function, absolute_import
 
+from linguinesim.apdsim import *
+
 import warnings
 import threading
-
-import pyfftw
-NTHREADS = 1
 
 from numpy.fft import rfftn, irfftn
 from numpy import (allclose, angle, arange, argsort, array, asarray,
@@ -56,7 +55,6 @@ from numpy import (allclose, angle, arange, argsort, array, asarray,
                    poly, polyadd, polyder, polydiv, polymul, polysub, polyval,
                    prod, product, r_, ravel, real_if_close, reshape,
                    roots, sort, sum, take, transpose, unique, where, zeros)
-import numpy as np
 
 _modedict = {'valid': 0, 'same': 1, 'full': 2}
 
@@ -215,6 +213,9 @@ def fftconvolve(in1, in2, mode="full"):
     >>> fig.show()
 
     """
+    if NTHREADS==0:
+        print("WARNING: in fftwconvolve(): NTHREADS = 0, using numpy FFT routines instead...")
+
     in1 = asarray(in1)
     in2 = asarray(in2)
 
@@ -241,12 +242,14 @@ def fftconvolve(in1, in2, mode="full"):
     # sure we only call rfftn/irfftn from one thread at a time.
     if not complex_result and (_rfft_mt_safe or _rfft_lock.acquire(False)):
         try:
-            # ret = irfftn(rfftn(in1, fshape) *
-            #              rfftn(in2, fshape), fshape)[fslice].copy()
-            ret = pyfftw.interfaces.numpy_fft.irfftn(\
-                    pyfftw.interfaces.numpy_fft.rfftn(in1, s=fshape, threads=NTHREADS) * \
-                    pyfftw.interfaces.numpy_fft.rfftn(in2, s=fshape, threads=NTHREADS), \
-                    s=fshape)[fslice].copy()
+            if NTHREADS==0:
+                ret = irfftn(rfftn(in1, fshape) *
+                             rfftn(in2, fshape), fshape)[fslice].copy()
+            else:
+                ret = pyfftw.interfaces.numpy_fft.irfftn(\
+                        pyfftw.interfaces.numpy_fft.rfftn(in1, s=fshape, threads=NTHREADS) * \
+                        pyfftw.interfaces.numpy_fft.rfftn(in2, s=fshape, threads=NTHREADS), \
+                        s=fshape)[fslice].copy()
         finally:
             if not _rfft_mt_safe:
                 _rfft_lock.release()
@@ -255,12 +258,13 @@ def fftconvolve(in1, in2, mode="full"):
         # failed to acquire _rfft_lock (meaning rfftn isn't threadsafe and
         # is already in use by another thread).  In either case, use the
         # (threadsafe but slower) SciPy complex-FFT routines instead.
-
-        # ret = ifftn(fftn(in1, fshape) * fftn(in2, fshape))[fslice].copy()
-        ret = pyfftw.interfaces.numpy_fft.ifftn(\
-            pyfftw.interfaces.numpy_fft.fftn(in1, fshape) * \
-            pyfftw.interfaces.numpy_fft.fftn(in2, fshape)\
-            )[fslice].copy()
+        if NTHREADS==0:
+            ret = ifftn(fftn(in1, fshape) * fftn(in2, fshape))[fslice].copy()
+        else:
+            ret = pyfftw.interfaces.numpy_fft.ifftn(\
+                pyfftw.interfaces.numpy_fft.fftn(in1, fshape) * \
+                pyfftw.interfaces.numpy_fft.fftn(in2, fshape)\
+                )[fslice].copy()
         if not complex_result:
             ret = ret.real
 
