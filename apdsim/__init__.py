@@ -90,8 +90,8 @@ import sys
 
 # Multithreading/processing packages
 from functools import partial
-# from multiprocessing.dummy import Pool as ThreadPool	# dummy = Threads
-from multiprocessing import Pool as Pool			# no dummy = Processes
+from multiprocessing.dummy import Pool as ThreadPool	# dummy = Threads
+from multiprocessing import Pool as ProcPool			# no dummy = Processes
 
 try:
     import pyfftw    
