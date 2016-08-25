@@ -47,23 +47,17 @@ VEGA_MAGNITUDE_ZEROPOINT = {
 }
 AB_MAGNITUDE_ZEROPOINT = 48.6
 
-# # Plotting
-# FIGSIZE = 5
-# COLORBAR_FRACTION = 0.046
-# COLORBAR_PAD = 0.04
-
-# Near-IR filter bands
-FILTER_BANDS_UM = {
-	# [centre wavelength_m, width, min, max]
-	'J' : [1.250, 0.160, 1.170, 1.330],
-	'H' : [1.635, 0.290, 1.490, 1.780],
-	'K' : [2.200, 0.340, 2.030, 2.370]
-}
 FILTER_BANDS_M = {
 	# [centre wavelength_m, width, min, max]
-	'J' : [1.250e-6, 0.160e-6, 1.170e-6, 1.330e-6],
-	'H' : [1.635e-6, 0.290e-6, 1.490e-6, 1.780e-6],
-	'K' : [2.200e-6, 0.340e-6, 2.030e-6, 2.370e-6]
+	# Bands U through I taken from https://en.wikipedia.org/wiki/Photometric_system.
+	'U' : [365e-9, 66e-9],
+	'B' : [445e-9, 94e-9],
+	'V' : [551e-9, 88e-9],
+	'R' : [658e-9, 138e-9],
+	'I' : [806e-9, 149e-9],
+	'J' : [1.250e-6, 0.160e-6, 1.170e-6, 1.330e-6],	# GMTIFS
+	'H' : [1.635e-6, 0.290e-6, 1.490e-6, 1.780e-6],	# GMTIFS	
+	'K' : [2.200e-6, 0.340e-6, 2.030e-6, 2.370e-6]	# GMTIFS
 }
 ####################################################################################################
 " Various packages "
@@ -129,6 +123,7 @@ from linguinesim.apdsim.obssim import *
 from linguinesim.apdsim.lisim import *
 from linguinesim.apdsim.galsim import *
 from linguinesim.apdsim.starsim import *
+from linguinesim.apdsim.satsim import *
 from linguinesim.apdsim import fftwconvolve as fftwconvolve
 
 
