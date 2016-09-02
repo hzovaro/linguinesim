@@ -48,7 +48,7 @@ A_px_m2 = l_px_m * l_px_m	# pixel area (m^2)
 
 """ Noise properties """
 read_noise = 9				# sqrt(e/pixel) rms 
-dark_current = (264 + 62)	# e/second/pixel; worst-case non-gain-corrected dark current (see Atkinson et al. 2014)
-# dark_current = 0.03
+# dark_current = (264 + 62)	# e/second/pixel; worst-case non-gain-corrected dark current (see Atkinson et al. 2014)
+dark_current = 0.03 * gain		# e/second/pixel; worst-case non-gain-corrected dark current (see Atkinson et al. 2016)
 wavelength_cutoff = 2.5e-6	# cutoff wavelength (m)
 wavelength_cutoff_h = 3e-6	# worst-case cutoff wavelength (m)

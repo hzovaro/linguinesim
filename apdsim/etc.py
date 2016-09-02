@@ -307,7 +307,8 @@ def getTelescopeTE(T_sky, plotIt=True, worstCaseSpider=False):
 
 		# Multiply by the gain and QE to get units of electrons/s/px.
 		# We don't multiply by the transmission because the mirrors themselves are emitting.
-		I_tel[key] = detector.gain * detector.qe * cryo.Tr_win * (I_M1 + I_M2 + I_M3 + I_spider) + detector.gain * detector.qe * I_window
+		I_tel[key] = detector.gain * detector.qe * cryo.Tr_win * (I_M1 + I_M2 + I_M3 + I_spider) +\
+						detector.gain * detector.qe * I_window
 
 	if plotIt:
 		D = np.ones(1000)*detector.dark_current

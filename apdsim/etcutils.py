@@ -146,9 +146,7 @@ def flux2countRate(F, A_tel,
 	band = None
 	):
 	""" 
-		Return the electron count (e/pixel/s) from a source with a given 
-		imaged through a system with collecting area A_tel, throughput tau, quantum efficiency qe, 
-		internal gain gain and a detector plate scale (plate_scale_as) in arcsec/pixel 
+		Return the electron count (e/pixel/s) from a source with a given  flux F imaged through a system with collecting area A_tel, throughput tau, quantum efficiency qe, internal gain gain and a detector plate scale (plate_scale_as) in arcsec/pixel 
 	"""
 
 	if band != None:

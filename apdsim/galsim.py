@@ -248,4 +248,4 @@ def exportGalaxyFITSFile(image_in_array, n, R_e, mu_e, z, R_trunc, i_deg, band, 
 	if relpath != None:
 		fname = relpath + '/' + fname
 	print "Exporting image data to file: ", fname,".fits"
-	exportFITSFile(image_in_array = image_in_array, fname = fname, otherHeaderData = headerData, overwriteExisting = overwriteExisting)
+	exportFitsFile(image_in_array = image_in_array, fname = fname, otherHeaderData = headerData, overwriteExisting = overwriteExisting)

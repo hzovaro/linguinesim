@@ -133,7 +133,7 @@ def getImageSize(image_in_array):
 	return (image_out_array, N, height, width)
 
 #########################################################################################################
-def exportFITSFile(image_in_array, fname,
+def exportFitsFile(image_in_array, fname,
 	otherHeaderData = None, 
 	overwriteExisting = False):
 	"""
