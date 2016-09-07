@@ -36,7 +36,7 @@
 from __future__ import division
 from linguinesim.apdsim import *
 
-def exposureTimeCalc(band, t_exp, worstCaseSpider,
+def exposureTimeCalc(band, t_exp, optical_system,
 		surfaceBrightness = None,
 		magnitudeSystem = None,
 	):
@@ -46,7 +46,7 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 		Noise terms include contributions from
 		- the telescope (spider structure and mirrors, radiating as blackbodies at telescope.T)
 		- the sky (radiating as a blackbody at sky.T)
-		- the cryostat (radiating as a blackbody at cryo.T)
+		- the cryostat (radiating as a blackbody at cryostat.T)
 		- detector read noise 
 		- detector dark current.
 
@@ -55,6 +55,11 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 		In either case, all noise counts (empirical and theoretical) are returned in their respective fields in the output dictionary.
 
 	"""
+	detector = optical_system.detector
+	telescope = optical_system.telescope
+	cryostat = optical_system.cryostat
+	sky = optical_system.sky
+
 	wavelength_eff = FILTER_BANDS_M[band][0]
 	bandwidth = FILTER_BANDS_M[band][1]
 	wavelength_min = FILTER_BANDS_M[band][2]
@@ -72,9 +77,9 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 			Sigma_source_e = surfaceBrightness2countRate(mu = surfaceBrightness, 
 				wavelength_m = wavelength_eff, 
 				bandwidth_m = bandwidth, 
-				plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX, 
-				A_tel = telescope.A_collecting, 
-				tau = telescope.tau * cryo.Tr_win,
+				plate_scale_as_px = optical_system.plate_scale_as_px, 
+				A_tel = telescope.A_collecting_m2, 
+				tau = telescope.tau * cryostat.Tr_win,
 				qe = detector.qe,
 				gain = detector.gain,
 				magnitudeSystem = magnitudeSystem
@@ -86,21 +91,21 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 		Sigma_source_e = 0
 
 	""" Cryostat photon flux """
-	Sigma_cryo = getCryostatTE(plotIt=False)
+	Sigma_cryo = getCryostatTE(optical_system=optical_system)
 
 	""" Telescope thermal background photon flux """
-	Sigma_tel = getTelescopeTE(T_sky=sky.T, plotIt=False, worstCaseSpider=worstCaseSpider)[band]
+	Sigma_tel = getTelescopeTE(optical_system=optical_system, plotIt=False)[band]
 
 	""" Sky thermal background photon flux """
-	Sigma_sky_thermal = getSkyTE(T_sky=sky.T, plotIt=False)[band]
+	Sigma_sky_thermal = getSkyTE(optical_system=optical_system, plotIt=False)[band]
 
 	""" Empirical sky background flux """
 	Sigma_sky_emp = surfaceBrightness2countRate(mu = sky.brightness[band], 
 		wavelength_m = wavelength_eff, 
 		bandwidth_m = bandwidth, 
-		plate_scale_as_px = SYSTEM_PLATE_SCALE_AS_PX, 
-		A_tel = telescope.A_collecting, 
-		tau = telescope.tau * cryo.Tr_win,
+		plate_scale_as_px = optical_system.plate_scale_as_px, 
+		A_tel = telescope.A_collecting_m2, 
+		tau = telescope.tau * cryostat.Tr_win,
 		qe = detector.qe,
 		gain = detector.gain,
 		magnitudeSystem = sky.magnitude_system
@@ -127,7 +132,7 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 	N_tel = Sigma_tel * t_exp
 	N_sky_emp = Sigma_sky_emp * t_exp
 	N_sky_thermal = Sigma_sky_thermal * t_exp
-	N_RN = detector.read_noise * detector.read_noise
+	N_RN = detector.RN**2
 
 	SNR = N_source / np.sqrt(N_source + N_dark + N_cryo + N_sky + N_RN)
 	################################################################################################
@@ -147,7 +152,7 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 		'sigma_sky_emp' : np.sqrt(N_sky_emp),
 		'sigma_tel' : np.sqrt(N_tel),
 		'sigma_sky_thermal' : np.sqrt(N_sky_thermal),
-		'sigma_RN' : detector.read_noise,
+		'sigma_RN' : detector.RN,
 		# Total electron count PER PIXEL
 		'N_source' : N_source,
 		'N_dark' : N_dark,
@@ -164,69 +169,47 @@ def exposureTimeCalc(band, t_exp, worstCaseSpider,
 	return etc_output
 
 ####################################################################################################
-def getCryostatTE(plotIt=True):
-	T_cryo = np.linspace(80, 200, 1000)
-	I_cryo = np.zeros(len(T_cryo))
-	I_cryo_h = np.zeros(len(T_cryo))
+def getCryostatTE(optical_system):
+	"""
+		Return the expected counts/second/pixel on a detector resulting from thermal emission from the cryostat walls.
 
-	# For finding the crossover point
-	minVal = np.inf	
-	minVal_min = np.inf
+		Inputs:
+		------------
+		optical_system: OpticalSystemClass instance 
+			An OpticalSystemClass with a CryostatClass member.
 
-	for k in range(T_cryo.size):
-		I_cryo[k] = thermalEmissionIntensity(
-			T = T_cryo[k],
+		Returns:
+		------------
+		I_cryo: float
+			The expected count (in electrons/second/pixel) in the detector resulting from the thermal emission from the cryostat walls.
+	"""
+	detector = optical_system.detector
+	cryostat = optical_system.cryostat
+
+	return thermalEmissionIntensity(
+			T = cryostat.T,
 			A = detector.A_px_m2,
 			wavelength_min = 0.0,
 			wavelength_max = detector.wavelength_cutoff,
-			Omega = cryo.Omega,
-			eps = cryo.eps_wall,
+			Omega = cryostat.Omega,
+			eps = cryostat.eps_wall,
 			eta = detector.gain * detector.qe
 			)
-		I_cryo_h[k] = thermalEmissionIntensity(
-			T = T_cryo[k],
-			A = detector.A_px_m2,
-			wavelength_min = 0.0,
-			wavelength_max = detector.wavelength_cutoff_h,
-			Omega = cryo.Omega,
-			eps = cryo.eps_wall,
-			eta = detector.gain * detector.qe
-			)
-		# Find the crossing point
-		if abs(I_cryo[k] - detector.dark_current) < minVal:
-			minVal = abs(I_cryo[k] - detector.dark_current)
-			idx = k
-		# Absolute worst-case
-		if abs(I_cryo_h[k] - detector.dark_current*0.1) < minVal_min:
-			minVal_min = abs(I_cryo_h[k] - detector.dark_current*0.1)
-			idx_min = k
 
-	if plotIt:
-		D = np.ones(len(T_cryo))*detector.dark_current
-		wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
 
-		# Plotting
-		mu.newfigure(1.5,1.5)
-		plt.rc('text', usetex=True)
-		plt.plot(T_cryo, I_cryo, 'r', label='Cryostat thermal emission, $\lambda_c = %.1f \mu$m' % (detector.wavelength_cutoff*1e6))
-		plt.plot(T_cryo, I_cryo_h, 'r--', label='Cryostat thermal emission, $\lambda_c = %.1f \mu$m' % (detector.wavelength_cutoff_h*1e6))
-		plt.plot(T_cryo, D, 'g', label=r'Dark current')
-		plt.plot(T_cryo, D*0.1, 'g--', label=r'Dark current (10\%)')
-		plt.plot([T_cryo[idx],T_cryo[idx]], [0, np.max(I_cryo_h)], 'k', label='$T_c = %.3f$ K' % (T_cryo[idx]))
-		plt.plot([T_cryo[idx_min],T_cryo[idx_min]], [0, np.max(I_cryo_h)], 'k--', label='$T_c = %.3f$ K (worst-case)' % T_cryo[idx_min])
-		plt.yscale('log')
-		plt.axis('tight')
-		plt.legend(loc='lower right')
-		plt.xlabel(r'Temperature (K)')
-		plt.ylabel(r'Count ($e^{-}$ s$^{-1}$ pixel$^{-1}$)')
-		plt.title('Estimated count from cryostat thermal emission')
-	
-	return I_cryo[idx]
 
 ####################################################################################################
 
-def getSkyTE(T_sky, plotIt=True):
+def getSkyTE(optical_system,
+	plotIt=True):
+
 	" Sky thermal background photon flux in the J, H and K bands "
+
+	detector = optical_system.detector
+	telescope = optical_system.telescope
+	cryostat = optical_system.cryostat
+	sky = optical_system.sky
+
 	I_sky = {
 		'J' : 0.0,
 		'H' : 0.0,
@@ -234,21 +217,21 @@ def getSkyTE(T_sky, plotIt=True):
 	}
 
 	# Atmospheric properties	
-	eps_sky = getSkyEps()
+	# eps_sky = getSkyEps()
 
 	for key in I_sky:
 		wavelength_min = FILTER_BANDS_M[key][2]
 		wavelength_max = FILTER_BANDS_M[key][3]
 		I_sky[key] = thermalEmissionIntensity(
-			T = T_sky, 
+			T = sky.T, 
 			wavelength_min = wavelength_min, 
 			wavelength_max = wavelength_max, 
-			Omega = OMEGA_PX_RAD, 
-			A = telescope.A_collecting, 
-			eps = eps_sky
+			Omega = optical_system.omega_px_sr, 
+			A = telescope.A_collecting_m2, 
+			eps = sky.eps
 			)
 		# Multiply by the gain, QE and telescope transmission to get units of electrons/s/px.
-		I_sky[key] = detector.gain * detector.qe * telescope.tau * cryo.Tr_win * I_sky[key]
+		I_sky[key] = detector.gain * detector.qe * telescope.tau * cryostat.Tr_win * I_sky[key]
 
 	if plotIt:
 		D = np.ones(1000)*detector.dark_current
@@ -274,8 +257,14 @@ def getSkyTE(T_sky, plotIt=True):
 	return I_sky
 
 ####################################################################################################
+def getTelescopeTE(optical_system,
+	plotIt=True):
 
-def getTelescopeTE(T_sky, plotIt=True, worstCaseSpider=False):
+	detector = optical_system.detector
+	telescope = optical_system.telescope
+	cryostat = optical_system.cryostat
+	sky = optical_system.sky
+
 	I_tel = {
 		'J' : 0.0,
 		'H' : 0.0,
@@ -285,30 +274,55 @@ def getTelescopeTE(T_sky, plotIt=True, worstCaseSpider=False):
 	for key in I_tel:
 		wavelength_min = FILTER_BANDS_M[key][2]
 		wavelength_max = FILTER_BANDS_M[key][3]
+			
+		# Mirrors
+		# Assumptions:
+		#	1. The area we use for the etendue is the collecting (i.e. reflective) area of the telescope, not the total area.
+		#	2. For now we are ignoring the baffle on M2 (until we can talk to Rob about it...)
+		#	3. We are not assuming the worst case for the spider (i.e. it is still substantially reflective). But you should see how substantial of a difference it makes. Always lean towards the worst-case. 
+		I_mirrors = 0
+		for mirror in telescope.mirrors:
+			I_mirrors += thermalEmissionIntensity(
+				T = telescope.T, 
+				wavelength_min = wavelength_min, 
+				wavelength_max = wavelength_max, 
+				Omega = optical_system.omega_px_sr, 
+				A = telescope.A_collecting_m2, 
+				eps = mirror.eps_eff,
+				eta = detector.qe * detector.gain * cryostat.Tr_win
+				)
 		
-		I_M1 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = telescope.eps_M1_eff)
-		I_M2 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M2_total_eff, eps = telescope.eps_M2_eff)
-		I_M3 = thermalEmissionIntensity(T = telescope.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = telescope.eps_M1_eff)
+		# Spider 
+		if telescope.hasSpider:
+			I_spider = thermalEmissionIntensity(
+					T = telescope.T, 
+					wavelength_min = wavelength_min, 
+					wavelength_max = wavelength_max, 
+					Omega = optical_system.omega_px_sr, 
+					A = telescope.A_collecting_m2, 
+					eps = telescope.eps_spider_eff,
+					eta = detector.qe * detector.gain * cryostat.Tr_win)\
+			  + thermalEmissionIntensity(
+			  		T = sky.T, 	
+			  		wavelength_min = wavelength_min, 
+			  		wavelength_max = wavelength_max, 
+			  		Omega = optical_system.omega_px_sr, 
+			  		A = telescope.A_collecting_m2, 
+			  		eps = lambda wavelength_m : (1 - telescope.eps_spider_eff) * sky.eps(wavelength_m),
+			  		eta = detector.qe * detector.gain * cryostat.Tr_win)
 		
-		# Spider (acting as a grey body at both the sky temperature and telescope temperature)
-		if worstCaseSpider == False:
-			eps_sky = getSkyEps()
-			# BEST CASE: assume the spider has a fresh aluminium coating - so 9.1% emissive at sky temp and 90.1% emissive at telescope temp
-			I_spider = \
-				thermalEmissionIntensity(T = telescope.T, 	wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = telescope.eps_spider_eff)\
-			  + thermalEmissionIntensity(T = T_sky, 		wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = lambda wavelength_m : (1 - telescope.eps_spider_eff) * eps_sky(wavelength_m))
-		else:
-			# WORST CASE: assume the spider is 100% emissive at telescope temperature (i.e. not reflective at all)
-			I_spider = \
-				thermalEmissionIntensity(T = telescope.T, 	wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = 1.0 * telescope.A_spider / telescope.A_M1_total)\
-		
-		# Cryostat window (acting as a grey body)
-		I_window = thermalEmissionIntensity(T = cryo.T, wavelength_min = wavelength_min, wavelength_max = wavelength_max, Omega = OMEGA_PX_RAD, A = telescope.A_M1_total, eps = cryo.eps_win)
+		# Cryostat window 
+		I_window = thermalEmissionIntensity(
+			T = cryostat.T, 
+			wavelength_min = wavelength_min, 
+			wavelength_max = wavelength_max, 
+			Omega = optical_system.omega_px_sr, 
+			A = telescope.A_collecting_m2, 
+			eps = cryostat.eps_win,
+			eta = detector.qe * detector.gain	# No cryostat window term because the radiation from the walls doesn't pass through it
+			)
 
-		# Multiply by the gain and QE to get units of electrons/s/px.
-		# We don't multiply by the transmission because the mirrors themselves are emitting.
-		I_tel[key] = detector.gain * detector.qe * cryo.Tr_win * (I_M1 + I_M2 + I_M3 + I_spider) +\
-						detector.gain * detector.qe * I_window
+		I_tel[key] = I_mirrors + I_spider + I_window
 
 	if plotIt:
 		D = np.ones(1000)*detector.dark_current
@@ -318,7 +332,7 @@ def getTelescopeTE(T_sky, plotIt=True, worstCaseSpider=False):
 		mu.newfigure(1,1)
 		plt.plot(wavelengths*1e6, D, 'g--', label=r'Dark current')
 
-		for key in FILTER_BANDS_M:
+		for key in I_tel:
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, I_tel[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='o')
 			plt.text(FILTER_BANDS_M[key][0]*1e6, I_tel[key]*5, key)
 
@@ -334,17 +348,23 @@ def getTelescopeTE(T_sky, plotIt=True, worstCaseSpider=False):
 	return I_tel
 
 ########################################################################################
-def plotBackgroundNoiseSources():
+def plotBackgroundNoiseSources(optical_system):
 	" Plot the empirical sky brightness, thermal sky emission, thermal telescope emission and dark current as a function of wavelength_m "
+
+	detector = optical_system.detector
+	telescope = optical_system.telescope
+	cryostat = optical_system.cryostat
+	sky = optical_system.sky
+
 	counts = {
 		'H' : 0,
 		'J' : 0,
 		'K' : 0
 	}
-	counts['H'] = exposureTimeCalc(band='H', t_exp=1, worstCaseSpider=False)
-	counts['J'] = exposureTimeCalc(band='J', t_exp=1, worstCaseSpider=False)
-	counts['K'] = exposureTimeCalc(band='K', t_exp=1, worstCaseSpider=False)
-	N_tel_worstcase = getTelescopeTE(T_sky = sky.T, worstCaseSpider=True, plotIt=False)
+	counts['H'] = exposureTimeCalc(band='H', t_exp=1, optical_system=optical_system)
+	counts['J'] = exposureTimeCalc(band='J', t_exp=1, optical_system=optical_system)
+	counts['K'] = exposureTimeCalc(band='K', t_exp=1, optical_system=optical_system)
+	N_tel = getTelescopeTE(optical_system=optical_system, plotIt=False)
 	D = np.ones(1000)*detector.dark_current
 	wavelengths = np.linspace(1.0, 2.5, 1000)*1e-6
 
@@ -361,13 +381,13 @@ def plotBackgroundNoiseSources():
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_emp'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='o', ecolor=plotColors[key], mfc=plotColors[key], label='Empirical sky background')
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_thermal'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='^', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal sky background')
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_tel'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope background')
-			eb=plt.errorbar(FILTER_BANDS_M[key][0]*1e6, N_tel_worstcase[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope background (worst-case)')
+			eb=plt.errorbar(FILTER_BANDS_M[key][0]*1e6, N_tel[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope background')
 			eb[-1][0].set_linestyle('--')
 		else:
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_emp'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='o', ecolor=plotColors[key], mfc=plotColors[key])
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_thermal'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='^', ecolor=plotColors[key], mfc=plotColors[key])
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_tel'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key])
-			eb=plt.errorbar(FILTER_BANDS_M[key][0]*1e6, N_tel_worstcase[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key])
+			eb=plt.errorbar(FILTER_BANDS_M[key][0]*1e6, N_tel[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key])
 			eb[-1][0].set_linestyle('--')
 
 		plt.text(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_emp']*5, key)
@@ -380,6 +400,85 @@ def plotBackgroundNoiseSources():
 	plt.ylabel(r'Count ($e^{-}$ s$^{-1}$ pixel$^{-1}$)')
 	plt.title(r'Expected background noise levels')
 	plt.show()
+
+####################################################################################################
+def findCryostatTemp(optical_system, plotIt=True):
+	"""
+		Determine what temperature the cryostat given in the optical system must be so that the detector counts resulting from the thermal emission from the cryostat walls is equivalent to the dark current.
+
+		Inputs:
+		------------
+		optical_system: OpticalSystemClass instance 
+			An OpticalSystemClass with a CryostatClass member.
+
+		Returns:
+		------------
+		I_cryo: float
+			The expected count (in electrons/second/pixel) in the detector resulting from the thermal emission from the cryostat walls.
+
+	"""
+	detector = optical_system.detector
+	cryostat = optical_system.cryostat
+
+	T_cryo = np.linspace(80, 200, 1000)
+	I_cryo = np.zeros(len(T_cryo))
+	I_cryo_h = np.zeros(len(T_cryo))
+
+	# For finding the crossover point
+	minVal = np.inf	
+	minVal_min = np.inf
+
+	for k in range(T_cryo.size):
+		I_cryo[k] = thermalEmissionIntensity(
+			T = T_cryo[k],
+			A = detector.A_px_m2,
+			wavelength_min = 0.0,
+			wavelength_max = detector.wavelength_cutoff,
+			Omega = cryostat.Omega,
+			eps = cryostat.eps_wall,
+			eta = detector.gain * detector.qe
+			)
+		# Find the crossing point
+		if abs(I_cryo[k] - detector.dark_current) < minVal:
+			minVal = abs(I_cryo[k] - detector.dark_current)
+			idx = k
+
+		# Worst case: increased cutoff wavelength.
+		I_cryo_h[k] = thermalEmissionIntensity(
+			T = T_cryo[k],
+			A = detector.A_px_m2,
+			wavelength_min = 0.0,
+			wavelength_max = detector.wavelength_cutoff_h,
+			Omega = cryostat.Omega,
+			eps = cryostat.eps_wall,
+			eta = detector.gain * detector.qe
+			)
+		# Find the crossing point
+		if abs(I_cryo_h[k] - detector.dark_current*0.1) < minVal_min:
+			minVal_min = abs(I_cryo_h[k] - detector.dark_current*0.1)
+			idx_min = k
+
+	if plotIt:
+		D = np.ones(len(T_cryo))*detector.dark_current
+		wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
+
+		# Plotting
+		mu.newfigure(1.5,1.5)
+		plt.rc('text', usetex=True)
+		plt.plot(T_cryo, I_cryo, 'r', label='Cryostat thermal emission, $\lambda_c = %.1f \mu$m' % (detector.wavelength_cutoff*1e6))
+		plt.plot(T_cryo, I_cryo_h, 'r--', label='Cryostat thermal emission, $\lambda_c = %.1f \mu$m' % (detector.wavelength_cutoff_h*1e6))
+		plt.plot(T_cryo, D, 'g', label=r'Dark current')
+		plt.plot(T_cryo, D*0.1, 'g--', label=r'Dark current (10\%)')
+		plt.plot([T_cryo[idx],T_cryo[idx]], [0, np.max(I_cryo_h)], 'k', label='$T_c = %.3f$ K' % (T_cryo[idx]))
+		plt.plot([T_cryo[idx_min],T_cryo[idx_min]], [0, np.max(I_cryo_h)], 'k--', label='$T_c = %.3f$ K (worst-case)' % T_cryo[idx_min])
+		plt.yscale('log')
+		plt.axis('tight')
+		plt.legend(loc='lower right')
+		plt.xlabel(r'Temperature (K)')
+		plt.ylabel(r'Count ($e^{-}$ s$^{-1}$ pixel$^{-1}$)')
+		plt.title('Estimated count from cryostat thermal emission')
+	
+	return T[idx]
 
 ########################################################################################
 def thermalEmissionIntensity(		
