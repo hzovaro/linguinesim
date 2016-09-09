@@ -28,10 +28,9 @@
 #
 #########################################################################################################
 from __future__ import division, print_function
-from linguinesim.apdsim import *
 
 ####################################################################################################
-class CryostatClass(object):
+class Cryostat(object):
 
 	def __init__(self,
 		T, 

@@ -28,10 +28,11 @@
 #
 #########################################################################################################
 from __future__ import division, print_function
-from linguinesim.apdsim import *
+import numpy as np
+from linguineglobals import *
 
 ####################################################################################################
-class TelescopeClass(object):
+class Telescope(object):
 
 	def __init__(self,
 		efl_m,

@@ -29,7 +29,8 @@
 #########################################################################################################
 from __future__ import division, print_function
 
-class OpticalSystemClass(object):
+#########################################################################################################
+class OpticalSystem(object):
 
 	def __init__(self, telescope, detector, sky,
 		cryostat=None
