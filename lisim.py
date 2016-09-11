@@ -71,11 +71,17 @@ def luckyImage(im, psf, tt, noise_frame, scale_factor, etc_input):
 			Process: convolve with PSF --> resize to detector --> add tip and tilt (from a premade vector of tip/tilt values) --> convert to counts --> add noise --> subtract the master sky/dark current. 
 	"""
 	# Convolve with PSF.
-	im = obssim.convolvePSF(im, psf)		
-	# Resize to detector.
+	im = obssim.convolvePSF(im, psf)	
+	# Resize to detector (+ edge buffer).
 	im = obssim.resizeImageToDetector(image_raw = im, source_plate_scale_as = 1, dest_plate_scale_as = scale_factor)
-	# Add tip and tilt.
-	im = obssim.addTipTilt_single(image = im, tt_idxs = tt)[0]
+	# Add tip and tilt. To avoid edge effects, max(tt) should be less than or equal to the edge buffer.
+	edge_buffer_px = (im.shape[0] - noise_frame.shape[0]) / 2
+	if edge_buffer_px > 0 and max(tt) > edge_buffer_px:
+		print("WARNING: the edge buffer is less than the supplied tip and tilt by a margin of {:.2f} pixels! Shifted image will be clipped.".format(np.abs(edge_buffer_px - max(tt))))
+	im = obssim.addTipTilt_single(image = im, tt_idxs = tt)[0]	
+	# Crop back down.
+	if edge_buffer_px > 0:
+		im = imutils.centreCrop(im, noise_frame.shape)	
 	# Convert to counts.
 	im = etcutils.expectedCount2count(im, t_exp = etc_input['t_exp'])
 	# Add noise. 
