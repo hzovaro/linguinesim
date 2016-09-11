@@ -31,6 +31,7 @@ from __future__ import division, print_function
 import miscutils as mu
 import numpy as np
 import pdb
+import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
 from matplotlib import rc
@@ -132,6 +133,32 @@ def rotateAndCrop(image_in_array,
 		plt.show()
 
 	return np.squeeze(image_out_array)
+
+############################################################################################
+def centreCrop(im, sz_final):
+	"""
+		Crop an array by equal amounts on each side. A simpler (and faster) alternative to rotateAndCrop().
+	"""
+	if matplotlib.cbook.is_numlike(sz_final):
+		sz_height = sz_final
+		sz_width = sz_final
+	else:
+		sz_height = sz_final[0]
+		sz_width = sz_final[1]
+
+	crop_height = max((im.shape[0] - sz_height) // 2, 0)
+	crop_width = max((im.shape[1] - sz_width) // 2, 0)
+	
+	# im_cropped = im[
+	# 	crop_height : crop_height + min(im.shape[0], sz_height + (im.shape[0] - sz_height) % 2), 
+	# 	crop_width  : crop_width + min(im.shape[1], sz_width + (im.shape[1] - sz_width) % 2)
+	# 	]
+	im_cropped = im[
+		crop_height : crop_height + min(im.shape[0], sz_height), 
+		crop_width  : crop_width + min(im.shape[1], sz_width)
+		]
+
+	return im_cropped
 
 #########################################################################################################
 def getImageSize(image_in_array):
