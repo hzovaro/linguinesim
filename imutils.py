@@ -37,7 +37,7 @@ from matplotlib.colors import LogNorm
 from matplotlib import rc
 rc('image', interpolation='none', cmap = 'binary_r')
 
-import astropy.io
+import astropy.io.fits
 
 # linguine modules 
 from linguineglobals import *

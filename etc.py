@@ -132,6 +132,7 @@ def exposureTimeCalc(band, t_exp, optical_system,
 		Sigma_sky = Sigma_sky_emp
 
 	""" Dark current """
+	# Be careful about gain compensation! 
 	Sigma_dark = detector.dark_current
 
 	################################################################################################
@@ -240,10 +241,11 @@ def getSkyTE(optical_system,
 			wavelength_max = wavelength_max, 
 			Omega = optical_system.omega_px_sr, 
 			A = telescope.A_collecting_m2, 
-			eps = sky.eps
+			eps = sky.eps,
+			eta = detector.gain * detector.qe * telescope.tau * cryostat.Tr_win
 			)
 		# Multiply by the gain, QE and telescope transmission to get units of electrons/s/px.
-		I_sky[key] = detector.gain * detector.qe * telescope.tau * cryostat.Tr_win * I_sky[key]
+		# I_sky[key] = detector.gain * detector.qe * telescope.tau * cryostat.Tr_win * I_sky[key]
 
 	if plotIt:
 		D = np.ones(1000)*detector.dark_current
@@ -313,7 +315,7 @@ def getTelescopeTE(optical_system,
 					Omega = optical_system.omega_px_sr, 
 					A = telescope.A_collecting_m2, 
 					eps = telescope.eps_spider_eff,
-					eta = detector.qe * detector.gain * cryostat.Tr_win)\
+					eta = telescope.tau * detector.qe * detector.gain * cryostat.Tr_win)\
 			  + etcutils.thermalEmissionIntensity(
 			  		T = sky.T, 	
 			  		wavelength_min = wavelength_min, 
@@ -321,7 +323,7 @@ def getTelescopeTE(optical_system,
 			  		Omega = optical_system.omega_px_sr, 
 			  		A = telescope.A_collecting_m2, 
 			  		eps = lambda wavelength_m : (1 - telescope.eps_spider_eff) * sky.eps(wavelength_m),
-			  		eta = detector.qe * detector.gain * cryostat.Tr_win)
+			  		eta = telescope.tau * detector.qe * detector.gain * cryostat.Tr_win)
 		
 		# Cryostat window 
 		I_window = etcutils.thermalEmissionIntensity(
@@ -331,7 +333,7 @@ def getTelescopeTE(optical_system,
 			Omega = optical_system.omega_px_sr, 
 			A = telescope.A_collecting_m2, 
 			eps = cryostat.eps_win,
-			eta = detector.qe * detector.gain	# No cryostat window term because the radiation from the walls doesn't pass through it
+			eta = detector.qe * detector.gain	# No cryostat window or telescope throughput terms because the radiation from the walls doesn't pass through it
 			)
 
 		I_tel[key] = I_mirrors + I_spider + I_window
@@ -376,7 +378,6 @@ def plotBackgroundNoiseSources(optical_system):
 	counts['H'] = exposureTimeCalc(band='H', t_exp=1, optical_system=optical_system)
 	counts['J'] = exposureTimeCalc(band='J', t_exp=1, optical_system=optical_system)
 	counts['K'] = exposureTimeCalc(band='K', t_exp=1, optical_system=optical_system)
-	N_tel = getTelescopeTE(optical_system=optical_system, plotIt=False)
 	D = np.ones(1000)*detector.dark_current
 	wavelengths = np.linspace(1.0, 2.5, 1000)*1e-6
 
@@ -393,14 +394,12 @@ def plotBackgroundNoiseSources(optical_system):
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_emp'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='o', ecolor=plotColors[key], mfc=plotColors[key], label='Empirical sky background')
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_thermal'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='^', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal sky background')
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_tel'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope background')
-			eb=plt.errorbar(FILTER_BANDS_M[key][0]*1e6, N_tel[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope background')
-			eb[-1][0].set_linestyle('--')
+			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_tel'] + counts[key]['N_sky_thermal'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='x', ecolor=plotColors[key], mfc=plotColors[key], label='Thermal telescope + sky background')
 		else:
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_emp'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='o', ecolor=plotColors[key], mfc=plotColors[key])
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_thermal'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='^', ecolor=plotColors[key], mfc=plotColors[key])
 			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_tel'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key])
-			eb=plt.errorbar(FILTER_BANDS_M[key][0]*1e6, N_tel[key], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='*', ecolor=plotColors[key], mfc=plotColors[key])
-			eb[-1][0].set_linestyle('--')
+			plt.errorbar(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_tel'] + counts[key]['N_sky_thermal'], 0, FILTER_BANDS_M[key][1]/2*1e6, fmt='x', ecolor=plotColors[key], mfc=plotColors[key])
 
 		plt.text(FILTER_BANDS_M[key][0]*1e6, counts[key]['N_sky_emp']*5, key)
 

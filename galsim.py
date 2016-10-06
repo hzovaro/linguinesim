@@ -55,7 +55,7 @@ def simulateSersicGalaxy(im_out_fname, # Output FITS file name
 	axis_ratio,	# Axis ratio (a/b)
 	zeropoint = -AB_MAGNITUDE_ZEROPOINT, # Careful of the minus sign!
 	pos_px = None, # Position of galaxy in frame 
-	theta_pa_deg = 0,	# Rotation angle
+	PA_deg = 0,	# Rotation angle
 	object_type = 'sersic2',
 	galfit_input_fname = "galfit_input.txt",
 	plotIt = False
@@ -65,7 +65,7 @@ def simulateSersicGalaxy(im_out_fname, # Output FITS file name
 	"""
 
 	# Writing the parameters file.
-	galfit_input_fname, im_out_fname = writeGALFITparamsFile(galfit_input_fname, im_out_fname, height_px, width_px, mu_e, R_e_px, n, plate_scale_as_px, axis_ratio, zeropoint, pos_px, theta_pa_deg, object_type)
+	galfit_input_fname, im_out_fname = writeGALFITparamsFile(galfit_input_fname, im_out_fname, height_px, width_px, mu_e, R_e_px, n, plate_scale_as_px, axis_ratio, zeropoint, pos_px, PA_deg, object_type)
 
 	# Calling GALFIT.
 	callGALFIT(galfit_input_fname)
@@ -84,7 +84,7 @@ def simulateSersicGalaxy(im_out_fname, # Output FITS file name
 		mu.newfigure()
 		plt.imshow(im_raw)
 		plt.title("GALFIT-generated image")
-		mu.colourbar()
+		mu.colorbar()
 		plt.show()
 
 	return im_raw
@@ -111,7 +111,7 @@ def writeGALFITparamsFile(
 	axis_ratio,			# Axis ratio (a/b)
 	zeropoint = -AB_MAGNITUDE_ZEROPOINT, # Careful of the minus sign!
 	pos_px = None, 		# Position of galaxy in frame 
-	theta_pa_deg = 0,	# Rotation angle
+	PA_deg = 0,	# Rotation angle
 	object_type = 'sersic2',
 	):
 	"""
@@ -149,7 +149,7 @@ def writeGALFITparamsFile(
 		text_file.write("4)\t{:.10f}\n".format(R_e_px))
 		text_file.write("5)\t{:d}\n".format(n))
 		text_file.write("9)\t{:.10f}\n".format(axis_ratio))
-		text_file.write("10)\t{:.10f}\n".format(theta_pa_deg))
+		text_file.write("10)\t{:.10f}\n".format(PA_deg))
 		text_file.write("Z)\t0\n")
 
 	return galfit_input_fname, im_out_fname
@@ -226,13 +226,13 @@ def sersic2D(n, R_e, mu_e,
 		plt.imshow(F_map['F_nu_cgs'], norm=LogNorm(), extent = [-dR*gridsize/2,dR*gridsize/2,-dR*gridsize/2,dR*gridsize/2])
 		plt.xlabel(r'$R$ (%s)' % R_units)
 		plt.ylabel(r'$R$ (%s)' % R_units)
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('2D intensity map')
 		plt.subplot(1,2,2)
 		plt.imshow(mu_map, extent = [-dR*gridsize/2,dR*gridsize/2,-dR*gridsize/2,dR*gridsize/2])
 		plt.xlabel(r'$R$ (%s)' % R_units)
 		plt.ylabel(r'$R$ (%s)' % R_units)
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('2D surface brightness map')
 		plt.suptitle('2D Sersic profiles')
 		plt.show()

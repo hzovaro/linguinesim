@@ -121,14 +121,14 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 			plt.suptitle('Starfield')
 		plt.subplot(1,2,1)
 		plt.imshow(starfield, norm=LogNorm())
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Expected electron flux')
 		plt.subplot(1,2,2)
 		if max(starfield.flatten() > 0):
 			plt.imshow(image_count, norm=LogNorm())
 		else:
 			plt.imshow(image_count)
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Simulated image')
 		plt.show()
 

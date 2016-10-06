@@ -40,6 +40,7 @@ class Detector(object):
 		wavelength_cutoff=np.inf,
 		wavelength_cutoff_h=np.inf,
 		RN=0,
+		cic=0,
 		dark_current=0,
 		gain=1,
 		saturation=np.inf,
@@ -59,6 +60,7 @@ class Detector(object):
 		self.adu_gain = adu_gain
 		self.saturation = saturation
 		self.RN = RN
+		self.cic = cic
 
 		# Optical properties.
 		self.wavelength_cutoff = wavelength_cutoff

@@ -201,11 +201,11 @@ def airyDisc(wavelength_m, f_ratio, l_px_m,
 		mu.newfigure(1,2)
 		plt.subplot(1,2,1)
 		plt.imshow(I, norm=LogNorm())
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Intensity (oversampled by a factor of %d)' % trapz_oversampling)
 		plt.subplot(1,2,2)
 		plt.imshow(count_cumtrapz, norm=LogNorm())
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Count (via trapezoidal rule)')
 		plt.show()
 
@@ -304,11 +304,11 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_a
 		mu.newfigure(1,2)
 		plt.subplot(1,2,1)
 		plt.imshow(images_raw[0])
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Input image')
 		plt.subplot(1,2,2)
 		plt.imshow(images[0])
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Resized image')
 		plt.suptitle('Resizing truth image to detector')
 		plt.show()
@@ -368,11 +368,11 @@ def resizeImageToDetector(image_raw, source_plate_scale_as, dest_plate_scale_as,
 		mu.newfigure(1,2)
 		plt.subplot(1,2,1)
 		plt.imshow(image_raw)
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Input image')
 		plt.subplot(1,2,2)
 		plt.imshow(image)
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Resized image')
 		plt.suptitle('Resizing truth image to detector')
 		plt.show()
@@ -446,15 +446,15 @@ def getDiffractionLimitedImage(image_truth, l_px_m, f_ratio, wavelength_m,
 		mu.newfigure(1,3)
 		plt.subplot(1,3,1)
 		plt.imshow(psf)
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Diffraction-limited PSF of telescope')
 		plt.subplot(1,3,2)
 		plt.imshow(image_truth[0])
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Truth image')
 		plt.subplot(1,3,3)
 		plt.imshow(image_difflim[0])
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Diffraction-limited image')
 		plt.suptitle('Diffraction-limiting image')
 		plt.show()
@@ -509,19 +509,19 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 		plt.suptitle('Seeing-limiting image')
 		plt.subplot(2,2,1)
 		plt.imshow(images[0])
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Input image')
 		plt.subplot(2,2,2)
 		plt.imshow(kernel, extent=axes_kernel)
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Kernel')
 		plt.subplot(2,2,3)
 		plt.imshow(image_seeing_limited[0])
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Convolved image')
 		plt.subplot(2,2,4)
 		plt.imshow(image_seeing_limited_cropped[0])
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Cropped, convolved image')
 		plt.show()
 
@@ -558,19 +558,19 @@ def convolvePSF(image, psf,
 		plt.suptitle('Seeing-limiting image')
 		plt.subplot(2,2,1)
 		plt.imshow(image)
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Input image')
 		plt.subplot(2,2,2)
 		plt.imshow(psf)
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Kernel')
 		plt.subplot(2,2,3)
 		plt.imshow(image_conv)
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Convolved image (padded)')
 		plt.subplot(2,2,4)
 		plt.imshow(image_conv_cropped)
-		mu.colourbar()
+		mu.colorbar()
 		plt.title('Convolved image (original size)')
 		plt.show()
 
@@ -618,7 +618,7 @@ def noiseFramesFromEtc(N, height_px, width_px,
 
 	# The output is stored in a dictionary with each entry containing the noise frames.
 	noise_frames_dict = {
-		'sky' : np.zeros((N, height_px, width_px), dtype=int),
+		'sky' : np.zeros((N, height_px, width_px), dtype=int),	# Note: the sky includes the emission from the telescope.
 		'dark' : np.zeros((N, height_px, width_px), dtype=int),
 		'cryo' : np.zeros((N, height_px, width_px), dtype=int),
 		'RN' : np.zeros((N, height_px, width_px), dtype=int),
@@ -628,7 +628,7 @@ def noiseFramesFromEtc(N, height_px, width_px,
 	# Getting noise parameters from the ETC.
 	if not etc_input:
 		if not optical_system:
-			print("ERRORL if no ETC input is specified, then you must pass an instance of an opticalSystem!")
+			print("ERROR: if no ETC input is specified, then you must pass an instance of an opticalSystem!")
 			raise UserWarning
 		else:
 			# If no ETC input is given then we generate a new one.
@@ -653,7 +653,7 @@ def noiseFramesFromEtc(N, height_px, width_px,
 	return noise_frames_dict, etc_output
 
 ##########################################################################################
-def DarkAndSkyMasterFrames(N, height_px, width_px,
+def darkAndSkyMasterFrames(N, height_px, width_px,
 	band=None,
 	t_exp=None,
 	etc_input=None):
@@ -663,7 +663,7 @@ def DarkAndSkyMasterFrames(N, height_px, width_px,
 		The individual noise frames used to generate the master frames are NOT returned here; this is deliberate as it prevents one from generating the master frames from the same frames that are added to the image.
 
 	"""
-	noise_frames_dict = noiseFramesFromEtc(N, height_px, width_px, band, t_exp, etc_input)[0]
+	noise_frames_dict = noiseFramesFromEtc(N=N, height_px=height_px, width_px=width_px, band=band, t_exp=t_exp, etc_input=etc_input)[0]
 
 	# Generating the master dark and sky frames.
 	master_dark = medianCombine(noise_frames_dict['total'] - noise_frames_dict['sky'])

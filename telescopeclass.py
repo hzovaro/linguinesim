@@ -88,7 +88,7 @@ class Telescope(object):
 		eps_spider=AL_EMISSIVITY):
 
 		self.hasSpider = True
-		# The spider will be AL_EMISSIVITY emissive at telescope temp, and (AL_REFLECTIVITY * eps_sky) emissive at the sky temp.
+		# The spider will be eps_spider emissive at telescope temp, and (1 - eps_spider) * eps_sky emissive at the sky temp.
 		self.A_spider_m2 = A_spider_m2
 		self.eps_spider = eps_spider
 		self.eps_spider_eff = A_spider_m2 / self.A_collecting_m2 * self.eps_spider

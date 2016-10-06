@@ -63,7 +63,7 @@ import fftwconvolve, obssim, etcutils, imutils
 
 
 ####################################################################################################
-def luckyImage(im, psf, tt, noise_frame, scale_factor, etc_input):
+def luckyImage(im, psf, tt, noise_frame, scale_factor, t_exp):
 	""" 
 		This function can be used to generate a short-exposure 'lucky' image that can be input to the Lucky Imaging algorithms.
 			Input: 	one 'raw' countrate image of a galaxy; one PSF with which to convolve it (at the same plate scale)
@@ -83,7 +83,7 @@ def luckyImage(im, psf, tt, noise_frame, scale_factor, etc_input):
 	if edge_buffer_px > 0:
 		im = imutils.centreCrop(im, noise_frame.shape)	
 	# Convert to counts.
-	im = etcutils.expectedCount2count(im, t_exp = etc_input['t_exp'])
+	im = etcutils.expectedCount2count(im, t_exp = t_exp)
 	# Add noise. 
 	im += noise_frame
 	# Subtract the master sky/dark current. 
@@ -244,6 +244,7 @@ def luckyImaging(images, li_method, mode,
 	if li_method == 'peak_pixel' and fsr < 1:
 		sorted_idx = np.argsort(peak_pixel_vals)[::-1]	# Array holding indices of images
 		N = np.ceil(fsr * N)
+		# Is averaging the best way to do this? Probably not...
 		image_stacked = (image_ref + np.sum(images_shifted[sorted_idx[:N]], 0)) / (N + 1)
 	else:
 		# Now, stacking the images. Need to change N if FSR < 1.

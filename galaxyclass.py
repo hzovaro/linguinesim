@@ -34,7 +34,7 @@ class Galaxy(object):
 
 	def __init__(self, name, R_e_as, mu_e, sersic_idx,
 		axis_ratio=1,
-		theta_pa_deg=0,
+		PA_deg=0,
 		z=None,
 		masses_solar=None,
 		coords=None,
@@ -45,7 +45,7 @@ class Galaxy(object):
 		self.mu_e = mu_e
 		self.sersic_idx = sersic_idx
 		self.axis_ratio = axis_ratio
-		self.theta_pa_deg = theta_pa_deg
+		self.PA_deg = PA_deg
 		self.z = z
 		self.masses_solar = masses_solar
 
