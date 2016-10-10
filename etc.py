@@ -45,12 +45,14 @@ rc('image', interpolation='none', cmap = 'binary_r')
 
 import scipy.constants
 
+import json	
+
 from linguineglobals import *
 import etcutils
 ####################################################################################################
 def exposureTimeCalc(band, t_exp, optical_system,
-		surfaceBrightness = None,
-		magnitudeSystem = None,
+		surface_brightness = None,
+		magnitude_system = None,
 	):
 	"""
 		An exposure time calculator. 
@@ -83,10 +85,10 @@ def exposureTimeCalc(band, t_exp, optical_system,
 	
 	""" Signal photon flux """
 	# Given the surface brightness of the object, calculate the source electrons/s/pixel.
-	if surfaceBrightness != None:
-		if magnitudeSystem != None:
+	if surface_brightness != None:
+		if magnitude_system != None:
 			# Here, if the input is given in mag/arcsec^2, then we need Sigma_source_e to be returned in units of electrons/s/pixel. 
-			Sigma_source_e = etcutils.surfaceBrightness2countRate(mu = surfaceBrightness, 
+			Sigma_source_e = etcutils.surface_brightness2countRate(mu = surface_brightness, 
 				wavelength_m = wavelength_eff, 
 				bandwidth_m = bandwidth, 
 				plate_scale_as_px = optical_system.plate_scale_as_px, 
@@ -94,7 +96,7 @@ def exposureTimeCalc(band, t_exp, optical_system,
 				tau = telescope.tau * cryostat.Tr_win,
 				qe = detector.qe,
 				gain = detector.gain,
-				magnitudeSystem = magnitudeSystem
+				magnitude_system = magnitude_system
 			)
 		else:
 			print('ERROR: you must specify a magnitude system for the source!')
@@ -112,7 +114,7 @@ def exposureTimeCalc(band, t_exp, optical_system,
 	Sigma_sky_thermal = getSkyTE(optical_system=optical_system, plotIt=False)[band]
 
 	""" Empirical sky background flux """
-	Sigma_sky_emp = etcutils.surfaceBrightness2countRate(mu = sky.brightness[band], 
+	Sigma_sky_emp = etcutils.surface_brightness2countRate(mu = sky.brightness[band], 
 		wavelength_m = wavelength_eff, 
 		bandwidth_m = bandwidth, 
 		plate_scale_as_px = optical_system.plate_scale_as_px, 
@@ -120,7 +122,7 @@ def exposureTimeCalc(band, t_exp, optical_system,
 		tau = telescope.tau * cryostat.Tr_win,
 		qe = detector.qe,
 		gain = detector.gain,
-		magnitudeSystem = sky.magnitude_system
+		magnitude_system = sky.magnitude_system
 	)
 
 	""" Total sky background """
@@ -154,8 +156,8 @@ def exposureTimeCalc(band, t_exp, optical_system,
 		# Input parameters
 		't_exp' : t_exp,
 		'band' : band,
-		'surfaceBrightness' : surfaceBrightness,
-		'magnitudeSystem' : magnitudeSystem,
+		'surface_brightness' : surface_brightness,
+		'magnitude_system' : magnitude_system,
 		# Noise standard deviations PER PIXEL
 		# Poisson distribution, so the nosie scales as the square root of the total number of photons
 		'sigma_source' : np.sqrt(N_source),
@@ -178,6 +180,7 @@ def exposureTimeCalc(band, t_exp, optical_system,
 		# SNR
 		'SNR' : SNR
 	}
+	print(json.dumps(etc_output, indent=4, sort_keys=True))
 
 	return etc_output
 
