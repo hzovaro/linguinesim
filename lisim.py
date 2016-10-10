@@ -74,11 +74,10 @@ def luckyImage(im, psf, tt, noise_frame, scale_factor, t_exp):
 	im = obssim.convolvePSF(im, psf)
 	# print("Sum of pixels after convolution:\t{:.2f}".format(sum(im.flatten())))
 	# Resize to detector (+ edge buffer).
-	im = obssim.resizeImageToDetector(image_raw = im, source_plate_scale_as = 1, dest_plate_scale_as = scale_factor)
+	im = obssim.resizeImageToDetector(image_raw = im, source_plate_scale_as = 1, dest_plate_scale_as = scale_factor, conserve_pixel_sum=True)
 	# print("Sum of pixels after downsizing:\t{:.2f}".format(sum(im.flatten())))
 	# Rescaling the pixel values to take into account our downsampling
 	# print("Pixel scaling factor:\t{:.2f}".format(scale_factor**2))
-	im *= scale_factor**2
 	# Add tip and tilt. To avoid edge effects, max(tt) should be less than or equal to the edge buffer.
 	edge_buffer_px = (im.shape[0] - noise_frame.shape[0]) / 2
 	if edge_buffer_px > 0 and max(tt) > edge_buffer_px:
@@ -166,6 +165,7 @@ def luckyImaging(images, li_method, mode,
 	N = None,
 	subPixelShift = True,	# for xcorr method
 	buff = 25, 			# for xcorr method
+	stacking_method = 'median combine',
 	timeIt = True
 	):
 	""" 
@@ -250,10 +250,22 @@ def luckyImaging(images, li_method, mode,
 		sorted_idx = np.argsort(peak_pixel_vals)[::-1]	# Array holding indices of images
 		N = np.ceil(fsr * N)
 		# Is averaging the best way to do this? Probably not...
-		image_stacked = (image_ref + np.sum(images_shifted[sorted_idx[:N]], 0)) / (N + 1)
+		if stacking_method == 'median combine':
+			arr = np.ndarray((1, image_ref.shape[0], image_ref.shape[1]))
+			arr[0,:] = image_ref
+			image_ref = arr
+			image_stacked = obssim.medianCombine(np.concatenate((image_ref, images_shifted[sorted_idx[:N]])))
+		elif stacking_method == 'average':
+			image_stacked = (image_ref + np.sum(images_shifted[sorted_idx[:N]], 0)) / (N + 1)
 	else:
 		# Now, stacking the images. Need to change N if FSR < 1.
-		image_stacked = (image_ref + np.sum(images_shifted, 0)) / (N + 1)	
+		if stacking_method == 'median combine':			
+			arr = np.ndarray((1, image_ref.shape[0], image_ref.shape[1]))
+			arr[0,:] = image_ref
+			image_ref = arr
+			image_stacked = obssim.medianCombine(np.concatenate((image_ref, images_shifted)))
+		elif stacking_method == 'average':
+			image_stacked = (image_ref + np.sum(images_shifted, 0)) / (N + 1)	
 
 	return image_stacked, rel_shift_idxs
 
