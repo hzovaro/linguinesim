@@ -318,8 +318,11 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_a
 ####################################################################################################
 def resizeImageToDetector(image_raw, source_plate_scale_as, dest_plate_scale_as,
 	dest_detector_size_px=None,
+	conserve_pixel_sum=False,
 	plotIt=False):
 	" Resize the images stored in array images_raw with a given plate scale to a detector with given dimensions and plate scale. "
+	if not conserve_pixel_sum:
+		print("WARNING: I am not rescaling pixel values in this call to resizeImageToDetector() - is this OK?")
 
 	# 1. Get the original size and shape of the input images.
 	source_height_px, source_width_px = image_raw.shape
@@ -363,6 +366,9 @@ def resizeImageToDetector(image_raw, source_plate_scale_as, dest_plate_scale_as,
 
 	# Padding the resized images if necessary.
 	image = np.pad(image, ((pad_height_top, pad_height_bottom), (pad_width_left, pad_width_right)), mode='constant')
+
+	if conserve_pixel_sum:
+		image *= (dest_plate_scale_as / source_plate_scale_as)**2
 
 	if plotIt:
 		mu.newfigure(1,2)
