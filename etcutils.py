@@ -74,12 +74,12 @@ def thermalEmissionIntensity(
 	return I
 
 ####################################################################################################
-def surfaceBrightness2countRate(mu, A_tel, 
+def surface_brightness2countRate(mu, A_tel, 
 	plate_scale_as_px = 1,
 	tau = 1,
 	qe = 1,
 	gain = 1,
-	magnitudeSystem = None,
+	magnitude_system = None,
 	wavelength_m = None, 
 	bandwidth_m = None, 
 	band = None
@@ -90,7 +90,7 @@ def surfaceBrightness2countRate(mu, A_tel,
 		If mu is given in magnitudes, then the plate scale is irrelevant to the calculation.
 	"""
 	if (band == None and (wavelength_m == None or bandwidth_m == None)) or (band != None and (wavelength_m != None or bandwidth_m != None)):
-		print('ERROR: you must specify either a band (J, H or K) OR a wavelength_m and bandwidth!')
+		raise UserWarning('ERROR: you must specify either a band (J, H or K) OR a wavelength_m and bandwidth!')
 		return
 
 	if band != None:
@@ -98,23 +98,23 @@ def surfaceBrightness2countRate(mu, A_tel,
 		bandwidth_m = FILTER_BANDS_M[band][1]
 
 	# Getting the magnitude zero points.
-	if magnitudeSystem == 'AB':
+	if magnitude_system == 'AB':
 		zeropoint = AB_MAGNITUDE_ZEROPOINT
-	elif magnitudeSystem == 'VEGA':
+	elif magnitude_system == 'VEGA':
 		if band != None:
 			zeropoint = VEGA_MAGNITUDE_ZEROPOINT[band]
 		else:
-			print('ERROR: if Vega magnitudes are specified you must also specify the band!')
+			raise UserWarning('ERROR: if Vega magnitudes are specified you must also specify the band!')
 	else:
 		zeropoint = 0
 
-	F = surfaceBrightness2flux(mu=mu, wavelength_m=wavelength_m, zeropoint=zeropoint)
-	Sigma_electrons = flux2countRate(F=F, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain, magnitudeSystem=magnitudeSystem, wavelength_m=wavelength_m,bandwidth_m=bandwidth_m, band=band)                                                             
+	F = surface_brightness2flux(mu=mu, wavelength_m=wavelength_m, zeropoint=zeropoint)
+	Sigma_electrons = flux2countRate(F=F, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain, magnitude_system=magnitude_system, wavelength_m=wavelength_m,bandwidth_m=bandwidth_m, band=band)                                                             
 	return Sigma_electrons
 
 ####################################################################################################
 # This routine is independent of telescope, detector geometry.
-def surfaceBrightness2flux(mu, 
+def surface_brightness2flux(mu, 
 	wavelength_m = None,
 	zeropoint = AB_MAGNITUDE_ZEROPOINT	# Default: mu is given in AB magnitudes
 	):
@@ -157,7 +157,7 @@ def Fnucgs2flux(F_nu_cgs,
 ####################################################################################################
 def flux2photonRate(F, wavelength_m, bandwidth_m):
 	"""
-		Convert a given flux from a source (in a dictionary format output by surfaceBrightness2flux) into photons/s/m^2/arcsec^2 (or in photons/s/m^2 depending on the units of F) given a central wavelength_m and bandwidth of a filter.
+		Convert a given flux from a source (in a dictionary format output by surface_brightness2flux) into photons/s/m^2/arcsec^2 (or in photons/s/m^2 depending on the units of F) given a central wavelength_m and bandwidth of a filter.
 	"""
 	E_photon = scipy.constants.h * scipy.constants.c / wavelength_m			# J
 	Sigma_photons = F['F_lambda_si'] * bandwidth_m / E_photon	# W/m^2/arcsec^2/m * m/J = photons/s/m^2/arcsec^2
@@ -179,12 +179,13 @@ def photonRate2countRate(Sigma_photons, A_tel,
 	return Sigma_electrons
 
 ####################################################################################################
-def flux2countRate(F, A_tel, 
+def flux2countRate(F, 
+	A_tel = 1, 
 	plate_scale_as_px = 1, 
 	tau = 1,
 	qe = 1,
 	gain = 1,
-	magnitudeSystem = None,
+	magnitude_system = None,
 	wavelength_m = None, 
 	bandwidth_m = None, 
 	band = None

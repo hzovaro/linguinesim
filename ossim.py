@@ -192,10 +192,11 @@ def saphiraCryostat():
 def ssoSky():
 	return Sky(
 			magnitude_system = 'AB',
+			# Source: GMTIFS On-line Exposure Time Calculator (ETC) and GMTIFSsim input data, rev 1.1
 			brightness = {
-				'J' : 15,
-				'H' : 13.7,
-				'K' : 12.5
+				'J' : 16.61,
+				'H' : 15.49,
+				'K' : 14.45	# 15.35/14.45 for winter/summer
 			},
 			T = 273,
 			eps = etc.getSkyEps()

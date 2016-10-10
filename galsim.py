@@ -167,7 +167,7 @@ def sersic(n, R_e, R, mu_e,
 		with Sersic index n given half-light radius R_e and mu(R=R_e) = mu_e.
 	"""
 	# Calculating the constraining parameter.
-	F_e = etcutils.surfaceBrightness2flux(mu = mu_e, zeropoint=zeropoint, wavelength_m=wavelength_m)
+	F_e = etcutils.surface_brightness2flux(mu = mu_e, zeropoint=zeropoint, wavelength_m=wavelength_m)
 
 	# Calculating b_n given the Sersic index n.
 	if n > 0.5 and n < 8:

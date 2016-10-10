@@ -51,7 +51,7 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 	tau = 1,
 	qe = 1,
 	gain = 1,
-	magnitudeSystem = None,
+	magnitude_system = None,
 	wavelength_m = None, 
 	bandwidth_m = None, 
 	band = None, 	
@@ -94,7 +94,7 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 	starfield = np.zeros(detector_size_px)
 	for k in range(N_stars):
 		# Total expected e/s from the star from the whole aperture (NOT per pixel)
-		Sigma_electrons = etcutils.surfaceBrightness2countRate(mu = m[k], A_tel = A_tel, tau = tau, qe = qe, gain = gain, magnitudeSystem = magnitudeSystem, wavelength_m = wavelength_m, bandwidth_m = bandwidth_m)
+		Sigma_electrons = etcutils.surface_brightness2countRate(mu = m[k], A_tel = A_tel, tau = tau, qe = qe, gain = gain, magnitude_system = magnitude_system, wavelength_m = wavelength_m, bandwidth_m = bandwidth_m)
 
 		# Adding the star's contribution to the image.
 		star, I, P_0, P_sum, I_0 = obssim.airyDisc(wavelength_m = wavelength_m, f_ratio = f_ratio, l_px_m = l_px_m, detector_size_px = detector_size_px, coords = coords[:,k], P_0 = Sigma_electrons)

@@ -42,15 +42,6 @@ import astropy.io.fits
 # linguine modules 
 from linguineglobals import *
 
-# Image processing library
-import PIL
-from PIL import Image
-try:
-	from PIL.Image import LANCZOS as RESAMPLE_FILTER
-except:
-	from PIL.Image import BILINEAR as RESAMPLE_FILTER
-
-
 """
 	Handy notes for FITS files:
 		- to see the header information: print(repr(hdulist[0].header))
@@ -69,9 +60,9 @@ def imageFromFitsFile(fname,
 	images_raw, N, height, width = getImageSize(images_raw)
 	if plotIt:
 		for k in range(N):
-			plt.figure()
 			plt.imshow(images_raw[k])
-			plt.title('Raw image %d from FITS file' % k + 1)
+			plt.title('Raw image %d from FITS file' % (k + 1))
+			plt.pause(0.1)
 		plt.show()
 
 	return np.squeeze(images_raw), hdulist
@@ -90,6 +81,14 @@ def rotateAndCrop(image_in_array,
 	cropArg = None, 
 	plotIt=False):
 	" Rotate and crop an array of N images stored in ndarray image_in_array counterclockwise by a given angle and then crop the image using coordinates (left, upper, right, lower) "
+	# Image processing library
+	import PIL
+	from PIL import Image
+	try:
+		from PIL.Image import LANCZOS as RESAMPLE_FILTER
+	except:
+		from PIL.Image import BILINEAR as RESAMPLE_FILTER
+
 	image_in_array = image_in_array.astype(np.float64)
 	image_in_array, N, height, width = getImageSize(image_in_array)
 	# Crop options:
