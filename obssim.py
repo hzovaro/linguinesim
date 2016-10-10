@@ -367,6 +367,7 @@ def resizeImageToDetector(image_raw, source_plate_scale_as, dest_plate_scale_as,
 	# Padding the resized images if necessary.
 	image = np.pad(image, ((pad_height_top, pad_height_bottom), (pad_width_left, pad_width_right)), mode='constant')
 
+	# If the input array represents an image on a detector, then we must maintain the sum of the pixel values when we downsample.
 	if conserve_pixel_sum:
 		image *= (dest_plate_scale_as / source_plate_scale_as)**2
 
