@@ -71,9 +71,14 @@ def luckyImage(im, psf, tt, noise_frame, scale_factor, t_exp):
 			Process: convolve with PSF --> resize to detector --> add tip and tilt (from a premade vector of tip/tilt values) --> convert to counts --> add noise --> subtract the master sky/dark current. 
 	"""
 	# Convolve with PSF.
-	im = obssim.convolvePSF(im, psf)	
+	im = obssim.convolvePSF(im, psf)
+	# print("Sum of pixels after convolution:\t{:.2f}".format(sum(im.flatten())))
 	# Resize to detector (+ edge buffer).
 	im = obssim.resizeImageToDetector(image_raw = im, source_plate_scale_as = 1, dest_plate_scale_as = scale_factor)
+	# print("Sum of pixels after downsizing:\t{:.2f}".format(sum(im.flatten())))
+	# Rescaling the pixel values to take into account our downsampling
+	# print("Pixel scaling factor:\t{:.2f}".format(scale_factor**2))
+	im *= scale_factor**2
 	# Add tip and tilt. To avoid edge effects, max(tt) should be less than or equal to the edge buffer.
 	edge_buffer_px = (im.shape[0] - noise_frame.shape[0]) / 2
 	if edge_buffer_px > 0 and max(tt) > edge_buffer_px:
