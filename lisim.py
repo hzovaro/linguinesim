@@ -63,36 +63,61 @@ import fftwconvolve, obssim, etcutils, imutils
 
 
 ####################################################################################################
-def luckyImage(im, psf, tt, noise_frame, scale_factor, t_exp):
+def luckyImage(im, psf, tt, noise_frame, scale_factor, t_exp,
+	plate_scale_as_px_conv = 1,	# Only used for plotting.
+	plate_scale_as_px = 1,		# Only used for plotting.
+	plotIt=False):
 	""" 
 		This function can be used to generate a short-exposure 'lucky' image that can be input to the Lucky Imaging algorithms.
 			Input: 	one 'raw' countrate image of a galaxy; one PSF with which to convolve it (at the same plate scale)
 			Output: a 'Lucky' exposure. 			
 			Process: convolve with PSF --> resize to detector --> add tip and tilt (from a premade vector of tip/tilt values) --> convert to counts --> add noise --> subtract the master sky/dark current. 
-	"""
+	"""	
 	# Convolve with PSF.
-	im = obssim.convolvePSF(im, psf)
-	# print("Sum of pixels after convolution:\t{:.2f}".format(sum(im.flatten())))
+	im_raw = im
+	im_convolved = obssim.convolvePSF(im_raw, psf)
 	# Resize to detector (+ edge buffer).
-	im = obssim.resizeImageToDetector(image_raw = im, source_plate_scale_as = 1, dest_plate_scale_as = scale_factor, conserve_pixel_sum=True)
-	# print("Sum of pixels after downsizing:\t{:.2f}".format(sum(im.flatten())))
-	# Rescaling the pixel values to take into account our downsampling
-	# print("Pixel scaling factor:\t{:.2f}".format(scale_factor**2))
+	im_resized = obssim.resizeImageToDetector(image_raw = im_convolved, source_plate_scale_as = 1, dest_plate_scale_as = scale_factor, conserve_pixel_sum=True)
 	# Add tip and tilt. To avoid edge effects, max(tt) should be less than or equal to the edge buffer.
 	edge_buffer_px = (im.shape[0] - noise_frame.shape[0]) / 2
 	if edge_buffer_px > 0 and max(tt) > edge_buffer_px:
 		print("WARNING: the edge buffer is less than the supplied tip and tilt by a margin of {:.2f} pixels! Shifted image will be clipped.".format(np.abs(edge_buffer_px - max(tt))))
-	im = obssim.addTipTilt_single(image = im, tt_idxs = tt)[0]	
+	im_tt = obssim.addTipTilt_single(image = im_resized, tt_idxs = tt)[0]	
 	# Crop back down.
 	if edge_buffer_px > 0:
-		im = imutils.centreCrop(im, noise_frame.shape)	
+		im_tt = imutils.centreCrop(im_tt, noise_frame.shape)	
 	# Convert to counts.
-	im = etcutils.expectedCount2count(im, t_exp = t_exp)
+	im_counts = etcutils.expectedCount2count(im_tt, t_exp = t_exp)
 	# Add noise. 
-	im += noise_frame
-	# Subtract the master sky/dark current. 
-	# im = im.astype(np.float64) - master_frame
-	return im
+	im_noisy = im_counts + noise_frame
+
+	if plotIt:
+		# Plotting
+		mu.newfigure(1,4)
+		plt.suptitle('Convolving input image with PSF and resizing to detector')
+		mu.astroimshow(im=im_raw, title='Raw input image (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=141)
+		mu.astroimshow(im=psf, title='Point spread function (normalised)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=142)
+		mu.astroimshow(im=im_convolved, title='Convolved with PSF (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=143)
+		mu.astroimshow(im=im_resized, title='Resized to detector plate scale (electrons/s)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=144)
+
+		mu.newfigure(1,4)
+		plt.suptitle('Adding tip and tilt, converting to integer counts and adding noise')		
+		mu.astroimshow(im=im_tt, title='Atmospheric tip and tilt added (electrons/s)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=141)
+		mu.astroimshow(im=im_counts, title=r'Cropped, converted to integer counts (electrons)', colorbar_on=True, subplot=142)
+		mu.astroimshow(im=im_noisy, title='Noise added (electrons)', colorbar_on=True, subplot=143)
+		plt.subplot(1,4,4)
+		x = np.linspace(-im_tt.shape[0]/2, +im_tt.shape[0]/2, im_tt.shape[0])
+		plt.plot(x, im_tt[:, im_tt.shape[1]/2], 'g', label='Electron count rate')
+		plt.plot(x, im_counts[:, im_tt.shape[1]/2], 'b', label='Converted to integer counts ($t_{exp} = %.2f$ s)' % t_exp)
+		plt.plot(x, im_noisy[:, im_tt.shape[1]/2], 'r', label='Noise added')
+		plt.xlabel('arcsec')
+		plt.ylabel('Pixel value (electrons)')
+		plt.title('Linear profiles')
+		plt.axis('tight')
+		plt.legend()
+		plt.show()
+
+	return im_noisy
 
 ####################################################################################################
 def shift_pp(image, img_ref_peak_idx, fsr, bid_area):
