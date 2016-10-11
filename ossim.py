@@ -42,23 +42,23 @@ import etc
 ############################################################################################
 def aoiOpticalSystem():
 
-	os = OpticalSystem(
+	opticalsystem = OpticalSystem(
 		telescope = eos18mTelescope(),
 		detector = nuvuDetector(),
 		sky = msoSky()
 		)
 	# Manually setting the plate scale
-	os.plate_scale_as_px = 0.044
-	os.plate_scale_rad_px = np.deg2rad(os.plate_scale_as_px * 3600)
-	os.FoV_height_as = os.detector.height_px * os.plate_scale_as_px
-	os.FoV_width_as = os.detector.width_px * os.plate_scale_as_px
-	os.FoV_height_rad = os.detector.height_px * os.plate_scale_rad_px
-	os.FoV_width_rad = os.detector.width_px * os.plate_scale_rad_px
-	os.omega_px_as2 = os.plate_scale_as_px**2
-	os.omega_px_sr = os.plate_scale_rad_px**2
-	os.etendue = os.omega_px_sr * os.telescope.A_collecting_m2
+	opticalsystem.plate_scale_as_px = 0.044
+	opticalsystem.plate_scale_rad_px = np.deg2rad(opticalsystem.plate_scale_as_px * 3600)
+	opticalsystem.FoV_height_as = opticalsystem.detector.height_px * opticalsystem.plate_scale_as_px
+	opticalsystem.FoV_width_as = opticalsystem.detector.width_px * opticalsystem.plate_scale_as_px
+	opticalsystem.FoV_height_rad = opticalsystem.detector.height_px * opticalsystem.plate_scale_rad_px
+	opticalsystem.FoV_width_rad = opticalsystem.detector.width_px * opticalsystem.plate_scale_rad_px
+	opticalsystem.omega_px_as2 = opticalsystem.plate_scale_as_px**2
+	opticalsystem.omega_px_sr = opticalsystem.plate_scale_rad_px**2
+	opticalsystem.etendue = opticalsystem.omega_px_sr * opticalsystem.telescope.A_collecting_m2
 
-	return os
+	return opticalsystem
 
 ############################################################################################
 def eos18mTelescope():
