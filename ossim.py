@@ -82,17 +82,18 @@ def eos18mTelescope():
 ############################################################################################
 def nuvuDetector():
 	return Detector(
-		height_px = 256,				# height (pixels)
-		width_px = 256,					# width (pixels)
+		height_px = 512,				# height (pixels)
+		width_px = 512,					# width (pixels)
 		l_px_m = 16e-6,					# pixel width (m)
 		wavelength_cutoff = 1.1e-6,		# cutoff wavelength (m)
 		RN = 0.1,						# ? sqrt(e/pixel) rms
-		gain = 1,						# ? avalanche gain
+		gain = 1000,					# ? EM gain
 		cic = 0.001,					# clock-induced charge (e/pixel/frame)
 		dark_current = 0.0002,			# ? e/second/pixel; worst-case
 		saturation = 2**16 - 1,			# ? detector saturation limit
 		adu_gain = 1/2.9,				# electrons per ADU at readout
-		qe = 0.9						# quantum efficiency
+		qe = 0.9,						# quantum efficiency
+		fps = 60						# framerate
 		)
 
 ############################################################################################
@@ -150,8 +151,8 @@ def anu23mTelescope():
 	# For the spider, we pretend that it's a mirror. 
 	tel.addSpider(
 		A_spider_m2 = 4 * 0.012 * (tel.mirrors[0].R_outer_m - tel.mirrors[1].R_outer_m),	# Total area of spider (m^2)
-		# eps_spider = 1.0
-		eps_spider = AL_EMISSIVITY
+		eps_spider = 1.0
+		# eps_spider = AL_EMISSIVITY
 		)
 
 	return tel
