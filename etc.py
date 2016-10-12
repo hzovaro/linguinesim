@@ -53,6 +53,7 @@ import etcutils
 def exposureTimeCalc(band, t_exp, optical_system,
 		surface_brightness = None,
 		magnitude_system = None,
+		printIt = True
 	):
 	"""
 		An exposure time calculator. 
@@ -180,7 +181,24 @@ def exposureTimeCalc(band, t_exp, optical_system,
 		# SNR
 		'SNR' : SNR
 	}
-	print(json.dumps(etc_output, indent=4, sort_keys=True))
+
+	if printIt:
+		print(json.dumps(etc_output, indent=4, sort_keys=True))
+		mu.println()
+		if band == "K":
+			print("WARNING: Imaging in {:}-band: sky background includes modelled thermal emission contributions from sky and telescope".format(band))
+		else:
+			print("WARNING: Imaging in {:}-band: sky background taken from empirical sky brightness measurements".format(band))
+		print("Origin\t\tExpected count per pixel in frame, t_exp = {:.2f} s".format(t_exp))
+		mu.println()
+		print("Source\t\t{:10.10g}".format(N_source))
+		print("Dark current\t{:10.10g}".format(N_dark))
+		print("Cryostat\t{:10.10g}".format(N_cryo))
+		print("Sky\t\t{:10.10g}".format(N_sky))
+		print("Read noise\t{:10.10g}".format(N_RN))
+		mu.println()
+		print("SNR\t\t{:10.10g}".format(SNR))
+		mu.println()
 
 	return etc_output
 
@@ -295,7 +313,7 @@ def getTelescopeTE(optical_system,
 		# Mirrors
 		# Assumptions:
 		#	1. The area we use for the etendue is the collecting (i.e. reflective) area of the telescope, not the total area.
-		#	2. For now we are ignoring the baffle on M2 (until we can talk to Rob about it...)
+		#	2. For now we are ignoring the baffle on M2.
 		#	3. We are not assuming the worst case for the spider (i.e. it is still substantially reflective). But you should see how substantial of a difference it makes. Always lean towards the worst-case. 
 		I_mirrors = 0
 		for mirror in telescope.mirrors:
