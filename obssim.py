@@ -629,7 +629,9 @@ def noiseFramesFromEtc(N, height_px, width_px,
 		'dark' : np.zeros((N, height_px, width_px), dtype=int),
 		'cryo' : np.zeros((N, height_px, width_px), dtype=int),
 		'RN' : np.zeros((N, height_px, width_px), dtype=int),
-		'total' : np.zeros((N, height_px, width_px), dtype=int)
+		'total' : np.zeros((N, height_px, width_px), dtype=int),
+		'pre-gain' : np.zeros((N, height_px, width_px), dtype=int),
+		'post-gain' : np.zeros((N, height_px, width_px), dtype=int)
 	}
 
 	# Getting noise parameters from the ETC.
@@ -656,6 +658,8 @@ def noiseFramesFromEtc(N, height_px, width_px,
 		noise_frames_dict['cryo'][k] = noiseFrame(height_px, width_px, etc_output['N_cryo'])
 		noise_frames_dict['RN'][k] = noiseFrame(height_px, width_px, etc_output['N_RN'])
 		noise_frames_dict['total'][k] = noise_frames_dict['sky'][k] + noise_frames_dict['cryo'][k] + noise_frames_dict['RN'][k] + noise_frames_dict['dark'][k]
+		noise_frames_dict['pre-gain'][k] = noise_frames_dict['sky'][k] + noise_frames_dict['cryo'][k] + noise_frames_dict['dark'][k]
+		noise_frames_dict['post-gain'][k] = noise_frames_dict['RN'][k]
 
 	return noise_frames_dict, etc_output
 
