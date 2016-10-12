@@ -45,7 +45,8 @@ class Detector(object):
 		gain=1,
 		saturation=np.inf,
 		adu_gain=1,
-		qe=1):
+		qe=1,
+		fps=1):
 
 		# Detector geometry.
 		self.height_px = height_px
@@ -61,6 +62,7 @@ class Detector(object):
 		self.saturation = saturation
 		self.RN = RN
 		self.cic = cic
+		self.fps = fps
 
 		# Optical properties.
 		self.wavelength_cutoff = wavelength_cutoff
