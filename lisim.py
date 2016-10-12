@@ -63,9 +63,13 @@ import fftwconvolve, obssim, etcutils, imutils
 
 
 ####################################################################################################
-def luckyImage(im, psf, tt, noise_frame, scale_factor, t_exp,
-	plate_scale_as_px_conv = 1,	# Only used for plotting.
-	plate_scale_as_px = 1,		# Only used for plotting.
+def luckyImage(im, psf, scale_factor, t_exp, final_sz,
+	tt = np.array([0, 0]),					
+	noise_frame_pre_gain = 0,		# Noise added before gain multiplication, e.g. sky background, emission from telescope, etc. Must have shape final_sz.
+	noise_frame_post_gain = 0,		# Noise added after gain multiplication, e.g. read noise. Must have shape final_sz.
+	gain = 1,						# Detector gain.
+	plate_scale_as_px_conv = 1,		# Only used for plotting.
+	plate_scale_as_px = 1,			# Only used for plotting.
 	plotIt=False):
 	""" 
 		This function can be used to generate a short-exposure 'lucky' image that can be input to the Lucky Imaging algorithms.
@@ -79,17 +83,21 @@ def luckyImage(im, psf, tt, noise_frame, scale_factor, t_exp,
 	# Resize to detector (+ edge buffer).
 	im_resized = obssim.resizeImageToDetector(image_raw = im_convolved, source_plate_scale_as = 1, dest_plate_scale_as = scale_factor, conserve_pixel_sum=True)
 	# Add tip and tilt. To avoid edge effects, max(tt) should be less than or equal to the edge buffer.
-	edge_buffer_px = (im.shape[0] - noise_frame.shape[0]) / 2
+	edge_buffer_px = (im.shape[0] - final_sz[0]) / 2
 	if edge_buffer_px > 0 and max(tt) > edge_buffer_px:
 		print("WARNING: the edge buffer is less than the supplied tip and tilt by a margin of {:.2f} pixels! Shifted image will be clipped.".format(np.abs(edge_buffer_px - max(tt))))
 	im_tt = obssim.addTipTilt_single(image = im_resized, tt_idxs = tt)[0]	
 	# Crop back down.
 	if edge_buffer_px > 0:
-		im_tt = imutils.centreCrop(im_tt, noise_frame.shape)	
+		im_tt = imutils.centreCrop(im_tt, final_sz)	
 	# Convert to counts.
 	im_counts = etcutils.expectedCount2count(im_tt, t_exp = t_exp)
-	# Add noise. 
-	im_noisy = im_counts + noise_frame
+	# Add the pre-gain noise. 
+	im_noisy_pre_gain = im_counts + noise_frame_pre_gain
+	# Multiply by the detector gain.
+	im_noisy = im_noisy_pre_gain * gain 
+	# Add the post-gain noise.
+	im_noisy += noise_frame_post_gain
 
 	if plotIt:
 		# Plotting
@@ -103,10 +111,10 @@ def luckyImage(im, psf, tt, noise_frame, scale_factor, t_exp,
 		mu.newfigure(1,4)
 		plt.suptitle('Adding tip and tilt, converting to integer counts and adding noise')		
 		mu.astroimshow(im=im_tt, title='Atmospheric tip and tilt added (electrons/s)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=141)
-		mu.astroimshow(im=im_counts, title=r'Cropped, converted to integer counts (electrons)', colorbar_on=True, subplot=142)
-		mu.astroimshow(im=im_noisy, title='Noise added (electrons)', colorbar_on=True, subplot=143)
+		mu.astroimshow(im=im_counts, title=r'Cropped, converted to integer counts (electrons)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=142)
+		mu.astroimshow(im=im_noisy, title='Noise added (electrons)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=143)
 		plt.subplot(1,4,4)
-		x = np.linspace(-im_tt.shape[0]/2, +im_tt.shape[0]/2, im_tt.shape[0])
+		x = np.linspace(-im_tt.shape[0]/2, +im_tt.shape[0]/2, im_tt.shape[0]) * plate_scale_as_px
 		plt.plot(x, im_tt[:, im_tt.shape[1]/2], 'g', label='Electron count rate')
 		plt.plot(x, im_counts[:, im_tt.shape[1]/2], 'b', label='Converted to integer counts ($t_{exp} = %.2f$ s)' % t_exp)
 		plt.plot(x, im_noisy[:, im_tt.shape[1]/2], 'r', label='Noise added')
@@ -144,6 +152,10 @@ def shift_centroid(image, img_ref_peak_idx):
 	if type(image) == list:
 		image = np.array(image)
 
+	# # Thresholding the image
+	# image_subtracted_bg = np.copy(image)
+	# image_subtracted_bg[image<1.5*np.mean(image.flatten())] = 0
+
 	img_peak_idx = _centroid(image)
 
 	# Shift the image by the relative amount.
@@ -157,11 +169,15 @@ def shift_xcorr(image, image_ref, buff, subPixelShift):
 	if type(image) == list:
 		image = np.array(image)
 
+	# Subtracting the mean of each image
+	image_subtracted_bg = image - np.mean(image.flatten())
+	image_ref_subtracted_bg = image_ref - np.mean(image_ref.flatten())
+
 	height, width = image.shape
 	if fftwconvolve.NTHREADS==0:
-		corr = scipy.signal.fftconvolve(image_ref, image[::-1,::-1], 'same')
+		corr = scipy.signal.fftconvolve(image_ref_subtracted_bg, image_subtracted_bg[::-1,::-1], 'same')
 	else:
-		corr = fftwconvolve.fftconvolve(image_ref, image[::-1,::-1], 'same')
+		corr = fftwconvolve.fftconvolve(image_ref_subtracted_bg, image_subtracted_bg[::-1,::-1], 'same')
 	corr /= max(corr.flatten())	# The fitting here does not work if the pixels have large values!
 	
 	if subPixelShift: 
@@ -183,6 +199,24 @@ def shift_xcorr(image, image_ref, buff, subPixelShift):
 	return image_shifted, tuple(-x for x in rel_shift_idx)
 
 ####################################################################################################
+def shift_gaussfit(image, img_ref_peak_idx):
+	if type(image) == list:
+		image = np.array(image)
+
+	# Subtracting the mean of the input image
+	image_subtracted_bg = image - np.mean(image.flatten())
+
+	peak_idx = _gaussfit_peak(image_subtracted_bg)	
+	rel_shift_idx = -(peak_idx - img_ref_peak_idx)
+
+	# What do we need to subtract from these indices?
+	# pdb.set_trace()
+
+	image_shifted = scipy.ndimage.interpolation.shift(image, rel_shift_idx)	
+
+	return image_shifted, tuple(-x for x in rel_shift_idx)
+
+####################################################################################################
 def luckyImaging(images, li_method, mode,
 	image_ref = None,	# reference image
 	fsr = 1,			# for peak pixel method
@@ -190,7 +224,7 @@ def luckyImaging(images, li_method, mode,
 	N = None,
 	subPixelShift = True,	# for xcorr method
 	buff = 25, 			# for xcorr method
-	stacking_method = 'median combine',
+	stacking_method = 'average',
 	timeIt = True
 	):
 	""" 
@@ -206,6 +240,10 @@ def luckyImaging(images, li_method, mode,
 	if li_method == 'xcorr':
 		shift_fun = partial(shift_xcorr, image_ref=image_ref, buff=buff, subPixelShift=subPixelShift)
 	
+	elif li_method == 'gaussfit':
+		img_ref_peak_idx = _gaussfit_peak(image_ref - np.mean(image_ref.flatten()))
+		shift_fun = partial(shift_gaussfit, img_ref_peak_idx=img_ref_peak_idx)
+
 	elif li_method == 'peak_pixel':
 		# Determining the reference coordinates.
 		if bid_area:			
@@ -382,3 +420,21 @@ def _centroid(image):
 	centroid = np.asarray([M_01 / M_00, M_10 / M_00])
 
 	return centroid
+
+####################################################################################################
+def _gaussfit_peak(image):
+	""" Returns the coordinates of the peak of a 2D Gaussian fitted to the image. """
+	height, width = image.shape
+
+	# Fitting a Gaussian.
+	Y, X = np.mgrid[-(height)/2:(height)/2, -(width)/2:(width)/2]
+	try:		
+		p_init = astropy.modeling.models.Gaussian2D(x_stddev=1.,y_stddev=1.)
+	except:
+		p_init = astropy.modeling.models.Gaussian2D(x_mean=1.,y_mean=1.,x_stddev=1.,y_stddev=1.,amplitue=1.)
+	fit_p = astropy.modeling.fitting.LevMarLSQFitter()
+	p_fit = fit_p(p_init, X, Y, image)		
+	
+	peak_idx = np.array([p_fit.y_mean.value, p_fit.x_mean.value])	# NOTE: the indices have to be swapped around here for some reason!		
+
+	return peak_idx
