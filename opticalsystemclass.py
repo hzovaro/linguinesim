@@ -28,6 +28,7 @@
 #
 #########################################################################################################
 from __future__ import division, print_function
+import numpy as np
 
 #########################################################################################################
 class OpticalSystem(object):
@@ -49,6 +50,8 @@ class OpticalSystem(object):
 		self.FoV_width_as = self.detector.width_px * self.plate_scale_as_px
 		self.FoV_height_rad = self.detector.height_px * self.plate_scale_rad_px
 		self.FoV_width_rad = self.detector.width_px * self.plate_scale_rad_px
+		self.FoV_diag_as = np.sqrt(self.FoV_height_as**2 + self.FoV_width_as**2)
+		self.FoV_diag_rad = np.sqrt(self.FoV_height_rad**2 + self.FoV_width_rad**2)
 
 		# Pixel FoV
 		self.omega_px_as2 = self.plate_scale_as_px**2
