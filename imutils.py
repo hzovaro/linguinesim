@@ -53,6 +53,8 @@ def imageFromFitsFile(fname,
 	plotIt=False,
 	idx=0):
 	" Return an array of the image(s) stored in the FITS file fname. "
+	if not fname.lower().endswith('fits'):
+		fname += '.fits'
 	hdulist = astropy.io.fits.open(fname)
 	images_raw = hdulist[idx].data
 	hdulist.close()
