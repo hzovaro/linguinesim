@@ -206,11 +206,9 @@ def shift_gaussfit(image, img_ref_peak_idx):
 	# Subtracting the mean of the input image
 	image_subtracted_bg = image - np.mean(image.flatten())
 
+	# Fitting a Gaussian to the mean-subtracted image.
 	peak_idx = _gaussfit_peak(image_subtracted_bg)	
 	rel_shift_idx = -(peak_idx - img_ref_peak_idx)
-
-	# What do we need to subtract from these indices?
-	# pdb.set_trace()
 
 	image_shifted = scipy.ndimage.interpolation.shift(image, rel_shift_idx)	
 
@@ -238,12 +236,10 @@ def luckyImaging(images, li_method, mode,
 	# For each of these functions, the output must be of the form 
 	#	image_shifted, rel_shift_idxs	
 	if li_method == 'xcorr':
-		shift_fun = partial(shift_xcorr, image_ref=image_ref, buff=buff, subPixelShift=subPixelShift)
-	
+		shift_fun = partial(shift_xcorr, image_ref=image_ref, buff=buff, subPixelShift=subPixelShift)	
 	elif li_method == 'gaussfit':
 		img_ref_peak_idx = _gaussfit_peak(image_ref - np.mean(image_ref.flatten()))
 		shift_fun = partial(shift_gaussfit, img_ref_peak_idx=img_ref_peak_idx)
-
 	elif li_method == 'peak_pixel':
 		# Determining the reference coordinates.
 		if bid_area:			
@@ -251,15 +247,12 @@ def luckyImaging(images, li_method, mode,
 		else:
 			sub_image_ref = image_ref
 		img_ref_peak_idx = np.asarray(np.unravel_index(np.argmax(sub_image_ref), sub_image_ref.shape)) 
-
-		shift_fun = partial(shift_pp, img_ref_peak_idx=img_ref_peak_idx, bid_area=bid_area, fsr=fsr)
-	
+		shift_fun = partial(shift_pp, img_ref_peak_idx=img_ref_peak_idx, bid_area=bid_area, fsr=fsr)	
 	elif li_method == 'centroid':
 		img_ref_peak_idx = _centroid(image_ref)
-		shift_fun = partial(shift_centroid, img_ref_peak_idx=img_ref_peak_idx)
-	
+		shift_fun = partial(shift_centroid, img_ref_peak_idx=img_ref_peak_idx)	
 	else:
-		print("ERROR: invalid Lucky Imaging method specified; must be 'xcorr', 'peak_pixel' or 'centroid' for now...")
+		print("ERROR: invalid Lucky Imaging method specified; must be 'xcorr', 'peak_pixel', 'centroid' or 'gaussfit' for now...")
 		raise UserWarning
 
 	# In here, want to parallelise the processing for *each image*. So make shift functions that work on a single image and return the shifted image, then stack it out here.
@@ -333,35 +326,52 @@ def luckyImaging(images, li_method, mode,
 	return image_stacked, rel_shift_idxs
 
 ####################################################################################################
-def alignmentError(in_idxs, out_idxs,
-	verbose=False):
+def alignmentError(in_idxs, out_idxs, opticalsystem,
+	li_method='',
+	plotHist=True,
+	verbose=True):
 	"""
 		Compute the alignment errors arising in the Lucky Imaging shifting-and-stacking process given an input array of tip and tilt coordinates applied to the input images and the coordinates of the shifts applied in the shifting-and-stacking process.
-
-		The total number of errors, the mean error and an array containing each alignment error is returned.i 
 	"""
 	N = in_idxs.shape[0]
-	errs = np.zeros((N))
-	n_errs = 0
-	thresh = 0.1	# Threshold for misalignment
+	errs_as = np.zeros((N))
+	x_errs_as = np.zeros((N))
+	y_errs_as = np.zeros((N))
 		
 	for k in range(N):
-		errs[k] = np.sqrt(np.power(in_idxs[k,0] - out_idxs[k,0],2) + np.power(in_idxs[k,1] - out_idxs[k,1],2))
-		if errs[k] > thresh:
-			n_errs += 1
-	avg_err = np.mean(errs)
+		x_errs_as[k] = (in_idxs[k,0] - out_idxs[k,0]) * opticalsystem.plate_scale_as_px
+		y_errs_as[k] = (in_idxs[k,1] - out_idxs[k,1]) * opticalsystem.plate_scale_as_px
+		errs_as[k] = np.sqrt(x_errs_as[k]**2 + y_errs_as[k]**2)
+	errs_px = errs_as / opticalsystem.plate_scale_as_px
 			
+	# Print the alignment errors to screen.
 	if verbose:
 		print('------------------------------------------------')
-		print('Tip/tilt coordinates\nInput\t\tOutput\t\tError')
+		print('Tip/tilt coordinates\nInput\t\tOutput\t\tError\tError (arcsec)')
 		print('------------------------------------------------')
 		for k in range(N):
-			print('(%6.2f,%6.2f)\t(%6.2f,%6.2f)\t%4.2f' % (in_idxs[k,0],in_idxs[k,1],out_idxs[k,0],out_idxs[k,1],errs[k]))
+			print('(%6.2f,%6.2f)\t(%6.2f,%6.2f)\t%4.2f\t%4.2f' % (in_idxs[k,0],in_idxs[k,1],out_idxs[k,0],out_idxs[k,1],errs_px[k],errs_as[k]))
 		print('------------------------------------------------')
-		print('\t\t\tMean\t%4.2f' % avg_err)
+		print('\t\t\tMean\t%4.2f' % np.mean(errs_as))
 
+	# Plot a histogram showing the distribution of the alignment errors, and fit a Gaussian to them.
+	if plotHist:
+		mu.newfigure(1.5,1)
+		plt.suptitle('{} Lucky Imaging shifting-and-stacking alignment errors'.format(li_method))
+		plt.subplot(311)
+		plt.hist(x_errs_as, bins=50, range=(-opticalsystem.FoV_height_as/2,+opticalsystem.FoV_height_as/2))
+		plt.title(r'$x$ alignment error')
+		plt.xlabel('arcsec')
+		plt.subplot(312)
+		plt.hist(y_errs_as, bins=50, range=(-opticalsystem.FoV_width_as/2,+opticalsystem.FoV_width_as/2))
+		plt.title(r'$y$ alignment error')
+		plt.xlabel('arcsec')
+		plt.subplot(313)
+		plt.hist(errs_as, bins=50, range=(-opticalsystem.FoV_diag_as/2,+opticalsystem.FoV_diag_as/2))
+		plt.title(r'Total alignment error')
+		plt.xlabel('arcsec')
 	
-	return n_errs, errs, avg_err
+	return errs_px, errs_as
 
 ####################################################################################################
 def _li_error_check(images, 
