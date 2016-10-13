@@ -49,7 +49,7 @@ def aoiOpticalSystem():
 		)
 	# Manually setting the plate scale
 	opticalsystem.plate_scale_as_px = 0.044
-	opticalsystem.plate_scale_rad_px = np.deg2rad(opticalsystem.plate_scale_as_px * 3600)
+	opticalsystem.plate_scale_rad_px = np.deg2rad(opticalsystem.plate_scale_as_px / 3600)
 	opticalsystem.FoV_height_as = opticalsystem.detector.height_px * opticalsystem.plate_scale_as_px
 	opticalsystem.FoV_width_as = opticalsystem.detector.width_px * opticalsystem.plate_scale_as_px
 	opticalsystem.FoV_height_rad = opticalsystem.detector.height_px * opticalsystem.plate_scale_rad_px
