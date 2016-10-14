@@ -34,6 +34,7 @@ import numpy as np
 class OpticalSystem(object):
 
 	def __init__(self, telescope, detector, sky,
+		plate_scale_as_px=None,
 		cryostat=None
 		):
 		self.telescope = telescope
@@ -42,14 +43,20 @@ class OpticalSystem(object):
 		self.sky = sky
 
 		# Plate scales
-		self.plate_scale_as_px = self.detector.l_px_m * telescope.plate_scale_as_m
-		self.plate_scale_rad_px = self.detector.l_px_m * telescope.plate_scale_rad_m
+		if not plate_scale_as_px:
+			self.plate_scale_as_px = self.detector.l_px_m * telescope.plate_scale_as_m
+			self.plate_scale_rad_px = self.detector.l_px_m * telescope.plate_scale_rad_m
+		else:
+			self.plate_scale_as_px = plate_scale_as_px
+			self.plate_scale_rad_px = np.deg2rad(self.plate_scale_as_px / 3600)
 		
 		# Detector field of view (FoV)
 		self.FoV_height_as = self.detector.height_px * self.plate_scale_as_px
 		self.FoV_width_as = self.detector.width_px * self.plate_scale_as_px
+		
 		self.FoV_height_rad = self.detector.height_px * self.plate_scale_rad_px
 		self.FoV_width_rad = self.detector.width_px * self.plate_scale_rad_px
+		
 		self.FoV_diag_as = np.sqrt(self.FoV_height_as**2 + self.FoV_width_as**2)
 		self.FoV_diag_rad = np.sqrt(self.FoV_height_rad**2 + self.FoV_width_rad**2)
 
