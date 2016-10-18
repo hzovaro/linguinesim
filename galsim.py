@@ -75,7 +75,7 @@ def simulateSersicGalaxy(im_out_fname, # Output FITS file name
 		# Calling GALFIT.
 		callGALFIT(galfit_input_fname)
 	else:
-		print("WARNING: I found a GALFIT FITS file '{}' with the same name as the input filename, so I am using it instead!".format(galfit_input_fname))
+		print("WARNING: I found a GALFIT .fits file '{}' with the same name as the input filename, so I am using that instead of calling GALFIT again!".format(im_out_fname))
 
 	# Editing the header to include the input parameters.
 	hdulist = astropy.io.fits.open(im_out_fname, mode='update')
