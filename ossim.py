@@ -240,14 +240,14 @@ def saphiraDetector():
 
 		TODO: make a detector using this function, compare all of its parameters to that made in the sysparams class (to be removed)
 	"""
-	print("TODO: fix gain. Avalanche gain currently set to 1.")
+	# print("TODO: fix gain. Avalanche gain currently set to 1.")
 	return Detector(
 		height_px = 256,				# height (pixels)
 		width_px = 320,					# width (pixels)
 		l_px_m = 24e-6,					# pixel width (m)
 		wavelength_cutoff = 2.5e-6,		# cutoff wavelength (m)
 		RN = 9,							# ? sqrt(e/pixel) rms
-		gain = 1,						# ? avalanche gain
+		gain = 50,						# ? avalanche gain
 		dark_current = 0.03,			# ? MULTIPLY BY GAIN!! e/second/pixel; worst-case
 		saturation = 2**16 - 1,			# ? detector saturation limit
 		adu_gain = 1/2.9,				# electrons per ADU at readout
