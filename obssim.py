@@ -252,9 +252,11 @@ def fieldStar(band,
 	# Padding the star with zeros if it's too small.
 	if star_dl_conv.shape != final_sz:
 		# Then pad with zeros.
-		pad_height = int(np.round((final_sz[0] - star_dl_conv.shape[0]) / 2))
-		pad_width = int(np.round((final_sz[1] - star_dl_conv.shape[1]) / 2))
+		pad_height = max(0, int(np.round((final_sz[0] - star_dl_conv.shape[0]) / 2)))
+		pad_width = max(0, int(np.round((final_sz[1] - star_dl_conv.shape[1]) / 2)))
 		star_dl_conv = np.pad(star_dl_conv, ((pad_height, pad_height), (pad_width, pad_width)), mode='constant')
+		if star_dl_conv.shape[0] < final_sz[0] or star_dl_conv.shape[1] < final_sz[1]:
+			star_dl_conv = imutils.centreCrop(star_dl_conv, final_sz)
 
 	# Shifting the centre of the PSF to the specified coordinates.
 	coords_px = coords_as / plate_scale_as_px_conv
@@ -282,22 +284,6 @@ def fieldStar(band,
 
 
 	return star_tt_cropped
-
-	# # Resizing to the detector.
-	# star_tt = resizeImageToDetector(image_raw = star_tt_conv, 
-	# 	source_plate_scale_as = plate_scale_as_px_conv, 
-	# 	dest_plate_scale_as = opticalsystem.plate_scale_as_px,
-	# 	dest_detector_size_px = final_sz,
-	# 	conserve_pixel_sum = False,
-	# 	plotIt=False)
-
-	# # Normalising.
-	# star_tt /= sum(star_tt.flatten())
-
-	
-
-	
-	# return star_tt
 
 ####################################################################################################
 def psfKernel(wavelength_m, 
