@@ -78,68 +78,71 @@ def imageToArray(im):
 	return image_map
 
 ####################################################################################################
-def rotateAndCrop(image_in_array, 
-	angle = None, 
-	cropArg = None, 
-	plotIt=False):
-	" Rotate and crop an array of N images stored in ndarray image_in_array counterclockwise by a given angle and then crop the image using coordinates (left, upper, right, lower) "
-	# Image processing library
-	import PIL
-	from PIL import Image
-	try:
-		from PIL.Image import LANCZOS as RESAMPLE_FILTER
-	except:
-		from PIL.Image import BILINEAR as RESAMPLE_FILTER
+# def rotateAndCrop(image_in_array, 
+# 	angle = None, 
+# 	cropArg = None, 
+# 	plotIt=False):
+# 	" Rotate and crop an array of N images stored in ndarray image_in_array counterclockwise by a given angle and then crop the image using coordinates (left, upper, right, lower) "
+# 	# Image processing library
+# 	import PIL
+# 	from PIL import Image
+# 	try:
+# 		from PIL.Image import LANCZOS as RESAMPLE_FILTER
+# 	except:
+# 		from PIL.Image import BILINEAR as RESAMPLE_FILTER
 
-	image_in_array = image_in_array.astype(np.float64)
-	image_in_array, N, height, width = getImageSize(image_in_array)
-	# Crop options:
-	#	1. One number given: crop by the same amount on all sides
-	if cropArg != None:
-		#	2. Two numbers given: crop by the same width and height either side.
-		if type(cropArg) == tuple and len(cropArg) == 2:
-			cropIdx = (cropArg[1], cropArg[0], width - cropArg[1], height - cropArg[0])
-		#	3. Four numbers given: crop input is given as the (left, top, right, bottom) indices.
-		elif type(cropArg) == tuple and len(cropArg) == 4:
-			cropIdx = cropArg
-		# if type(cropArg) == int:
-		else:
-			cropIdx = (cropArg, cropArg, width - cropArg, height - cropArg)
+# 	image_in_array = image_in_array.astype(np.float64)
+# 	image_in_array, N, height, width = getImageSize(image_in_array)
+# 	# Crop options:
+# 	#	1. One number given: crop by the same amount on all sides
+# 	if cropArg != None:
+# 		#	2. Two numbers given: crop by the same width and height either side.
+# 		if type(cropArg) == tuple and len(cropArg) == 2:
+# 			cropIdx = (cropArg[1], cropArg[0], width - cropArg[1], height - cropArg[0])
+# 		#	3. Four numbers given: crop input is given as the (left, top, right, bottom) indices.
+# 		elif type(cropArg) == tuple and len(cropArg) == 4:
+# 			cropIdx = cropArg
+# 		# if type(cropArg) == int:
+# 		else:
+# 			cropIdx = (cropArg, cropArg, width - cropArg, height - cropArg)
 
-	# Convert to an Image object.
-	for k in range(N):
-		image = Image.fromarray(image_in_array[k])
-		# Rotate.
-		if angle != None:
-			image = image.rotate(angle)
-		# Crop.
-		if cropArg != None:
-			image = image.crop(cropIdx)
+# 	# Convert to an Image object.
+# 	for k in range(N):
+# 		image = Image.fromarray(image_in_array[k])
+# 		# Rotate.
+# 		if angle != None:
+# 			image = image.rotate(angle)
+# 		# Crop.
+# 		if cropArg != None:
+# 			image = image.crop(cropIdx)
 		
-		image = imageToArray(image)
-		if k == 0:
-			image_out_array = np.ndarray((N, image.shape[0], image.shape[1]))
-		# Convert back to an array.
-		image_out_array[k] = image
+# 		image = imageToArray(image)
+# 		if k == 0:
+# 			image_out_array = np.ndarray((N, image.shape[0], image.shape[1]))
+# 		# Convert back to an array.
+# 		image_out_array[k] = image
 
-	if plotIt:
-		plt.figure()
-		plt.subplot(1,2,1)
-		plt.imshow(image_in_array[0])
-		plt.title('Input image')
-		plt.subplot(1,2,2)
-		plt.imshow(image_out_array[0])
-		plt.title('Output image')
-		plt.suptitle('Rotating and cropping image')
-		plt.show()
+# 	if plotIt:
+# 		plt.figure()
+# 		plt.subplot(1,2,1)
+# 		plt.imshow(image_in_array[0])
+# 		plt.title('Input image')
+# 		plt.subplot(1,2,2)
+# 		plt.imshow(image_out_array[0])
+# 		plt.title('Output image')
+# 		plt.suptitle('Rotating and cropping image')
+# 		plt.show()
 
-	return np.squeeze(image_out_array)
+# 	return np.squeeze(image_out_array)
 
 ############################################################################################
-def centreCrop(im, sz_final):
+def centreCrop(im, sz_final,
+	centre_coords_rel = [0,0]):
 	"""
-		Crop an array by equal amounts on each side. A simpler (and faster) alternative to rotateAndCrop().
+		Crop an array by equal amounts on each side. A simpler (and faster) alternative to rotateAndCrop() if only cropping is required. 
 	"""
+	im = getImageSize(im)[0]
+
 	if matplotlib.cbook.is_numlike(sz_final):
 		sz_height = sz_final
 		sz_width = sz_final
@@ -147,19 +150,16 @@ def centreCrop(im, sz_final):
 		sz_height = sz_final[0]
 		sz_width = sz_final[1]
 
-	crop_height = max((im.shape[0] - sz_height) // 2, 0)
-	crop_width = max((im.shape[1] - sz_width) // 2, 0)
+	crop_height = max((im.shape[1] - sz_height) // 2, 0)
+	crop_width = max((im.shape[2] - sz_width) // 2, 0)
 	
-	# im_cropped = im[
-	# 	crop_height : crop_height + min(im.shape[0], sz_height + (im.shape[0] - sz_height) % 2), 
-	# 	crop_width  : crop_width + min(im.shape[1], sz_width + (im.shape[1] - sz_width) % 2)
-	# 	]
 	im_cropped = im[
-		crop_height : crop_height + min(im.shape[0], sz_height), 
-		crop_width  : crop_width + min(im.shape[1], sz_width)
+		:,
+		crop_height + centre_coords_rel[0] : crop_height + min(im.shape[1], sz_height) + centre_coords_rel[0], 
+		crop_width  + centre_coords_rel[1] : crop_width + min(im.shape[2], sz_width) + centre_coords_rel[1] 
 		]
 
-	return im_cropped
+	return np.squeeze(im_cropped)
 
 #########################################################################################################
 def getImageSize(image_in_array):
