@@ -46,6 +46,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
 from matplotlib import rc
 from matplotlib.cbook import is_numlike
+from matplotlib.mlab import normpdf
 rc('image', interpolation='none', cmap = 'binary_r')
 
 import scipy.signal
@@ -178,7 +179,7 @@ def shift_centroid(image, img_ref_peak_idx):
 def shift_xcorr(image, image_ref, buff, subPixelShift):
 	if type(image) == list:
 		image = np.array(image)
-
+	
 	# Subtracting the mean of each image
 	image_subtracted_bg = image - np.mean(image.flatten())
 	image_ref_subtracted_bg = image_ref - np.mean(image_ref.flatten())
@@ -193,17 +194,27 @@ def shift_xcorr(image, image_ref, buff, subPixelShift):
 	if subPixelShift: 
 		# Fitting a Gaussian.
 		Y, X = np.mgrid[-(height-2*buff)/2:(height-2*buff)/2, -(width-2*buff)/2:(width-2*buff)/2]
+		x_peak, y_peak = np.unravel_index(np.argmax(corr), corr.shape)
 		try:		
-			p_init = astropy.modeling.models.Gaussian2D(x_stddev=1.,y_stddev=1.)
-		except:
-			p_init = astropy.modeling.models.Gaussian2D(x_mean=1.,y_mean=1.,x_stddev=1.,y_stddev=1.,amplitue=1.)
+			p_init = astropy.modeling.models.Gaussian2D(x_mean=X[x_peak,y_peak],y_mean=Y[x_peak,y_peak],x_stddev=5.,y_stddev=5.,amplitude=np.max(corr.flatten()))
+		except:			
+			p_init = astropy.modeling.models.Gaussian2D(x_mean=x_peak,y_mean=y_peak,x_stddev=1.,y_stddev=1.,amplitude=1.)
 		fit_p = astropy.modeling.fitting.LevMarLSQFitter()
-		p_fit = fit_p(p_init, X, Y, corr[buff:height-buff, buff:width-buff])		
+		p_fit = fit_p(p_init, X, Y, corr[buff:height-buff, buff:width-buff])
 		rel_shift_idx = (p_fit.y_mean.value, p_fit.x_mean.value)	# NOTE: the indices have to be swapped around here for some reason!		
 	else:
 		rel_shift_idx = np.unravel_index(np.argmax(corr), corr.shape)
 		rel_shift_idx = (rel_shift_idx[0] - height/2, rel_shift_idx[1] - width/2)
 	
+	# mu.newfigure(1,5)
+	# mu.astroimshow(im=image, title='Input image', subplot=151)
+	# mu.astroimshow(im=image_ref, title='Reference image', subplot=152)
+	# mu.astroimshow(im=corr, title='Cross-correlation', subplot=153)
+	# mu.astroimshow(im=p_init(X,Y), title='p_init', subplot=154)
+	# mu.astroimshow(im=p_fit(X,Y), title='p_fit', subplot=155)
+	# plt.show()
+	# pdb.set_trace()
+
 	image_shifted = scipy.ndimage.interpolation.shift(image, rel_shift_idx)	
 
 	return image_shifted, tuple(-x for x in rel_shift_idx)
@@ -245,12 +256,13 @@ def luckyImaging(images, li_method, mode,
 	
 	# For each of these functions, the output must be of the form 
 	#	image_shifted, rel_shift_idxs	
-	if li_method == 'xcorr':
+	li_method = li_method.lower()
+	if li_method == 'cross-correlation':
 		shift_fun = partial(shift_xcorr, image_ref=image_ref, buff=buff, subPixelShift=subPixelShift)	
-	elif li_method == 'gaussfit':
+	elif li_method == 'gaussian fit':
 		img_ref_peak_idx = _gaussfit_peak(image_ref - np.mean(image_ref.flatten()))
 		shift_fun = partial(shift_gaussfit, img_ref_peak_idx=img_ref_peak_idx)
-	elif li_method == 'peak_pixel':
+	elif li_method == 'peak pixel':
 		# Determining the reference coordinates.
 		if bid_area:			
 			sub_image_ref = imutils.rotateAndCrop(image_in_array = image_ref, cropArg = bid_area)
@@ -262,7 +274,7 @@ def luckyImaging(images, li_method, mode,
 		img_ref_peak_idx = _centroid(image_ref)
 		shift_fun = partial(shift_centroid, img_ref_peak_idx=img_ref_peak_idx)	
 	else:
-		print("ERROR: invalid Lucky Imaging method specified; must be 'xcorr', 'peak_pixel', 'centroid' or 'gaussfit' for now...")
+		print("ERROR: invalid Lucky Imaging method '{}' specified; must be 'cross-correlation', 'peak pixel', 'centroid' or 'Gaussian fit' for now...".format(li_method))
 		raise UserWarning
 
 	# In here, want to parallelise the processing for *each image*. So make shift functions that work on a single image and return the shifted image, then stack it out here.
@@ -286,7 +298,7 @@ def luckyImaging(images, li_method, mode,
 		# Extracting the output arguments.
 		images_shifted = np.array(zip(*results)[0]) 
 		rel_shift_idxs = np.array(zip(*results)[1])
-		if li_method == 'peak_pixel' and fsr < 1:
+		if li_method == 'peak pixel' and fsr < 1:
 			peak_pixel_vals = np.array(zip(*results)[2])
 
 	elif mode == 'serial':
@@ -294,7 +306,7 @@ def luckyImaging(images, li_method, mode,
 		images_shifted = np.zeros( (N, image_ref.shape[0], image_ref.shape[1]) )	
 		rel_shift_idxs = np.zeros( (N, 2) )
 		for k in range(N):
-			if li_method == 'peak_pixel':
+			if li_method == 'peak pixel':
 				if k == 0:
 					peak_pixel_vals = np.zeros(N)
 				images_shifted[k], rel_shift_idxs[k], peak_pixel_vals[k] = shift_fun(image=images[k])
@@ -312,7 +324,7 @@ def luckyImaging(images, li_method, mode,
 	#	1. Get our method to return a list of peak pixel values.
 	#	2. Sort that list in descending order and get the indices of the corresponding images in the range [0, FSR * N)
 	#	3. Add these images together. 
-	if li_method == 'peak_pixel' and fsr < 1:
+	if li_method == 'peak pixel' and fsr < 1:
 		sorted_idx = np.argsort(peak_pixel_vals)[::-1]	# Array holding indices of images
 		N = np.ceil(fsr * N)
 		# Is averaging the best way to do this? Probably not...
@@ -344,14 +356,12 @@ def alignmentError(in_idxs, out_idxs, opticalsystem,
 		Compute the alignment errors arising in the Lucky Imaging shifting-and-stacking process given an input array of tip and tilt coordinates applied to the input images and the coordinates of the shifts applied in the shifting-and-stacking process.
 	"""
 	N = in_idxs.shape[0]
-	errs_as = np.zeros((N))
-	x_errs_as = np.zeros((N))
-	y_errs_as = np.zeros((N))
+	errs_as = np.zeros( (N, 3) )
 		
 	for k in range(N):
-		x_errs_as[k] = (in_idxs[k,0] - out_idxs[k,0]) * opticalsystem.plate_scale_as_px
-		y_errs_as[k] = (in_idxs[k,1] - out_idxs[k,1]) * opticalsystem.plate_scale_as_px
-		errs_as[k] = np.sqrt(x_errs_as[k]**2 + y_errs_as[k]**2)
+		errs_as[k, 0] = (in_idxs[k,0] - out_idxs[k,0]) * opticalsystem.plate_scale_as_px
+		errs_as[k, 1] = (in_idxs[k,1] - out_idxs[k,1]) * opticalsystem.plate_scale_as_px
+		errs_as[k, 2] = np.sqrt(errs_as[k, 0]**2 + errs_as[k, 1]**2)
 	errs_px = errs_as / opticalsystem.plate_scale_as_px
 			
 	# Print the alignment errors to screen.
@@ -360,29 +370,44 @@ def alignmentError(in_idxs, out_idxs, opticalsystem,
 		print('Tip/tilt coordinates\nInput\t\tOutput\t\tError\tError (arcsec)')
 		print('------------------------------------------------')
 		for k in range(N):
-			print('(%6.2f,%6.2f)\t(%6.2f,%6.2f)\t%4.2f\t%4.2f' % (in_idxs[k,0],in_idxs[k,1],out_idxs[k,0],out_idxs[k,1],errs_px[k],errs_as[k]))
+			print('(%6.2f,%6.2f)\t(%6.2f,%6.2f)\t%4.2f\t%4.2f' % (in_idxs[k,0],in_idxs[k,1],out_idxs[k,0],out_idxs[k,1],errs_px[k,2],errs_as[k,2]))
 		print('------------------------------------------------')
 		print('\t\t\tMean\t%4.2f' % np.mean(errs_as))
 
-	# Plot a histogram showing the distribution of the alignment errors, and fit a Gaussian to them.
 	if plotHist:
-		delta_as = 0.2
-		mu.newfigure(1.5,1)
-		plt.suptitle('{} Lucky Imaging shifting-and-stacking alignment errors'.format(li_method))
-		plt.subplot(311)
-		plt.hist(x_errs_as, bins=int(np.round(opticalsystem.FoV_height_as/delta_as)), range=(-opticalsystem.FoV_height_as/2,+opticalsystem.FoV_height_as/2))
-		plt.title(r'$x$ alignment error')
-		plt.xlabel('arcsec')
-		plt.subplot(312)
-		plt.hist(y_errs_as, bins=int(np.round(opticalsystem.FoV_width_as/delta_as)), range=(-opticalsystem.FoV_width_as/2,+opticalsystem.FoV_width_as/2))
-		plt.title(r'$y$ alignment error')
-		plt.xlabel('arcsec')
-		plt.subplot(313)
-		plt.hist(errs_as, bins=int(np.round(opticalsystem.FoV_diag_as/delta_as)), range=(-opticalsystem.FoV_diag_as/2,+opticalsystem.FoV_diag_as/2))
-		plt.title(r'Total alignment error')
-		plt.xlabel('arcsec')
+		plotErrorHistogram(errs_as)
 	
-	return errs_px, errs_as
+	return errs_as
+
+####################################################################################################
+def plotErrorHistogram(errs_as)
+	x_errs_as = errs_as[:,0]
+	y_errs_as = errs_as[:,1]
+	# Plot a pretty shistogram showing the distribution of the alignment errors, and fit a Gaussian to them.
+	range_as = 2 * max(max(np.abs(y_errs_as)), max(np.abs(x_errs_as)))
+	nbins = int(N / 10)
+	mu.newfigure(1.5,1)
+	plt.suptitle('{} Lucky Imaging shifting-and-stacking alignment errors'.format(li_method))
+
+	plt.subplot(211)
+	plt.hist(x_errs_as, bins=nbins, range=(-range_as/2,+range_as/2), normed=True)
+	mean_x = np.mean(x_errs_as)
+	sigma_x = np.sqrt(np.var(x_errs_as))
+	x = np.linspace(-range_as/2, range_as/2, 100)
+	plt.plot(x, normpdf(x,mean_x,sigma_x), 'r', label=r'$\sigma_x$ = %.4f"' % (sigma_x))
+	plt.title(r'$x$ alignment error')
+	plt.xlabel('arcsec')
+	plt.legend()
+
+	plt.subplot(212)
+	plt.hist(y_errs_as, bins=nbins, range=(-range_as/2,+range_as/2), normed=True)
+	mean_y = np.mean(y_errs_as)
+	sigma_y = np.sqrt(np.var(y_errs_as))
+	y = np.linspace(-range_as/2, range_as/2, 100)
+	plt.plot(y, normpdf(y,mean_y,sigma_y), 'r', label=r'$\sigma_y$ = %.4f"' % (sigma_y))
+	plt.title(r'$y$ alignment error')
+	plt.xlabel('arcsec')
+	plt.legend()	
 
 ####################################################################################################
 def _li_error_check(images, 
