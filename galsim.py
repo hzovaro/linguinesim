@@ -36,6 +36,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
 from matplotlib import rc
 rc('image', interpolation='none', cmap = 'binary_r')
+import os
 
 # linguine modules 
 from linguineglobals import *
@@ -58,23 +59,30 @@ def simulateSersicGalaxy(im_out_fname, # Output FITS file name
 	PA_deg = 0,	# Rotation angle
 	object_type = 'sersic2',
 	galfit_input_fname = "galfit_input.txt",
-	plotIt = False
+	plotIt = False,
+	overwriteExisting = False
 	):
 	"""
 		Return a simulated image of a galaxy (made using GALFIT) given the inputs.
 	"""
+	
+	if not im_out_fname.endswith('.fits'):
+		im_out_fname += '.fits'
 
 	# Writing the parameters file.
-	galfit_input_fname, im_out_fname = writeGALFITparamsFile(galfit_input_fname, im_out_fname, height_px, width_px, mu_e, R_e_px, n, plate_scale_as_px, axis_ratio, zeropoint, pos_px, PA_deg, object_type)
-
-	# Calling GALFIT.
-	callGALFIT(galfit_input_fname)
+	if not os.path.isfile(im_out_fname) or overwriteExisting:		
+		galfit_input_fname, im_out_fname = writeGALFITparamsFile(galfit_input_fname, im_out_fname, height_px, width_px, mu_e, R_e_px, n, plate_scale_as_px, axis_ratio, zeropoint, pos_px, PA_deg, object_type)
+		# Calling GALFIT.
+		callGALFIT(galfit_input_fname)
+	else:
+		print("WARNING: I found a GALFIT FITS file '{}' with the same name as the input filename, so I am using it instead!".format(galfit_input_fname))
 
 	# Editing the header to include the input parameters.
 	hdulist = astropy.io.fits.open(im_out_fname, mode='update')
-	hdulist[0].header['R_E_PX'] = R_e_px
-	hdulist[0].header['MU_E'] = mu_e
-	hdulist[0].header['SER_IDX'] = n
+	if overwriteExisting:
+		hdulist[0].header['R_E_PX'] = R_e_px
+		hdulist[0].header['MU_E'] = mu_e
+		hdulist[0].header['SER_IDX'] = n
 	im_raw = hdulist[0].data
 	hdulist.flush()
 	hdulist.close()
