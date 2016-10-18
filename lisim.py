@@ -45,6 +45,7 @@ import pdb
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
 from matplotlib import rc
+from matplotlib.cbook import is_numlike
 rc('image', interpolation='none', cmap = 'binary_r')
 
 import scipy.signal
@@ -64,7 +65,8 @@ import fftwconvolve, obssim, etcutils, imutils
 
 ####################################################################################################
 def luckyImage(im, psf, scale_factor, t_exp, final_sz,
-	tt = np.array([0, 0]),					
+	tt = np.array([0, 0]),
+	im_star = None,					# Image of a star at the pre-downsizing plate scale to add to the image.					
 	noise_frame_pre_gain = 0,		# Noise added before gain multiplication, e.g. sky background, emission from telescope, etc. Must have shape final_sz.
 	noise_frame_post_gain = 0,		# Noise added after gain multiplication, e.g. read noise. Must have shape final_sz.
 	gain = 1,						# Detector gain.
@@ -80,14 +82,22 @@ def luckyImage(im, psf, scale_factor, t_exp, final_sz,
 	# Convolve with PSF.
 	im_raw = im
 	im_convolved = obssim.convolvePSF(im_raw, psf)
+		
+	# Add a star to the field. We need to add the star at the convolution plate scale BEFORE we resize down because of the tip-tilt adding step!
+	if is_numlike(im_star):
+		if im_star.shape != im_convolved.shape:
+			print("ERROR: the input image of the star MUST have the same size and plate scale as the image of the galaxy after convolution!")
+			raise UserWarning
+		im_convolved += im_star
+
 	# Resize to detector (+ edge buffer).
-	im_resized = obssim.resizeImageToDetector(image_raw = im_convolved, source_plate_scale_as = 1, dest_plate_scale_as = scale_factor, conserve_pixel_sum=True)
+	im_resized = obssim.resizeImageToDetector(image_raw = im_convolved, source_plate_scale_as = 1, dest_plate_scale_as = scale_factor, conserve_pixel_sum=True)	
 	# Add tip and tilt. To avoid edge effects, max(tt) should be less than or equal to the edge buffer.
 	edge_buffer_px = (im.shape[0] - final_sz[0]) / 2
 	if edge_buffer_px > 0 and max(tt) > edge_buffer_px:
 		print("WARNING: the edge buffer is less than the supplied tip and tilt by a margin of {:.2f} pixels! Shifted image will be clipped.".format(np.abs(edge_buffer_px - max(tt))))
 	im_tt = obssim.addTipTilt_single(image = im_resized, tt_idxs = tt)[0]	
-	# Crop back down.
+	# Crop back down to the detector size.
 	if edge_buffer_px > 0:
 		im_tt = imutils.centreCrop(im_tt, final_sz)	
 	# Convert to counts.
@@ -263,7 +273,7 @@ def luckyImaging(images, li_method, mode,
 		images = images.tolist()	# Need to convert the image array to a list.
 
 		# Executing in parallel.
-		if NTHREADS == 0:
+		if fftwconvolve.NTHREADS == 0:
 			# We are safe to use threads if NTHREADS==0 since we don't use pyfftw in this case.
 			pool = ThreadPool()
 		else:
@@ -356,18 +366,19 @@ def alignmentError(in_idxs, out_idxs, opticalsystem,
 
 	# Plot a histogram showing the distribution of the alignment errors, and fit a Gaussian to them.
 	if plotHist:
+		delta_as = 0.2
 		mu.newfigure(1.5,1)
 		plt.suptitle('{} Lucky Imaging shifting-and-stacking alignment errors'.format(li_method))
 		plt.subplot(311)
-		plt.hist(x_errs_as, bins=50, range=(-opticalsystem.FoV_height_as/2,+opticalsystem.FoV_height_as/2))
+		plt.hist(x_errs_as, bins=int(np.round(opticalsystem.FoV_height_as/delta_as)), range=(-opticalsystem.FoV_height_as/2,+opticalsystem.FoV_height_as/2))
 		plt.title(r'$x$ alignment error')
 		plt.xlabel('arcsec')
 		plt.subplot(312)
-		plt.hist(y_errs_as, bins=50, range=(-opticalsystem.FoV_width_as/2,+opticalsystem.FoV_width_as/2))
+		plt.hist(y_errs_as, bins=int(np.round(opticalsystem.FoV_width_as/delta_as)), range=(-opticalsystem.FoV_width_as/2,+opticalsystem.FoV_width_as/2))
 		plt.title(r'$y$ alignment error')
 		plt.xlabel('arcsec')
 		plt.subplot(313)
-		plt.hist(errs_as, bins=50, range=(-opticalsystem.FoV_diag_as/2,+opticalsystem.FoV_diag_as/2))
+		plt.hist(errs_as, bins=int(np.round(opticalsystem.FoV_diag_as/delta_as)), range=(-opticalsystem.FoV_diag_as/2,+opticalsystem.FoV_diag_as/2))
 		plt.title(r'Total alignment error')
 		plt.xlabel('arcsec')
 	
