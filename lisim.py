@@ -51,6 +51,7 @@ rc('image', interpolation='none', cmap = 'binary_r')
 
 import scipy.signal
 import scipy.ndimage.interpolation
+from scipy.ndimage import center_of_mass
 import astropy.modeling
 
 # Multithreading/processing packages
@@ -65,11 +66,16 @@ import fftwconvolve, obssim, etcutils, imutils
 
 
 ####################################################################################################
-def luckyImage(im, psf, scale_factor, t_exp, final_sz,
+def luckyImage(
+	im, 							# In electron counts/s.
+	psf, 							# Normalised.
+	scale_factor, 					
+	t_exp, 
+	final_sz,
 	tt = np.array([0, 0]),
-	im_star = None,					# Image of a star at the pre-downsizing plate scale to add to the image.					
-	noise_frame_pre_gain = 0,		# Noise added before gain multiplication, e.g. sky background, emission from telescope, etc. Must have shape final_sz.
-	noise_frame_post_gain = 0,		# Noise added after gain multiplication, e.g. read noise. Must have shape final_sz.
+	im_star = None,					# In electron counts/s.					
+	noise_frame_gain_multiplied = 0,		# Noise injected into the system that is multiplied up by the detector gain after conversion to counts via a Poisson distribution, e.g. sky background, emission from telescope, etc. Must have shape final_sz. It is assumed that this noise frame has already been multiplied up by the detector gain!
+	noise_frame_post_gain = 0,		# Noise injected into the system after gain multiplication, e.g. read noise. Must have shape final_sz.
 	gain = 1,						# Detector gain.
 	plate_scale_as_px_conv = 1,		# Only used for plotting.
 	plate_scale_as_px = 1,			# Only used for plotting.
@@ -101,13 +107,11 @@ def luckyImage(im, psf, scale_factor, t_exp, final_sz,
 	# Crop back down to the detector size.
 	if edge_buffer_px > 0:
 		im_tt = imutils.centreCrop(im_tt, final_sz)	
-	# Convert to counts.
-	im_counts = etcutils.expectedCount2count(im_tt, t_exp = t_exp)
-	# Add the pre-gain noise. 
-	im_noisy_pre_gain = im_counts + noise_frame_pre_gain
-	# Multiply by the detector gain.
-	im_noisy = im_noisy_pre_gain * gain 
-	# Add the post-gain noise.
+	# Convert to counts. Note that we apply the gain AFTER we convert to integer counts.
+	im_counts = etcutils.expectedCount2count(im_tt, t_exp = t_exp) * gain
+	# Add the pre-gain noise. Here, we assume that the noise frame has already been multiplied by the gain before being passed into this function.
+	im_noisy = im_counts + noise_frame_gain_multiplied
+	# Add the post-gain noise (i.e. read noise)
 	im_noisy += noise_frame_post_gain
 
 	if plotIt:
@@ -122,7 +126,7 @@ def luckyImage(im, psf, scale_factor, t_exp, final_sz,
 		mu.newfigure(1,4)
 		plt.suptitle('Adding tip and tilt, converting to integer counts and adding noise')		
 		mu.astroimshow(im=im_tt, title='Atmospheric tip and tilt added (electrons/s)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=141)
-		mu.astroimshow(im=im_counts, title=r'Cropped, converted to integer counts (electrons)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=142)
+		mu.astroimshow(im=im_counts, title=r'Cropped, converted to integer counts and gain-multiplied by %d (electrons)' % gain, plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=142)
 		mu.astroimshow(im=im_noisy, title='Noise added (electrons)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=143)
 		plt.subplot(1,4,4)
 		x = np.linspace(-im_tt.shape[0]/2, +im_tt.shape[0]/2, im_tt.shape[0]) * plate_scale_as_px
@@ -164,10 +168,14 @@ def shift_centroid(image, img_ref_peak_idx):
 		image = np.array(image)
 
 	# # Thresholding the image
-	# image_subtracted_bg = np.copy(image)
+	image_subtracted_bg = np.copy(image)
 	# image_subtracted_bg[image<1.5*np.mean(image.flatten())] = 0
+	# image -= min(image.flatten())
 
-	img_peak_idx = _centroid(image)
+	image_subtracted_bg[image < 0.33 * max(image.flatten())] = 0
+	# pdb.set_trace()
+	img_peak_idx = _centroid(image_subtracted_bg)
+	# img_peak_idx = center_of_mass(image)
 
 	# Shift the image by the relative amount.
 	rel_shift_idx = (img_ref_peak_idx - img_peak_idx)
@@ -375,17 +383,18 @@ def alignmentError(in_idxs, out_idxs, opticalsystem,
 		print('\t\t\tMean\t%4.2f' % np.mean(errs_as))
 
 	if plotHist:
-		plotErrorHistogram(errs_as)
+		plotErrorHistogram(errs_as, li_method)
 	
 	return errs_as
 
 ####################################################################################################
-def plotErrorHistogram(errs_as)
+def plotErrorHistogram(errs_as,
+	li_method=''):
 	x_errs_as = errs_as[:,0]
 	y_errs_as = errs_as[:,1]
 	# Plot a pretty shistogram showing the distribution of the alignment errors, and fit a Gaussian to them.
 	range_as = 2 * max(max(np.abs(y_errs_as)), max(np.abs(x_errs_as)))
-	nbins = int(N / 10)
+	nbins = int(errs_as.shape[0] / 10)
 	mu.newfigure(1.5,1)
 	plt.suptitle('{} Lucky Imaging shifting-and-stacking alignment errors'.format(li_method))
 
