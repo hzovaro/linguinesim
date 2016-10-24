@@ -748,16 +748,26 @@ def noiseFramesFromEtc(N, height_px, width_px,
 		etc_output = etc_input
 
 	# Adding noise to each image and multiplying by the detector gain where appropriate.
-	for k in range(N):
-		noise_frames_dict['sky'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_sky']) * gain
-		noise_frames_dict['dark'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_dark']) * gain
-		noise_frames_dict['cryo'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_cryo']) * gain
-		noise_frames_dict['RN'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_RN'])
+	# for k in range(N):
+	# 	noise_frames_dict['sky'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_sky']) * gain
+	# 	noise_frames_dict['dark'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_dark']) * gain
+	# 	noise_frames_dict['cryo'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_cryo']) * gain
+	# 	noise_frames_dict['RN'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_RN'])
 		
-		noise_frames_dict['total'][k] = noise_frames_dict['sky'][k] + noise_frames_dict['cryo'][k] + noise_frames_dict['RN'][k] + noise_frames_dict['dark'][k]
-		noise_frames_dict['gain-multiplied'][k] = noise_frames_dict['sky'][k] + noise_frames_dict['cryo'][k] + noise_frames_dict['dark'][k]
-		noise_frames_dict['unity gain'][k] = noise_frames_dict['gain-multiplied'][k] / gain
-		noise_frames_dict['post-gain'][k] = noise_frames_dict['RN'][k]
+	# 	noise_frames_dict['total'][k] = noise_frames_dict['sky'][k] + noise_frames_dict['cryo'][k] + noise_frames_dict['RN'][k] + noise_frames_dict['dark'][k]
+	# 	noise_frames_dict['gain-multiplied'][k] = noise_frames_dict['sky'][k] + noise_frames_dict['cryo'][k] + noise_frames_dict['dark'][k]
+	# 	noise_frames_dict['unity gain'][k] = noise_frames_dict['gain-multiplied'][k] / gain
+	# 	noise_frames_dict['post-gain'][k] = noise_frames_dict['RN'][k]
+
+	noise_frames_dict['sky'] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_sky'], N_frames = N) * gain
+	noise_frames_dict['dark'] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_dark'], N_frames = N) * gain
+	noise_frames_dict['cryo'] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_cryo'], N_frames = N) * gain
+	noise_frames_dict['RN'] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_RN'], N_frames = N)
+	
+	noise_frames_dict['total'] = noise_frames_dict['sky'] + noise_frames_dict['cryo'] + noise_frames_dict['RN'] + noise_frames_dict['dark']
+	noise_frames_dict['gain-multiplied'] = noise_frames_dict['sky'] + noise_frames_dict['cryo'] + noise_frames_dict['dark']
+	noise_frames_dict['unity gain'] = noise_frames_dict['gain-multiplied'] / gain
+	noise_frames_dict['post-gain'] = noise_frames_dict['RN']
 
 	return noise_frames_dict, etc_output
 
@@ -781,9 +791,13 @@ def darkAndSkyMasterFrames(N, height_px, width_px,
 	return master_dark_and_sky, master_dark
 
 ##########################################################################################
-def noiseFrame(height_px, width_px, lam):
+def noiseFrame(height_px, width_px, lam,
+	N_frames = 1):
 	""" Generate an array of integers drawn from a Poisson distribution with an expected value lam in each entry. """
-	return np.random.poisson(lam=lam, size=(height_px, width_px)).astype(int)
+	if N_frames == 1:
+		return np.random.poisson(lam=lam, size=(height_px, width_px)).astype(int)
+	else:
+		return np.random.poisson(lam=lam, size=(N_frames, height_px, width_px)).astype(int)
 
 ##########################################################################################
 def medianCombine(images):
