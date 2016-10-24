@@ -64,6 +64,8 @@ import time
 from linguineglobals import *
 import fftwconvolve, obssim, etcutils, imutils
 
+CENTROID_THRESHOLD = 0.33
+
 
 ####################################################################################################
 def luckyImage(
@@ -172,7 +174,7 @@ def shift_centroid(image, img_ref_peak_idx):
 	# image_subtracted_bg[image<1.5*np.mean(image.flatten())] = 0
 	# image -= min(image.flatten())
 
-	image_subtracted_bg[image < 0.33 * max(image.flatten())] = 0
+	image_subtracted_bg[image < CENTROID_THRESHOLD * max(image.flatten())] = 0
 	# pdb.set_trace()
 	img_peak_idx = _centroid(image_subtracted_bg)
 	# img_peak_idx = center_of_mass(image)
@@ -244,7 +246,8 @@ def shift_gaussfit(image, img_ref_peak_idx):
 	return image_shifted, tuple(-x for x in rel_shift_idx)
 
 ####################################################################################################
-def luckyImaging(images, li_method, mode,
+def luckyImaging(images, li_method, 
+	mode = 'serial',	# whether or not to process images in parallel
 	image_ref = None,	# reference image
 	fsr = 1,			# for peak pixel method
 	bid_area = None,	# for peak pixel method
@@ -279,8 +282,20 @@ def luckyImaging(images, li_method, mode,
 		img_ref_peak_idx = np.asarray(np.unravel_index(np.argmax(sub_image_ref), sub_image_ref.shape)) 
 		shift_fun = partial(shift_pp, img_ref_peak_idx=img_ref_peak_idx, bid_area=bid_area, fsr=fsr)	
 	elif li_method == 'centroid':
-		img_ref_peak_idx = _centroid(image_ref)
+		image_ref_subtracted_bg = np.copy(image_ref)
+		image_ref_subtracted_bg[image_ref < CENTROID_THRESHOLD * max(image_ref.flatten())] = 0
+		img_ref_peak_idx = _centroid(image_ref_subtracted_bg)
 		shift_fun = partial(shift_centroid, img_ref_peak_idx=img_ref_peak_idx)	
+	elif li_method == 'blind stack':
+		if stacking_method == 'median combine':			
+			arr = np.ndarray((1, image_ref.shape[0], image_ref.shape[1]))
+			arr[0,:] = image_ref
+			image_ref = arr
+			image_stacked = obssim.medianCombine(np.concatenate((image_ref, images)))
+		elif stacking_method == 'average':
+			image_stacked = (image_ref + np.sum(images, axis=0)) / (N + 1)	
+		rel_shift_idxs = np.zeros( (N, 2) )
+		return image_stacked, rel_shift_idxs
 	else:
 		print("ERROR: invalid Lucky Imaging method '{}' specified; must be 'cross-correlation', 'peak pixel', 'centroid' or 'Gaussian fit' for now...".format(li_method))
 		raise UserWarning
