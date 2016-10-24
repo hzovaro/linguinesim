@@ -136,14 +136,29 @@ def imageToArray(im):
 # 	return np.squeeze(image_out_array)
 
 ############################################################################################
-def centreCrop(im, sz_final,
-	centre_coords_rel = [0,0]):
+def centreCrop(im, sz_final, 
+		units = 'px',
+		plate_scale_as_px = 1,
+		centre_coords_rel = np.array([0,0])):
 	"""
 		Crop an array by equal amounts on each side. A simpler (and faster) alternative to rotateAndCrop() if only cropping is required. 
+
+		If desired, the input units can be specified in arcsec. 
 	"""
+
+	if units=='arcsec':
+		if type(sz_final) == tuple:
+			sz_final = np.array(sz_final)
+		if type(centre_coords_rel) == tuple:
+			centre_coords_rel = np.array(centre_coords_rel)
+		sz_final[0] = int(np.round(sz_final[0] / plate_scale_as_px))
+		sz_final[1] = int(np.round(sz_final[1] / plate_scale_as_px))
+		centre_coords_rel[0] = int(np.round(centre_coords_rel[0] / plate_scale_as_px))
+		centre_coords_rel[1] = int(np.round(centre_coords_rel[1] / plate_scale_as_px))
+
 	im = getImageSize(im)[0]
 
-	if matplotlib.cbook.is_numlike(sz_final):
+	if matplotlib.cbook.is_scalar(sz_final):
 		sz_height = sz_final
 		sz_width = sz_final
 	else:

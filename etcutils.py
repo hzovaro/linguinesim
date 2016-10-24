@@ -203,7 +203,6 @@ def flux2countRate(F,
 
 	Sigma_photons = flux2photonRate(F=F, wavelength_m=wavelength_m, bandwidth_m=bandwidth_m)
 	Sigma_electrons = photonRate2countRate(Sigma_photons=Sigma_photons, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain)
-	# pdb.set_trace()
 	return Sigma_electrons
 
 ####################################################################################################

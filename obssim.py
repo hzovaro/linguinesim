@@ -216,12 +216,14 @@ def fieldStar(band,
 	opticalsystem, 
 	aosystem,	
 	magnitude_AB,
-	final_sz,
+	final_sz = None,
 	plate_scale_as_px_conv = None,
 	plotIt = False
 	):
 	"""
-		Return an image of a star with magnitude_AB at a plate scale plate_scale_as_px_conv with coordinates coords given relative to the centre of the image.
+		Return an image of a star with magnitude_AB at a plate scale plate_scale_as_px_conv with coordinates coords given relative to the centre of the image. 
+
+		Pixel values are given in units of electrons per second.
 
 		Important note: due to computational time constraints, we can't generate the PSF at final_sz if it is large. Instead, the PSF is produced at a size wave_height_px * 2 * N_OS = wave_height_px * FWHM (measured in pixels) and then is padded with zeros to achieve the desired size. For e.g. wave_height_px = 256 and N_OS = 2 this easily enables us to encapsulate all of the energy in the PSF (as this extent is far greater than the 10th Airy ring)
 
@@ -230,33 +232,55 @@ def fieldStar(band,
 		final_sz = size of star image we return at the convolution plate scale
 	"""
 
-	# Determining the size of the PSF. For now, the PSF is simply twice the angular size of the detector at the supplied plate scale, so that it doesn't get clipped when resized & cropped to the detector size. If no plate scale is supplied, then we use the plate scale given in the opticalsystem instance.
-	if plate_scale_as_px_conv == None:
-		plate_scale_as_px_conv = opticalsystem.plate_scale_as_px
-		psf_sz_cropped = tuple( 2 * x for x in opticalsystem.detector.size_px )
-	else:		
-		psf_sz_cropped = tuple(int(np.round(2 * opticalsystem.plate_scale_as_px / plate_scale_as_px_conv * x)) for x in opticalsystem.detector.size_px)
-
 	# Generating the PSF.
 	# A note on the size of the PSF produced by the below line:
 	# The size of the image returned in wavefront.image() (which is what is used to generate the below PSF) is given by 
 	#		wave_height_px * 2 * N_OS = wave_height_px * FWHM (measured in pixels)
 	# We have been using a wave height of 256 pixels and a FHWM of 4 pixels. Hence the final size is 1024 pixels. 
 	# How many Airy rings is this? Well, the 10th Airy ring is at 10.25 * 2 * N_OS = 41 pixels. Hence this PSF size is definitely sufficient.
+	# If psf_sz_cropped below is larger than this, then the image is not changed at all.
 	star_dl_conv = aosystem.psf_dl(
 		plate_scale_as_px = plate_scale_as_px_conv, 
 		band = band, 
-		psf_sz_cropped = psf_sz_cropped,
+		crop = False,
 		plotIt = False)
 
 	# Padding the star with zeros if it's too small.
-	if star_dl_conv.shape != final_sz:
-		# Then pad with zeros.
-		pad_height = max(0, int(np.round((final_sz[0] - star_dl_conv.shape[0]) / 2)))
-		pad_width = max(0, int(np.round((final_sz[1] - star_dl_conv.shape[1]) / 2)))
-		star_dl_conv = np.pad(star_dl_conv, ((pad_height, pad_height), (pad_width, pad_width)), mode='constant')
-		if star_dl_conv.shape[0] < final_sz[0] or star_dl_conv.shape[1] < final_sz[1]:
-			star_dl_conv = imutils.centreCrop(star_dl_conv, final_sz)
+	if final_sz != None:
+		if star_dl_conv.shape != final_sz:
+			
+			# If star_dl_conv is too big...
+			if star_dl_conv.shape[0] > final_sz[0] or star_dl_conv.shape[1] > final_sz[1]:
+				if star_dl_conv.shape[0] <= final_sz[0]:
+					final_sz[0] = star_dl_conv.shape[0]
+				if star_dl_conv.shape[1] <= final_sz[1]:
+					final_sz[1] = star_dl_conv.shape[1]
+				star_dl_conv = imutils.centreCrop(star_dl_conv, final_sz)
+			
+			# If star_dl_conv is too small...
+			else:
+				pad_height = 0
+				pad_width = 0
+				delta_height = 0
+				delta_width = 0
+				# Height
+				if star_dl_conv.shape[0] < final_sz[0]:
+					delta_height = final_sz[0] - star_dl_conv.shape[0]
+					pad_height = delta_height//2
+				# Width
+				if star_dl_conv.shape[1] < final_sz[1]:
+					delta_width = final_sz[1] - star_dl_conv.shape[1]
+					pad_width = delta_width//2
+
+				# Then pad with zeros.
+				star_dl_conv = np.pad(
+				star_dl_conv, 
+				(
+					(pad_height, pad_height + np.mod(delta_height,2)), 
+					(pad_width, pad_width + np.mod(delta_width,2))
+				), 
+				mode='constant'
+				)
 
 	# Shifting the centre of the PSF to the specified coordinates.
 	coords_px = coords_as / plate_scale_as_px_conv
@@ -272,9 +296,6 @@ def fieldStar(band,
 			band = band
 		)
 
-	# Crop to size
-	star_tt_cropped = imutils.centreCrop(star_tt_conv, final_sz)
-
 	if plotIt:
 		mu.newfigure(1,2)
 		plt.suptitle("Generating a background star image")
@@ -283,7 +304,7 @@ def fieldStar(band,
 		plt.show()
 
 
-	return star_tt_cropped
+	return star_tt_conv
 
 ####################################################################################################
 def psfKernel(wavelength_m, 
@@ -680,10 +701,10 @@ def addNoise(images,
 		return images + noise_frames, noise_frames, None		
 
 ####################################################################################################
-def noiseFramesFromEtc(N, height_px, width_px,
+def noiseFramesFromEtc(N, height_px, width_px, 
+	gain=1,
 	band=None,
 	t_exp=None,
-	optical_system=None,
 	etc_input=None):
 	""" 
 	Generate a series of N noise frames with dimensions (height_px, width_px) based on the output of exposureTimeCalc() (in etc.py). 
@@ -704,7 +725,8 @@ def noiseFramesFromEtc(N, height_px, width_px,
 		'cryo' : np.zeros((N, height_px, width_px), dtype=int),
 		'RN' : np.zeros((N, height_px, width_px), dtype=int),
 		'total' : np.zeros((N, height_px, width_px), dtype=int),
-		'pre-gain' : np.zeros((N, height_px, width_px), dtype=int),
+		'gain-multiplied' : np.zeros((N, height_px, width_px), dtype=int),
+		'unity gain' : np.zeros((N, height_px, width_px), dtype=int),
 		'post-gain' : np.zeros((N, height_px, width_px), dtype=int)
 	}
 
@@ -725,14 +747,16 @@ def noiseFramesFromEtc(N, height_px, width_px,
 		# Otherwise, we just return whatever was entered.
 		etc_output = etc_input
 
-	# Adding noise to each image.
+	# Adding noise to each image and multiplying by the detector gain where appropriate.
 	for k in range(N):
-		noise_frames_dict['sky'][k] = noiseFrame(height_px, width_px, etc_output['N_sky'])
-		noise_frames_dict['dark'][k] = noiseFrame(height_px, width_px, etc_output['N_dark'])
-		noise_frames_dict['cryo'][k] = noiseFrame(height_px, width_px, etc_output['N_cryo'])
-		noise_frames_dict['RN'][k] = noiseFrame(height_px, width_px, etc_output['N_RN'])
+		noise_frames_dict['sky'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_sky']) * gain
+		noise_frames_dict['dark'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_dark']) * gain
+		noise_frames_dict['cryo'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_cryo']) * gain
+		noise_frames_dict['RN'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_RN'])
+		
 		noise_frames_dict['total'][k] = noise_frames_dict['sky'][k] + noise_frames_dict['cryo'][k] + noise_frames_dict['RN'][k] + noise_frames_dict['dark'][k]
-		noise_frames_dict['pre-gain'][k] = noise_frames_dict['sky'][k] + noise_frames_dict['cryo'][k] + noise_frames_dict['dark'][k]
+		noise_frames_dict['gain-multiplied'][k] = noise_frames_dict['sky'][k] + noise_frames_dict['cryo'][k] + noise_frames_dict['dark'][k]
+		noise_frames_dict['unity gain'][k] = noise_frames_dict['gain-multiplied'][k] / gain
 		noise_frames_dict['post-gain'][k] = noise_frames_dict['RN'][k]
 
 	return noise_frames_dict, etc_output
