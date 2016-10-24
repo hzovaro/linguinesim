@@ -195,10 +195,10 @@ def shift_xcorr(image, image_ref, buff, subPixelShift):
 	image_ref_subtracted_bg = image_ref - np.mean(image_ref.flatten())
 
 	height, width = image.shape
-	if fftwconvolve.NTHREADS==0:
-		corr = scipy.signal.fftconvolve(image_ref_subtracted_bg, image_subtracted_bg[::-1,::-1], 'same')
-	else:
-		corr = fftwconvolve.fftconvolve(image_ref_subtracted_bg, image_subtracted_bg[::-1,::-1], 'same')
+	# if fftwconvolve.NTHREADS==0:
+	corr = scipy.signal.fftconvolve(image_ref_subtracted_bg, image_subtracted_bg[::-1,::-1], 'same')
+	# else:
+		# corr = fftwconvolve.fftconvolve(image_ref_subtracted_bg, image_subtracted_bg[::-1,::-1], 'same')
 	corr /= max(corr.flatten())	# The fitting here does not work if the pixels have large values!
 	
 	if subPixelShift: 
@@ -308,12 +308,12 @@ def luckyImaging(images, li_method,
 		images = images.tolist()	# Need to convert the image array to a list.
 
 		# Executing in parallel.
-		if fftwconvolve.NTHREADS == 0:
-			# We are safe to use threads if NTHREADS==0 since we don't use pyfftw in this case.
-			pool = ThreadPool()
-		else:
-			# Otherwise, we use processes instead.
-			pool = ProcPool()
+		# if fftwconvolve.NTHREADS == 0:
+		# 	# We are safe to use threads if NTHREADS==0 since we don't use pyfftw in this case.
+		# 	pool = ThreadPool()
+		# else:
+		# Otherwise, we use processes instead.
+		pool = ProcPool()
 		results = pool.map(shift_fun, images, 1)
 		pool.close()
 		pool.join()
