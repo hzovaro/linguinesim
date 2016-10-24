@@ -37,7 +37,6 @@ from cryostatclass import Cryostat
 from opticalsystemclass import OpticalSystem
 from skyclass import Sky
 from galaxyclass import Galaxy
-from aosim.pyxao import wavefront, deformable_mirror, wfs, ao_system, atmosphere, seeing_limited_system
 
 import etc
 
@@ -108,6 +107,12 @@ def aoiAoSystem(wave_height_px,
 	wavelength_science_m = 800e-9,
 	rng_seed = 1
 	):
+	try:
+		from aosim.pyxao import wavefront, deformable_mirror, wfs, ao_system, atmosphere, seeing_limited_system
+	except:
+		print("WARNING: I cannot import pyxao - I am returning instead")
+		return
+
 	"""
 		Make an AO system instance for AOI.
 	"""
@@ -247,7 +252,7 @@ def saphiraDetector():
 		l_px_m = 24e-6,					# pixel width (m)
 		wavelength_cutoff = 2.5e-6,		# cutoff wavelength (m)
 		RN = 9,							# ? sqrt(e/pixel) rms
-		gain = 50,						# ? avalanche gain
+		gain = 500,					# ? avalanche gain
 		dark_current = 0.03,			# ? MULTIPLY BY GAIN!! e/second/pixel; worst-case
 		saturation = 2**16 - 1,			# ? detector saturation limit
 		adu_gain = 1/2.9,				# electrons per ADU at readout
@@ -301,6 +306,12 @@ def linguineAoSystem(wave_height_px,
 	"""
 		Make an AO system instance for the SAPHIRA-2.3 m telescope system. This is only used to generate seeing-limited and diffraction-limited PSFs as the telescope doesn't have an AO system.
 	"""
+	try:
+		from aosim.pyxao import wavefront, deformable_mirror, wfs, ao_system, atmosphere, seeing_limited_system
+	except:
+		print("WARNING: I cannot import pyxao - I am returning instead")
+		return
+
 	wavefront_pupil = {	
 		'type':'annulus',
 		'dout': 2.337,
