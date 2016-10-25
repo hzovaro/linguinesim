@@ -200,12 +200,20 @@ def aoiAoSystem(wave_height_px,
 	wf_wfs.add_atmosphere(atm)
 	wf_science.add_atmosphere(atm)
 
-	# aoi_ao_system.response_matrix = np.load("/Users/azovaro/python/Modules/aosim/pyxao/aoi_response_matrix.npz")['response_matrix']
-	# aoi_ao_system.reconstructor = np.load("/Users/azovaro/python/Modules/aosim/pyxao/aoi_reconstructor_matrix.npz")['reconstructor']
-
 	# Either a full path can be given, or else the file is assumed to be located in the same directory from which the script calling this method is being called.
-	aoi_ao_system.response_matrix = np.load("aoi_response_matrix.npz")['response_matrix']
-	aoi_ao_system.reconstructor = np.load("aoi_reconstructor_matrix.npz")['reconstructor']
+	try:
+		aoi_ao_system.response_matrix = np.load("aoi_response_matrix.npy")
+	except:
+		print("WARNING: I could not find the response matrix in file, so I am creating a new one...")
+		aoi_ao_system.find_response_matrix()
+		np.save("aoi_response_matrix.npy", aoi_ao_system.response_matrix)
+
+	try:		
+		aoi_ao_system.reconstructor = np.load("aoi_reconstructor_matrix.npy")
+	except:
+		print("WARNING: I could not find the reconstructor matrix in file, so I am creating a new one...")
+		aoi_ao_system.compute_reconstructor()
+		np.save("aoi_reconstructor_matrix.npy", aoi_ao_system.reconstructor)
 
 	return aoi_ao_system
 
