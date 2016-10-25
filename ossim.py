@@ -144,14 +144,21 @@ def aoiAoSystem(wave_height_px,
 	pokeStroke = 1e-7	
 
 	# Atmospheric conditions at MSO
-	wavelength_ref_m = 500e-9		# Wavelength reference for Fried parameter
-	r0_ref_m = 5e-2
+	wavelength_ref_m = 550e-9		# Wavelength reference for Fried parameter (Bennet et al. 2012)
+	r0_ref_m = 10e-2
 	r0_wfs = np.power((wavelength_wfs_m / wavelength_ref_m), 1.2) * r0_ref_m
 	r0_science = np.power((wavelength_science_m / wavelength_ref_m), 1.2) * r0_ref_m 
 
-	v_wind_m = 10			# Turbulent layer wind speed (m/s)
-	wind_angle_deg = 0.0	# Turbulent layer wind direction (rad)
-	elevation_m = 1000		# Turbulent layer elevation (m)
+	# v_wind_m = 10			# Turbulent layer wind speed (m/s)
+	# wind_angle_deg = 0.0	# Turbulent layer wind direction (rad)
+	# elevation_m = 1000		# Turbulent layer elevation (m)
+	# airmass = 1.0			# Airmass
+
+	# These values from Bennet et al. 2012
+	r0_ref_m = [r0_ref_m * l for l in [4, 2, 3, 1]]
+	v_wind_m = [10, 5, 60, 90]				# Turbulent layer wind speed (m/s)
+	wind_angle_deg = [0.0, np.pi/6, 0, 0]	# Turbulent layer wind direction (rad)
+	elevation_m = [0, 400, 6000, 19000]		# Turbulent layer elevation (m)
 	airmass = 1.0			# Airmass
 
 	# Setting up AO system
@@ -193,6 +200,10 @@ def aoiAoSystem(wave_height_px,
 	wf_wfs.add_atmosphere(atm)
 	wf_science.add_atmosphere(atm)
 
+	# aoi_ao_system.response_matrix = np.load("/Users/azovaro/python/Modules/aosim/pyxao/aoi_response_matrix.npz")['response_matrix']
+	# aoi_ao_system.reconstructor = np.load("/Users/azovaro/python/Modules/aosim/pyxao/aoi_reconstructor_matrix.npz")['reconstructor']
+
+	# Either a full path can be given, or else the file is assumed to be located in the same directory from which the script calling this method is being called.
 	aoi_ao_system.response_matrix = np.load("aoi_response_matrix.npz")['response_matrix']
 	aoi_ao_system.reconstructor = np.load("aoi_reconstructor_matrix.npz")['reconstructor']
 
