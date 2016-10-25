@@ -748,17 +748,6 @@ def noiseFramesFromEtc(N, height_px, width_px,
 		etc_output = etc_input
 
 	# Adding noise to each image and multiplying by the detector gain where appropriate.
-	# for k in range(N):
-	# 	noise_frames_dict['sky'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_sky']) * gain
-	# 	noise_frames_dict['dark'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_dark']) * gain
-	# 	noise_frames_dict['cryo'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_cryo']) * gain
-	# 	noise_frames_dict['RN'][k] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_RN'])
-		
-	# 	noise_frames_dict['total'][k] = noise_frames_dict['sky'][k] + noise_frames_dict['cryo'][k] + noise_frames_dict['RN'][k] + noise_frames_dict['dark'][k]
-	# 	noise_frames_dict['gain-multiplied'][k] = noise_frames_dict['sky'][k] + noise_frames_dict['cryo'][k] + noise_frames_dict['dark'][k]
-	# 	noise_frames_dict['unity gain'][k] = noise_frames_dict['gain-multiplied'][k] / gain
-	# 	noise_frames_dict['post-gain'][k] = noise_frames_dict['RN'][k]
-
 	noise_frames_dict['sky'] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_sky'], N_frames = N) * gain
 	noise_frames_dict['dark'] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_dark'], N_frames = N) * gain
 	noise_frames_dict['cryo'] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_cryo'], N_frames = N) * gain
