@@ -122,13 +122,21 @@ def luckyImage(
 		plt.suptitle('Convolving input image with PSF and resizing to detector')
 		mu.astroimshow(im=im_raw, title='Raw input image (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=141)
 		mu.astroimshow(im=psf, title='Point spread function (normalised)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=142)
-		mu.astroimshow(im=im_convolved, title='Convolved with PSF (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=143)
+		mu.astroimshow(im=im_convolved, title='Star added, convolved with PSF (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=143)
 		mu.astroimshow(im=im_resized, title='Resized to detector plate scale (electrons/s)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=144)
+
+		# Zooming in on the galaxy
+		mu.newfigure(1,4)
+		plt.suptitle('Convolving input image with PSF and resizing to detector')
+		mu.astroimshow(im=imutils.centreCrop(im=im_raw, units='arcsec', plate_scale_as_px=plate_scale_as_px_conv, sz_final=(6, 6)), title='Raw input image (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=141)
+		mu.astroimshow(im=psf, title='Point spread function (normalised)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=142)
+		mu.astroimshow(im=imutils.centreCrop(im=im_convolved, units='arcsec', plate_scale_as_px=plate_scale_as_px_conv, sz_final=(6, 6)), title='Star added, convolved with PSF (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=143)
+		mu.astroimshow(im=imutils.centreCrop(im=im_resized, units='arcsec', plate_scale_as_px=plate_scale_as_px, sz_final=(6, 6)), title='Resized to detector plate scale (electrons/s)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=144)
 
 		mu.newfigure(1,4)
 		plt.suptitle('Adding tip and tilt, converting to integer counts and adding noise')		
 		mu.astroimshow(im=im_tt, title='Atmospheric tip and tilt added (electrons/s)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=141)
-		mu.astroimshow(im=im_counts, title=r'Cropped, converted to integer counts and gain-multiplied by %d (electrons)' % gain, plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=142)
+		mu.astroimshow(im=im_counts, title=r'Converted to integer counts and gain-multiplied by %d (electrons)' % gain, plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=142)
 		mu.astroimshow(im=im_noisy, title='Noise added (electrons)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=143)
 		plt.subplot(1,4,4)
 		x = np.linspace(-im_tt.shape[0]/2, +im_tt.shape[0]/2, im_tt.shape[0]) * plate_scale_as_px
@@ -139,7 +147,7 @@ def luckyImage(
 		plt.ylabel('Pixel value (electrons)')
 		plt.title('Linear profiles')
 		plt.axis('tight')
-		plt.legend()
+		plt.legend(loc='lower left')
 		plt.show()
 
 	return im_noisy
@@ -276,7 +284,7 @@ def luckyImaging(images, li_method,
 	elif li_method == 'peak pixel':
 		# Determining the reference coordinates.
 		if bid_area:			
-			sub_image_ref = imutils.rotateAndCrop(image_in_array = image_ref, cropArg = bid_area)
+			sub_image_ref = imutils.centreCrop(image_ref, bid_area)
 		else:
 			sub_image_ref = image_ref
 		img_ref_peak_idx = np.asarray(np.unravel_index(np.argmax(sub_image_ref), sub_image_ref.shape)) 
@@ -414,7 +422,10 @@ def plotErrorHistogram(errs_as,
 	plt.suptitle('{} Lucky Imaging shifting-and-stacking alignment errors'.format(li_method))
 
 	plt.subplot(211)
-	plt.hist(x_errs_as, bins=nbins, range=(-range_as/2,+range_as/2), normed=True)
+	if nbins > 5:
+		plt.hist(x_errs_as, bins=nbins, range=(-range_as/2,+range_as/2), normed=True)
+	else:
+		plt.hist(x_errs_as, range=(-range_as/2,+range_as/2), normed=True)
 	mean_x = np.mean(x_errs_as)
 	sigma_x = np.sqrt(np.var(x_errs_as))
 	x = np.linspace(-range_as/2, range_as/2, 100)
@@ -424,7 +435,10 @@ def plotErrorHistogram(errs_as,
 	plt.legend()
 
 	plt.subplot(212)
-	plt.hist(y_errs_as, bins=nbins, range=(-range_as/2,+range_as/2), normed=True)
+	if nbins > 5:
+		plt.hist(y_errs_as, bins=nbins, range=(-range_as/2,+range_as/2), normed=True)
+	else:
+		plt.hist(y_errs_as, range=(-range_as/2,+range_as/2), normed=True)
 	mean_y = np.mean(y_errs_as)
 	sigma_y = np.sqrt(np.var(y_errs_as))
 	y = np.linspace(-range_as/2, range_as/2, 100)
