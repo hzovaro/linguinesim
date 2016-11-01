@@ -155,7 +155,7 @@ def aoiAoSystem(wave_height_px,
 	# airmass = 1.0			# Airmass
 
 	# These values from Bennet et al. 2012
-	r0_ref_m = [r0_ref_m * l for l in [4, 2, 3, 1]]
+	r0_ref_m = [r0_ref_m * 1/l for l in [0.4, 0.2, 0.3, 0.1]]
 	v_wind_m = [10, 5, 60, 90]				# Turbulent layer wind speed (m/s)
 	wind_angle_deg = [0.0, np.pi/6, 0, 0]	# Turbulent layer wind direction (rad)
 	elevation_m = [0, 400, 6000, 19000]		# Turbulent layer elevation (m)
@@ -176,18 +176,20 @@ def aoiAoSystem(wave_height_px,
 		geometry = dm_geometry, 
 		edge_radius = 1.4)
 
+	# Shack-Hartmann wavefront sensor.
+	# We want 1600 photons/cm^2/s on the detector.
+	# We need to put the total number of electrons that will fall on the detector into this function.
+	# So, N_phot = (1600 * 1e4) * 1/ho_loop_rate * QE * EMCCD gain.
 	sh_wfs = wfs.ShackHartmann(
 		wavefronts = wavefronts_wfs, 
 		lenslet_pitch = lenslet_pitch_m, 
 		geometry = wfs_geometry, 
-		central_lenslet = central_lenslet, 		
+		central_lenslet = central_lenslet, 	
+		N_phot = 1600 * 1e4 * 1/ho_loop_rate * 0.90 * 1000 * 1.752**2/4,	
 		sampling = 1)
-		# fratio = wfs_fratio)
-
-	aoi_ao_system = ao_system.SCFeedBackAO(dm = dm, wfs = sh_wfs, image_ixs = psf_ix)
 	
 	# The atmosphere is a PHASE SCREEN
-	atm = atmosphere.Atmosphere(sz = wave_height_px, 
+	atm = atmosphere.Atmosphere(sz = 4 * wave_height_px, 
 		m_per_px = m_per_px,
 		elevations = elevation_m, 
 		r_0 = r0_ref_m, 
@@ -197,15 +199,16 @@ def aoiAoSystem(wave_height_px,
 		airmass = airmass, 
 		seed = rng_seed)
 
-	wf_wfs.add_atmosphere(atm)
-	wf_science.add_atmosphere(atm)
+	aoi_ao_system = ao_system.SCFeedBackAO(dm=dm, wfs=sh_wfs, atm=atm, image_ixs=psf_ix)
 
 	# aoi_ao_system.response_matrix = np.load("/Users/azovaro/python/Modules/aosim/pyxao/aoi_response_matrix.npz")['response_matrix']
 	# aoi_ao_system.reconstructor = np.load("/Users/azovaro/python/Modules/aosim/pyxao/aoi_reconstructor_matrix.npz")['reconstructor']
 
 	# Either a full path can be given, or else the file is assumed to be located in the same directory from which the script calling this method is being called.
-	aoi_ao_system.response_matrix = np.load("aoi_response_matrix.npz")['response_matrix']
-	aoi_ao_system.reconstructor = np.load("aoi_reconstructor_matrix.npz")['reconstructor']
+	# aoi_ao_system.response_matrix = np.load("aoi_response_matrix.npz")['response_matrix']
+	# aoi_ao_system.reconstructor = np.load("aoi_reconstructor_matrix.npz")['reconstructor']
+	aoi_ao_system.find_response_matrix()
+	aoi_ao_system.compute_reconstructor()
 
 	return aoi_ao_system
 
@@ -263,7 +266,7 @@ def saphiraDetector():
 		l_px_m = 24e-6,					# pixel width (m)
 		wavelength_cutoff = 2.5e-6,		# cutoff wavelength (m)
 		RN = 9,							# ? sqrt(e/pixel) rms
-		gain = 500,					# ? avalanche gain
+		gain = 50,					# ? avalanche gain
 		dark_current = 0.03,			# ? MULTIPLY BY GAIN!! e/second/pixel; worst-case
 		saturation = 2**16 - 1,			# ? detector saturation limit
 		adu_gain = 1/2.9,				# electrons per ADU at readout
@@ -360,7 +363,7 @@ def linguineAoSystem(wave_height_px,
 			)	
 	
 	# The atmosphere is a PHASE SCREEN: not dependent on wavelegnth!
-	atm = atmosphere.Atmosphere(sz = wave_height_px, 
+	atm = atmosphere.Atmosphere(sz = 4 * wave_height_px, 
 		m_per_px = m_per_px,
 		elevations = elevation_m, 
 		r_0 = r0_ref_m, 
