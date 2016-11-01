@@ -417,7 +417,7 @@ def plotErrorHistogram(errs_as,
 	y_errs_as = errs_as[:,1]
 	# Plot a pretty histogram showing the distribution of the alignment errors, and fit a Gaussian to them.
 	range_as = 2 * max(max(np.abs(y_errs_as)), max(np.abs(x_errs_as)))
-	nbins = int(errs_as.shape[0] / 10)
+	nbins = int(errs_as.shape[0] / 100)
 	mu.newfigure(1.5,1)
 	plt.suptitle('{} Lucky Imaging shifting-and-stacking alignment errors'.format(li_method))
 
@@ -446,6 +446,7 @@ def plotErrorHistogram(errs_as,
 	plt.title(r'$y$ alignment error')
 	plt.xlabel('arcsec')
 	plt.legend()	
+	plt.show()
 
 ####################################################################################################
 def _li_error_check(images, 
