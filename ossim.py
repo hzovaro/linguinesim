@@ -212,7 +212,7 @@ def aoiAoSystem(wave_height_px,
 		aoi_ao_system.reconstructor = np.load("aoi_reconstructor_matrix.npy")
 	except:
 		print("WARNING: I could not find the reconstructor matrix in file, so I am creating a new one...")
-		aoi_ao_system.compute_reconstructor()
+		aoi_ao_system.compute_reconstructor(threshold=0.1)
 		np.save("aoi_reconstructor_matrix.npy", aoi_ao_system.reconstructor)
 
 	return aoi_ao_system
@@ -271,7 +271,7 @@ def saphiraDetector():
 		l_px_m = 24e-6,					# pixel width (m)
 		wavelength_cutoff = 2.5e-6,		# cutoff wavelength (m)
 		RN = 9,							# ? sqrt(e/pixel) rms
-		gain = 500,					# ? avalanche gain
+		gain = 50,					# ? avalanche gain
 		dark_current = 0.03,			# ? MULTIPLY BY GAIN!! e/second/pixel; worst-case
 		saturation = 2**16 - 1,			# ? detector saturation limit
 		adu_gain = 1/2.9,				# electrons per ADU at readout
