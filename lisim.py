@@ -415,7 +415,7 @@ def plotErrorHistogram(errs_as,
 	li_method=''):
 	x_errs_as = errs_as[:,0]
 	y_errs_as = errs_as[:,1]
-	# Plot a pretty shistogram showing the distribution of the alignment errors, and fit a Gaussian to them.
+	# Plot a pretty histogram showing the distribution of the alignment errors, and fit a Gaussian to them.
 	range_as = 2 * max(max(np.abs(y_errs_as)), max(np.abs(x_errs_as)))
 	nbins = int(errs_as.shape[0] / 10)
 	mu.newfigure(1.5,1)
