@@ -37,6 +37,7 @@ from cryostatclass import Cryostat
 from opticalsystemclass import OpticalSystem
 from skyclass import Sky
 from galaxyclass import Galaxy
+import pdb
 
 import etc
 
@@ -155,10 +156,14 @@ def aoiAoSystem(wave_height_px,
 	# airmass = 1.0			# Airmass
 
 	# These values from Bennet et al. 2012
-	r0_ref_m = [r0_ref_m * 1/l for l in [0.4, 0.2, 0.3, 0.1]]
+
+	# r0_ref_m = [r0_ref_m * 1/l for l in [0.4, 0.2, 0.3, 0.1]]
 	v_wind_m = [10, 5, 60, 90]				# Turbulent layer wind speed (m/s)
 	wind_angle_deg = [0.0, np.pi/6, 0, 0]	# Turbulent layer wind direction (rad)
 	elevation_m = [0, 400, 6000, 19000]		# Turbulent layer elevation (m)
+	C_n2 = [8.40e-15, 2.5e-16, 8.87e-7 * elevation_m[2]**(-3), 2.00e-16 * elevation_m[3]**(-0.5)]	# Assuming the SLC-Night model (see page 29 of Tyson)
+	r0_ref_m = [0.185 * (wavelength_ref_m**2 / c)**(3/5) for c in C_n2]
+	pdb.set_trace()
 	airmass = 1.0			# Airmass
 
 	# Setting up AO system
