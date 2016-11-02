@@ -377,9 +377,6 @@ def linguineAoSystem(wave_height_px,
 		airmass = airmass, 
 		seed = rng_seed)
 
-	for w in wavefronts:
-		w.add_atmosphere(atm)
-
-	linguine_ao_system = seeing_limited_system.SeeingLimitedOpticalSystem(wavefronts = wavefronts, wavelength_ixs = wavelength_ixs)
+	linguine_ao_system = seeing_limited_system.SeeingLimitedOpticalSystem(wavefronts = wavefronts, wavelength_ixs = wavelength_ixs, atm=atm)
 
 	return linguine_ao_system
