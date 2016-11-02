@@ -206,14 +206,16 @@ def aoiAoSystem(wave_height_px,
 
 	aoi_ao_system = ao_system.SCFeedBackAO(dm=dm, wfs=sh_wfs, atm=atm, image_ixs=psf_ix)
 
-	# aoi_ao_system.response_matrix = np.load("/Users/azovaro/python/Modules/aosim/pyxao/aoi_response_matrix.npz")['response_matrix']
-	# aoi_ao_system.reconstructor = np.load("/Users/azovaro/python/Modules/aosim/pyxao/aoi_reconstructor_matrix.npz")['reconstructor']
-
 	# Either a full path can be given, or else the file is assumed to be located in the same directory from which the script calling this method is being called.
-	# aoi_ao_system.response_matrix = np.load("aoi_response_matrix.npz")['response_matrix']
-	# aoi_ao_system.reconstructor = np.load("aoi_reconstructor_matrix.npz")['reconstructor']
-	aoi_ao_system.find_response_matrix()
-	aoi_ao_system.compute_reconstructor()
+	try:
+		aoi_ao_system.response_matrix = np.load("aoi_response_matrix.npz")['response_matrix']
+	except:
+		aoi_ao_system.find_response_matrix()
+
+	try:
+		aoi_ao_system.reconstructor = np.load("aoi_reconstructor_matrix.npz")['reconstructor']
+	except:
+		aoi_ao_system.compute_reconstructor()
 
 	return aoi_ao_system
 

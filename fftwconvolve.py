@@ -222,8 +222,8 @@ def fftconvolve(in1, in2, mode="full"):
     >>> fig.show()
 
     """
-    if NTHREADS==0:
-        print("WARNING: in fftwconvolve(): NTHREADS = 0, using numpy FFT routines instead...")
+    # if NTHREADS==0:
+        # print("WARNING: in fftwconvolve(): NTHREADS = 0, using numpy FFT routines instead...")
 
     in1 = asarray(in1)
     in2 = asarray(in2)
