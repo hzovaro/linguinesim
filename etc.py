@@ -111,10 +111,10 @@ def exposureTimeCalc(band, t_exp, optical_system,
 	Sigma_cryo = getCryostatTE(optical_system=optical_system)
 
 	""" Telescope thermal background photon flux """
-	Sigma_tel = getTelescopeTE(optical_system=optical_system, plotIt=False)[band]
+	Sigma_tel = getTelescopeTE(optical_system=optical_system, plotit=False)[band]
 
 	""" Sky thermal background photon flux """
-	Sigma_sky_thermal = getSkyTE(optical_system=optical_system, plotIt=False)[band]
+	Sigma_sky_thermal = getSkyTE(optical_system=optical_system, plotit=False)[band]
 
 	""" Empirical sky background flux """
 	Sigma_sky_emp = etcutils.surface_brightness2countRate(mu = sky.brightness[band], 
@@ -267,7 +267,7 @@ def getCryostatTE(optical_system):
 ####################################################################################################
 
 def getSkyTE(optical_system,
-	plotIt=True):
+	plotit=True):
 
 	" Sky thermal background photon flux in the J, H and K bands "
 
@@ -298,7 +298,7 @@ def getSkyTE(optical_system,
 			eta = detector.qe * telescope.tau * cryostat.Tr_win
 			)
 
-	if plotIt:
+	if plotit:
 		D = np.ones(1000)*detector.dark_current
 		wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
 
@@ -323,7 +323,7 @@ def getSkyTE(optical_system,
 
 ####################################################################################################
 def getTelescopeTE(optical_system,
-	plotIt=True):
+	plotit=True):
 
 	detector = optical_system.detector
 	telescope = optical_system.telescope
@@ -389,7 +389,7 @@ def getTelescopeTE(optical_system,
 
 		I_tel[key] = I_mirrors + I_spider + I_window
 
-	if plotIt:
+	if plotit:
 		D = np.ones(1000)*detector.dark_current
 		wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
 
@@ -464,7 +464,7 @@ def plotBackgroundNoiseSources(optical_system):
 	plt.show()
 
 ####################################################################################################
-def findCryostatTemp(optical_system, plotIt=True):
+def findCryostatTemp(optical_system, plotit=True):
 	"""
 		Determine what temperature the cryostat given in the optical system must be so that the detector counts resulting from the thermal emission from the cryostat walls is equivalent to the dark current.
 
@@ -523,7 +523,7 @@ def findCryostatTemp(optical_system, plotIt=True):
 
 		print("REMINDER: the detector dark current is currently set to %.4f. Make sure that the stored dark current value is BEFORE gain multiplication or these results are invalid.")
 
-	if plotIt:
+	if plotit:
 		D = np.ones(len(T_cryo))*detector.dark_current
 		wavelengths = np.linspace(0.80, 2.5, 1000)*1e-6
 

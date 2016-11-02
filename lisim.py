@@ -81,7 +81,7 @@ def luckyImage(
 	gain = 1,						# Detector gain.
 	plate_scale_as_px_conv = 1,		# Only used for plotting.
 	plate_scale_as_px = 1,			# Only used for plotting.
-	plotIt=False):
+	plotit=False):
 	""" 
 		This function can be used to generate a short-exposure 'lucky' image that can be input to the Lucky Imaging algorithms.
 			Input: 	one 'raw' countrate image of a galaxy; one PSF with which to convolve it (at the same plate scale)
@@ -116,7 +116,7 @@ def luckyImage(
 	# Add the post-gain noise (i.e. read noise)
 	im_noisy += noise_frame_post_gain
 
-	if plotIt:
+	if plotit:
 		# Plotting
 		mu.newfigure(1,4)
 		plt.suptitle('Convolving input image with PSF and resizing to detector')

@@ -59,7 +59,7 @@ def simulateSersicGalaxy(im_out_fname, # Output FITS file name
 	PA_deg = 0,	# Rotation angle
 	object_type = 'sersic2',
 	galfit_input_fname = "galfit_input.txt",
-	plotIt = False,
+	plotit = False,
 	overwriteExisting = False
 	):
 	"""
@@ -88,7 +88,7 @@ def simulateSersicGalaxy(im_out_fname, # Output FITS file name
 	hdulist.close()
 
 	# Plotting.
-	if plotIt:
+	if plotit:
 		mu.newfigure()
 		plt.imshow(im_raw)
 		plt.title("GALFIT-generated image")
@@ -205,7 +205,7 @@ def sersic2D(n, R_e, mu_e,
 	gridsize = 500,		# Number of returned grid points
 	zeropoint = 0,
 	wavelength_m = None,
-	plotIt = False,
+	plotit = False,
 	R_units = 'kpc'
 	):	
 	" Returns 2D Sersic intensity and surface brightness plots. "
@@ -228,7 +228,7 @@ def sersic2D(n, R_e, mu_e,
 	for key in F_map:
 		F_map[key][R>R_trunc] = 0
 
-	if plotIt:
+	if plotit:
 		mu.newfigure(2,1)
 		plt.subplot(1,2,1)
 		plt.imshow(F_map['F_nu_cgs'], norm=LogNorm(), extent = [-dR*gridsize/2,dR*gridsize/2,-dR*gridsize/2,dR*gridsize/2])

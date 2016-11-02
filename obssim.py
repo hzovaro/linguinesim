@@ -132,7 +132,7 @@ def airyDisc(wavelength_m, f_ratio, l_px_m,
 	trapz_oversampling=8,	# Oversampling used in the trapezoidal rule approximation.
 	coords=None,
 	P_0=1,
-	plotIt=False):
+	plotit=False):
 	"""
 		Returns the PSF of an optical system with a circular aperture given the f ratio, pixel and detector size at a given wavelength_m.
 
@@ -196,7 +196,7 @@ def airyDisc(wavelength_m, f_ratio, l_px_m,
 	P_sum = sum(count_cumtrapz.flatten())
 	count_cumtrapz /= P_sum
 
-	if plotIt:
+	if plotit:
 		mu.newfigure(1,2)
 		plt.subplot(1,2,1)
 		plt.imshow(I, norm=LogNorm())
@@ -218,7 +218,7 @@ def fieldStar(band,
 	magnitude_AB,
 	final_sz = None,
 	plate_scale_as_px_conv = None,
-	plotIt = False
+	plotit = False
 	):
 	"""
 		Return an image of a star with magnitude_AB at a plate scale plate_scale_as_px_conv with coordinates coords given relative to the centre of the image. 
@@ -243,7 +243,7 @@ def fieldStar(band,
 		plate_scale_as_px = plate_scale_as_px_conv, 
 		band = band, 
 		crop = False,
-		plotIt = False)
+		plotit = False)
 
 	# Padding the star with zeros if it's too small.
 	if final_sz != None:
@@ -296,7 +296,7 @@ def fieldStar(band,
 			band = band
 		)
 
-	if plotIt:
+	if plotit:
 		mu.newfigure(1,2)
 		plt.suptitle("Generating a background star image")
 		mu.astroimshow(im = star_dl_conv, plate_scale_as_px = plate_scale_as_px_conv, title="At the convolution plate scale", subplot=121)
@@ -314,7 +314,7 @@ def psfKernel(wavelength_m,
 	T_OS=8,
 	detector_size_px=None,
 	trunc_sigma=10.25,	# 10.25 corresponds to the 10th Airy ring		
-	plotIt=False):
+	plotit=False):
 	"""
 		Returns an Airy disc PSF corresponding to an optical system with a given f ratio, pixel size and detector size at a specified wavelength_m.
 
@@ -337,14 +337,14 @@ def psfKernel(wavelength_m,
 		detector_size_px = (psf_size,psf_size)	
 
 	# In the inputs to this function, do we need to specify the oversampling factor AND the f ratio and/or pixel widths?
-	kernel = airyDisc(wavelength_m=wavelength_m, f_ratio=f_ratio, l_px_m=l_px_m, detector_size_px=detector_size_px, trapz_oversampling=T_OS, plotIt=plotIt)[0]	
+	kernel = airyDisc(wavelength_m=wavelength_m, f_ratio=f_ratio, l_px_m=l_px_m, detector_size_px=detector_size_px, trapz_oversampling=T_OS, plotit=plotit)[0]	
 
 	return kernel
 
 ####################################################################################################
 def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_as,
 	dest_detector_size_px=None,
-	plotIt=False):
+	plotit=False):
 	" Resize the images stored in array images_raw with a given plate scale to a detector with given dimensions and plate scale. "
 	print("Resizing image(s) to detector...")
 
@@ -395,7 +395,7 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_a
 	# Padding the resized images if necessary.
 	images = np.pad(images, ((0, 0), (pad_height_top, pad_height_bottom), (pad_width_left, pad_width_right)), mode='constant')
 
-	if plotIt:
+	if plotit:
 		mu.newfigure(1,2)
 		plt.subplot(1,2,1)
 		plt.imshow(images_raw[0])
@@ -414,7 +414,7 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_a
 def resizeImageToDetector(image_raw, source_plate_scale_as, dest_plate_scale_as,
 	dest_detector_size_px=None,
 	conserve_pixel_sum=False,
-	plotIt=False):
+	plotit=False):
 	" Resize the images stored in array images_raw with a given plate scale to a detector with given dimensions and plate scale. "
 	if not conserve_pixel_sum:
 		print("WARNING: I am not rescaling pixel values in this call to resizeImageToDetector() - is this OK?")
@@ -466,7 +466,7 @@ def resizeImageToDetector(image_raw, source_plate_scale_as, dest_plate_scale_as,
 	if conserve_pixel_sum:
 		image *= (dest_plate_scale_as / source_plate_scale_as)**2
 
-	if plotIt:
+	if plotit:
 		mu.newfigure(1,2)
 		plt.subplot(1,2,1)
 		plt.imshow(image_raw)
@@ -486,7 +486,7 @@ def getDiffractionLimitedImage(image_truth, l_px_m, f_ratio, wavelength_m,
 	f_ratio_in=None, wavelength_in_m=None, # f-ratio and imaging wavelength of the input image (if it has N_os > 1)
 	N_OS_psf=4,
 	detector_size_px=None,
-	plotIt=False):
+	plotit=False):
 	""" Convolve the PSF of a given telescope at a given wavelength with image_truth to simulate diffraction-limited imaging. 
 	It is assumed that the truth image has the appropriate plate scale of, but may be larger than, the detector. 
 	If the detector size is not given, then it is assumed that the input image and detector have the same dimensions. 
@@ -544,7 +544,7 @@ def getDiffractionLimitedImage(image_truth, l_px_m, f_ratio, wavelength_m,
 			image_difflim[k] = resizeImagesToDetector(image_difflim_large, 1/N_OS_psf, 1/N_OS_input)
 
 
-	if plotIt:
+	if plotit:
 		mu.newfigure(1,3)
 		plt.subplot(1,3,1)
 		plt.imshow(psf)
@@ -567,7 +567,7 @@ def getDiffractionLimitedImage(image_truth, l_px_m, f_ratio, wavelength_m,
 def getSeeingLimitedImage(images, seeing_diameter_as, 
 	plate_scale_as=1,
 	padFactor=1,
-	plotIt=False):
+	plotit=False):
 	"""
 		 Convolve a Gaussian PSF with an input image to simulate seeing with a FWHM of seeing_diameter_as. 
 	"""
@@ -606,7 +606,7 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 		image_seeing_limited[k] = fftwconvolve.fftconvolve(image_padded, kernel, mode='same')
 		image_seeing_limited_cropped[k] = image_seeing_limited[k,pad_ud : height + pad_ud, pad_lr : width + pad_lr]		
 
-	if plotIt:
+	if plotit:
 		mu.newfigure(2,2)
 		plt.suptitle('Seeing-limiting image')
 		plt.subplot(2,2,1)
@@ -632,7 +632,7 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 ####################################################################################################
 def convolvePSF(image, psf, 
 	padFactor=1,
-	plotIt=False):
+	plotit=False):
 	"""
 		 Convolve an input PSF with an input image. 
 	"""
@@ -655,7 +655,7 @@ def convolvePSF(image, psf,
 	image_conv = fftwconvolve.fftconvolve(image_padded, psf, mode='same')	
 	image_conv_cropped = image_conv[pad_ud : height + pad_ud, pad_lr : width + pad_lr]		
 
-	if plotIt:
+	if plotit:
 		mu.newfigure(2,2)
 		plt.suptitle('Seeing-limiting image')
 		plt.subplot(2,2,1)
@@ -685,7 +685,7 @@ def addNoise(images,
 	band=None,	
 	t_exp=None,
 	etc_input=None,
-	plotIt=False):
+	plotit=False):
 	""" Add noise to an array of input images assuming an exposure time t_exp. """
 	print ('Adding noise to image(s)...')
 

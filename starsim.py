@@ -1,4 +1,4 @@
-############################################################################################
+git s############################################################################################
 #
 # 	File:		starsim.py
 #	Author:		Anna Zovaro
@@ -57,7 +57,7 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 	band = None, 	
 	verbose=False,		# If True, prints a table showing the respective magnitudes and coordinates of each star in the field.
 	detectorSaturation = np.inf,
-	plotIt=False):
+	plotit=False):
 	"""
 		Returns a simulated image of a star field imaged through an optical system at a given wavelength_m or in an imaging band with a specified centre wavelength_m and bandwidth with a given collecting area, f ratio, pixel size and detector dimensions. The throughput, QE and gain of the system can be specified if required; otherwise they are all assumed to be unity. 
 
@@ -113,7 +113,7 @@ def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 	# Converting to image counts
 	image_count = etcutils.expectedCount2count(starfield, detectorSaturation = detectorSaturation)
 
-	if plotIt:
+	if plotit:
 		mu.newfigure(2,1)
 		if len(m) == 1:
 			plt.suptitle(r'Starfield, $m = %.2f$' % m)

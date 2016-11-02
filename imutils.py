@@ -50,7 +50,7 @@ from linguineglobals import *
 			- ATODGAIN, BANDWID, CENTRWV, INSTRUME, TELESCOP, OBJECT, NAXIS, NAXIS1, NAXIS2,
 """
 def imageFromFitsFile(fname, 
-	plotIt=False,
+	plotit=False,
 	idx=0):
 	" Return an array of the image(s) stored in the FITS file fname. "
 	if not fname.lower().endswith('fits'):
@@ -60,7 +60,7 @@ def imageFromFitsFile(fname,
 	hdulist.close()
 
 	images_raw, N, height, width = getImageSize(images_raw)
-	if plotIt:
+	if plotit:
 		for k in range(N):
 			plt.imshow(images_raw[k])
 			plt.title('Raw image %d from FITS file' % (k + 1))
@@ -81,7 +81,7 @@ def imageToArray(im):
 # def rotateAndCrop(image_in_array, 
 # 	angle = None, 
 # 	cropArg = None, 
-# 	plotIt=False):
+# 	plotit=False):
 # 	" Rotate and crop an array of N images stored in ndarray image_in_array counterclockwise by a given angle and then crop the image using coordinates (left, upper, right, lower) "
 # 	# Image processing library
 # 	import PIL
@@ -122,7 +122,7 @@ def imageToArray(im):
 # 		# Convert back to an array.
 # 		image_out_array[k] = image
 
-# 	if plotIt:
+# 	if plotit:
 # 		plt.figure()
 # 		plt.subplot(1,2,1)
 # 		plt.imshow(image_in_array[0])
