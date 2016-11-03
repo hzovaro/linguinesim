@@ -37,7 +37,7 @@ from cryostatclass import Cryostat
 from opticalsystemclass import OpticalSystem
 from skyclass import Sky
 from galaxyclass import Galaxy
-import pdb
+import ipdb
 
 import etc
 
@@ -104,6 +104,8 @@ def msoSky():
 
 ############################################################################################
 def aoiAoSystem(wave_height_px,
+	compute_response_matrix = True,
+	compute_reconstructor = True,
 	wavelength_wfs_m = 589e-9,
 	wavelength_science_m = 800e-9,
 	rng_seed = 1
@@ -126,8 +128,6 @@ def aoiAoSystem(wave_height_px,
 	# Wave parameters
 	m_per_px = wavefrontPupil['dout'] / wave_height_px		# Physical mapping of wave onto primary mirror size
 
-	# Imaging parameters
-
 	# AO system parameters
 	N_actuators = 17
 	N_lenslets = 16
@@ -149,11 +149,6 @@ def aoiAoSystem(wave_height_px,
 	r0_ref_m = 5e-2
 	r0_wfs = np.power((wavelength_wfs_m / wavelength_ref_m), 1.2) * r0_ref_m
 	r0_science = np.power((wavelength_science_m / wavelength_ref_m), 1.2) * r0_ref_m 
-
-	# v_wind_m = 10			# Turbulent layer wind speed (m/s)
-	# wind_angle_deg = 0.0	# Turbulent layer wind direction (rad)
-	# elevation_m = 1000		# Turbulent layer elevation (m)
-	# airmass = 1.0			# Airmass
 
 	# These values from Bennet et al. 2012
 	fractional_r0 = [0.4, 0.2, 0.3, 0.1]
@@ -204,15 +199,25 @@ def aoiAoSystem(wave_height_px,
 	aoi_ao_system = ao_system.SCFeedBackAO(dm=dm, wfs=sh_wfs, atm=atm, image_ixs=psf_ix)
 
 	# Either a full path can be given, or else the file is assumed to be located in the same directory from which the script calling this method is being called.
-	try:
-		aoi_ao_system.response_matrix = np.load("aoi_response_matrix.npz")['response_matrix']
-	except:
+	if not compute_response_matrix:
+		try:
+			aoi_ao_system.response_matrix = np.load("aoi_response_matrix.npy")
+		except:
+			aoi_ao_system.find_response_matrix()
+			np.save("aoi_response_matrix", aoi_ao_system.response_matrix)
+	else:
 		aoi_ao_system.find_response_matrix()
+		np.save("aoi_response_matrix", aoi_ao_system.response_matrix)
 
-	try:
-		aoi_ao_system.reconstructor = np.load("aoi_reconstructor_matrix.npz")['reconstructor']
-	except:
+	if not compute_reconstructor:
+		try:
+			aoi_ao_system.reconstructor = np.load("aoi_reconstructor_matrix.npy")
+		except:
+			aoi_ao_system.compute_reconstructor()
+			np.save("aoi_reconstructor_matrix", aoi_ao_system.reconstructor)			
+	else:
 		aoi_ao_system.compute_reconstructor()
+		np.save("aoi_reconstructor_matrix", aoi_ao_system.reconstructor)
 
 	return aoi_ao_system
 

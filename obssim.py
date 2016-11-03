@@ -30,7 +30,7 @@
 from __future__ import division, print_function 
 import miscutils as mu
 import numpy as np
-import pdb
+import ipdb
 import os
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
@@ -328,7 +328,7 @@ def psfKernel(wavelength_m,
 		f_ratio = 2 * N_OS / wavelength_m * np.deg2rad(206265 / 3600) * l_px_m
 	elif not N_OS:
 		N_OS = wavelength_m * f_ratio / 2 / np.deg2rad(206265 / 3600) / l_px_m
-		pdb.set_trace()	
+		ipdb.set_trace()	
 	elif not l_px_m:
 		l_px_m = wavelength_m * f_ratio / 2 / np.deg2rad(206265 / 3600) / N_OS	
 

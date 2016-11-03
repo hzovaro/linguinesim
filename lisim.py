@@ -41,7 +41,7 @@
 from __future__ import division, print_function
 import miscutils as mu
 import numpy as np
-import pdb
+import ipdb
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
 from matplotlib import rc
@@ -183,7 +183,7 @@ def shift_centroid(image, img_ref_peak_idx):
 	# image -= min(image.flatten())
 
 	image_subtracted_bg[image < CENTROID_THRESHOLD * max(image.flatten())] = 0
-	# pdb.set_trace()
+	# ipdb.set_trace()
 	img_peak_idx = _centroid(image_subtracted_bg)
 	# img_peak_idx = center_of_mass(image)
 
@@ -231,7 +231,7 @@ def shift_xcorr(image, image_ref, buff, subPixelShift):
 	# mu.astroimshow(im=p_init(X,Y), title='p_init', subplot=154)
 	# mu.astroimshow(im=p_fit(X,Y), title='p_fit', subplot=155)
 	# plt.show()
-	# pdb.set_trace()
+	# ipdb.set_trace()
 
 	image_shifted = scipy.ndimage.interpolation.shift(image, rel_shift_idx)	
 
