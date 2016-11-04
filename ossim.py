@@ -124,7 +124,7 @@ def aoiAoSystem(wave_height_px,
 	}
 
 	# Wave parameters
-	m_per_px = wavefrontPupil['dout'] / wave_height_px		# Physical mapping of wave onto primary mirror size
+	m_per_px = 4 * wavefrontPupil['dout'] / wave_height_px		# Physical mapping of wave onto primary mirror size
 
 	# Imaging parameters
 
@@ -191,7 +191,7 @@ def aoiAoSystem(wave_height_px,
 		sampling = 1)
 	
 	# The atmosphere is a PHASE SCREEN
-	atm = atmosphere.Atmosphere(sz = 4 * wave_height_px, 
+	atm = atmosphere.Atmosphere(sz = 4*wave_height_px, 
 		m_per_px = m_per_px,
 		elevations = elevation_m, 
 		r_0 = r0_ref_m, 
