@@ -53,6 +53,7 @@ import scipy.signal
 import scipy.ndimage.interpolation
 from scipy.ndimage import center_of_mass
 import astropy.modeling
+import pyfftw
 
 # Multithreading/processing packages
 from functools import partial
@@ -194,7 +195,7 @@ def shift_centroid(image, img_ref_peak_idx):
 	return image_shifted, -rel_shift_idx
 
 ####################################################################################################
-def shift_xcorr(image, image_ref, buff, subPixelShift):
+def shift_xcorr(image, image_ref, buff, sub_pixel_shift):
 	if type(image) == list:
 		image = np.array(image)
 	
@@ -209,7 +210,7 @@ def shift_xcorr(image, image_ref, buff, subPixelShift):
 		# corr = fftwconvolve.fftconvolve(image_ref_subtracted_bg, image_subtracted_bg[::-1,::-1], 'same')
 	corr /= max(corr.flatten())	# The fitting here does not work if the pixels have large values!
 	
-	if subPixelShift: 
+	if sub_pixel_shift: 
 		# Fitting a Gaussian.
 		Y, X = np.mgrid[-(height-2*buff)/2:(height-2*buff)/2, -(width-2*buff)/2:(width-2*buff)/2]
 		x_peak, y_peak = np.unravel_index(np.argmax(corr), corr.shape)
@@ -255,32 +256,35 @@ def shift_gaussfit(image, img_ref_peak_idx):
 
 ####################################################################################################
 def luckyImaging(images, li_method, 
-	mode = 'serial',	# whether or not to process images in parallel
-	image_ref = None,	# reference image
-	fsr = 1,			# for peak pixel method
-	bid_area = None,	# for peak pixel method
+	mode = 'serial',		# whether or not to process images in parallel
+	image_ref = None,		# reference image
+	fsr = 1,				# for peak pixel/FAS method
+	bid_area = None,		# for peak pixel method
 	N = None,
-	subPixelShift = True,	# for xcorr method
-	buff = 25, 			# for xcorr method
+	sub_pixel_shift = True,	# for xcorr/FAS method
+	buff = 25, 				# for xcorr/FAS method
+	cutoff_freq_frac = 1,	# for FAS method
 	stacking_method = 'average',
-	timeIt = True
+	timeit = True
 	):
 	""" 
 		Apply a Lucky Imaging (LI) technique to a sequence of images stored in the input array images. 
 		The type of LI technique used is specified by input string type and any additional arguments which may be required are given in vararg.
 	"""
+	tic = time.time()
 	images, image_ref, N = _li_error_check(images, image_ref, N)
-	if not timeIt:
+	if not timeit:
 		print("Applying Lucky Imaging technique '{}' to input series of {:d} images...".format(li_method, N))
 	
 	# For each of these functions, the output must be of the form 
 	#	image_shifted, rel_shift_idxs	
 	li_method = li_method.lower()
 	if li_method == 'cross-correlation':
-		shift_fun = partial(shift_xcorr, image_ref=image_ref, buff=buff, subPixelShift=subPixelShift)	
+		shift_fun = partial(shift_xcorr, image_ref=image_ref, buff=buff, sub_pixel_shift=sub_pixel_shift)	
 	elif li_method == 'gaussian fit':
 		img_ref_peak_idx = _gaussfit_peak(image_ref - np.mean(image_ref.flatten()))
 		shift_fun = partial(shift_gaussfit, img_ref_peak_idx=img_ref_peak_idx)
+
 	elif li_method == 'peak pixel':
 		# Determining the reference coordinates.
 		if bid_area:			
@@ -288,12 +292,14 @@ def luckyImaging(images, li_method,
 		else:
 			sub_image_ref = image_ref
 		img_ref_peak_idx = np.asarray(np.unravel_index(np.argmax(sub_image_ref), sub_image_ref.shape)) 
-		shift_fun = partial(shift_pp, img_ref_peak_idx=img_ref_peak_idx, bid_area=bid_area, fsr=fsr)	
+		shift_fun = partial(shift_pp, img_ref_peak_idx=img_ref_peak_idx, bid_area=bid_area, fsr=fsr)
+
 	elif li_method == 'centroid':
 		image_ref_subtracted_bg = np.copy(image_ref)
 		image_ref_subtracted_bg[image_ref < CENTROID_THRESHOLD * max(image_ref.flatten())] = 0
 		img_ref_peak_idx = _centroid(image_ref_subtracted_bg)
 		shift_fun = partial(shift_centroid, img_ref_peak_idx=img_ref_peak_idx)	
+
 	elif li_method == 'blind stack':
 		if stacking_method == 'median combine':			
 			arr = np.ndarray((1, image_ref.shape[0], image_ref.shape[1]))
@@ -304,23 +310,21 @@ def luckyImaging(images, li_method,
 			image_stacked = (image_ref + np.sum(images, axis=0)) / (N + 1)	
 		rel_shift_idxs = np.zeros( (N, 2) )
 		return image_stacked, rel_shift_idxs
+
+	elif li_method == 'fourier amplitude sampling' or li_method =='fas':
+		# Need to shift each image.
+		shift_fun = partial(shift_xcorr, image_ref=image_ref, buff=buff, sub_pixel_shift=sub_pixel_shift)
+		# THEN we need to apply the Fourier amplitude selection technique.
 	else:
 		print("ERROR: invalid Lucky Imaging method '{}' specified; must be 'cross-correlation', 'peak pixel', 'centroid' or 'Gaussian fit' for now...".format(li_method))
 		raise UserWarning
 
 	# In here, want to parallelise the processing for *each image*. So make shift functions that work on a single image and return the shifted image, then stack it out here.
-	
-	tic = time.time()
 	if mode == 'parallel':
 		# Setting up to execute in parallel.
 		images = images.tolist()	# Need to convert the image array to a list.
 
 		# Executing in parallel.
-		# if fftwconvolve.NTHREADS == 0:
-		# 	# We are safe to use threads if NTHREADS==0 since we don't use pyfftw in this case.
-		# 	pool = ThreadPool()
-		# else:
-		# Otherwise, we use processes instead.
 		pool = ProcPool()
 		results = pool.map(shift_fun, images, 1)
 		pool.close()
@@ -347,10 +351,6 @@ def luckyImaging(images, li_method,
 		print("ERROR: mode must be either parallel or serial!")
 		raise UserWarning
 
-	toc = time.time()
-	if timeIt:
-		print("APPLYING LUCKY IMAGING TECHNIQUE {}: Elapsed time for {:d} {}-by-{} images in {} mode: {:.5f}".format(li_method, N, image_ref.shape[0], image_ref.shape[1], mode, (toc-tic)))
-
 	# If we're using an FSR < 1 in the peak pixel method, then we must do the following:
 	#	1. Get our method to return a list of peak pixel values.
 	#	2. Sort that list in descending order and get the indices of the corresponding images in the range [0, FSR * N)
@@ -366,6 +366,28 @@ def luckyImaging(images, li_method,
 			image_stacked = obssim.medianCombine(np.concatenate((image_ref, images_shifted[sorted_idx[:N]])))
 		elif stacking_method == 'average':
 			image_stacked = (image_ref + np.sum(images_shifted[sorted_idx[:N]], 0)) / (N + 1)
+	elif li_method == 'fourier amplitude sampling' or li_method =='fas':
+		# Step 2a: Take the FFT.
+		images_fft = pyfftw.interfaces.numpy_fft.fftshift(pyfftw.interfaces.numpy_fft.fft2(images_shifted), axes=(1,2))
+		# Step 2b: Compute the Fourier amplitudes.
+		images_fft_amp = np.abs(images_fft)
+		# For now, don't worry about parallelisation.
+		h, w = image_ref.shape
+		N_frames_to_keep = int(np.round(fsr * N))
+		cutoff_freq_px = int(np.round(cutoff_freq_frac * min(h,w)))
+		U,V = np.meshgrid(np.linspace(-h/2,h/2-1,h),np.linspace(-w/2,w/2-1,w))
+		uv_map = np.zeros( (h,w) )
+		uv_map[np.sqrt(U**2 + V**2) < cutoff_freq_px]=1
+		vals_to_keep=np.zeros( (h, w, N_frames_to_keep), dtype=complex )
+		idxs_to_keep=np.zeros( (h, w, N_frames_to_keep), dtype=int)	# Indices along the zeroth axis of the datacube indicating which frames' data we want to keep for the whole image
+		ipdb.set_trace()
+		for u, v in zip(U[uv_map==1],V[uv_map==1]):
+			# For these coordinates, grab the indices of the N highest values in the data cube.
+			idxs_to_keep[u+h/2,v+w/2] = np.argsort(images_fft_amp[:,u+h/2,v+w/2])[-N_frames_to_keep:]
+			vals_to_keep[u+h/2,v+w/2] = images_fft[idxs_to_keep[u+h/2,v+w/2],u+h/2,v+w/2]
+		# Take the sum along the zeroth axis and IFFT to get the reassembled image.
+		fft_sum = np.sum(vals_to_keep, axis=2)
+		image_stacked = np.abs(pyfftw.interfaces.numpy_fft.ifft2(pyfftw.interfaces.numpy_fft.fftshift(fft_sum/N_frames_to_keep)))
 	else:
 		# Now, stacking the images. Need to change N if FSR < 1.
 		if stacking_method == 'median combine':			
@@ -375,6 +397,10 @@ def luckyImaging(images, li_method,
 			image_stacked = obssim.medianCombine(np.concatenate((image_ref, images_shifted)))
 		elif stacking_method == 'average':
 			image_stacked = (image_ref + np.sum(images_shifted, 0)) / (N + 1)	
+
+	toc = time.time()
+	if timeit:
+		print("APPLYING LUCKY IMAGING TECHNIQUE {}: Elapsed time for {:d} {}-by-{} images in {} mode: {:.5f}".format(li_method, N, image_ref.shape[0], image_ref.shape[1], mode, (toc-tic)))
 
 	return image_stacked, rel_shift_idxs
 
