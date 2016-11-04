@@ -30,7 +30,7 @@
 from __future__ import division, print_function
 import miscutils as mu
 import numpy as np
-import pdb
+import ipdb
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
