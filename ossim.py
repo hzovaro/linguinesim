@@ -126,7 +126,9 @@ def aoiAoSystem(wave_height_px,
 	}
 
 	# Wave parameters
-	m_per_px = 2 * wavefrontPupil['dout'] / wave_height_px		# Physical mapping of wave onto primary mirror size
+	# NOTE: to be able to get the PSF out to the 10th Airy ring, we have to maintain this sampling:
+	# m_per_px = wavefrontPupil['dout'] / wave_height_px
+	m_per_px = wavefrontPupil['dout'] / wave_height_px		# Physical mapping of wave onto primary mirror size
 
 	# AO system parameters
 	N_actuators = 17
