@@ -126,7 +126,7 @@ def aoiAoSystem(wave_height_px,
 	}
 
 	# Wave parameters
-	m_per_px = 4 * wavefrontPupil['dout'] / wave_height_px		# Physical mapping of wave onto primary mirror size
+	m_per_px = 2 * wavefrontPupil['dout'] / wave_height_px		# Physical mapping of wave onto primary mirror size
 
 	# AO system parameters
 	N_actuators = 17
@@ -146,10 +146,6 @@ def aoiAoSystem(wave_height_px,
 
 	# Atmospheric conditions at MSO
 	wavelength_ref_m = 550e-9		# Wavelength reference for Fried parameter (Bennet et al. 2012)
-	r0_ref_m = 5e-2
-	r0_wfs = np.power((wavelength_wfs_m / wavelength_ref_m), 1.2) * r0_ref_m
-	r0_science = np.power((wavelength_science_m / wavelength_ref_m), 1.2) * r0_ref_m 
-
 	# These values from Bennet et al. 2012
 	fractional_r0 = [0.4, 0.2, 0.3, 0.1]
 	r0_ref_m = [10e-2 * alpha_i**(-3/5) for alpha_i in fractional_r0]
