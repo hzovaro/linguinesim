@@ -380,7 +380,6 @@ def luckyImaging(images, li_method,
 		uv_map[np.sqrt(U**2 + V**2) < cutoff_freq_px]=1
 		vals_to_keep=np.zeros( (h, w, N_frames_to_keep), dtype=complex )
 		idxs_to_keep=np.zeros( (h, w, N_frames_to_keep), dtype=int)	# Indices along the zeroth axis of the datacube indicating which frames' data we want to keep for the whole image
-		ipdb.set_trace()
 		for u, v in zip(U[uv_map==1],V[uv_map==1]):
 			# For these coordinates, grab the indices of the N highest values in the data cube.
 			idxs_to_keep[u+h/2,v+w/2] = np.argsort(images_fft_amp[:,u+h/2,v+w/2])[-N_frames_to_keep:]
