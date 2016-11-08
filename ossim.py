@@ -136,7 +136,7 @@ def aoiAoSystem(wave_height_px,
 	ho_loop_rate = 2000
 
 	dm_geometry = 'square'
-	wfs_geometry = 'square'
+	wfs_geometry = 'hexagonal'
 	central_actuator = 'true'
 	central_lenslet = 'false'
 	
@@ -146,10 +146,6 @@ def aoiAoSystem(wave_height_px,
 
 	# Atmospheric conditions at MSO
 	wavelength_ref_m = 550e-9		# Wavelength reference for Fried parameter (Bennet et al. 2012)
-	r0_ref_m = 5e-2
-	r0_wfs = np.power((wavelength_wfs_m / wavelength_ref_m), 1.2) * r0_ref_m
-	r0_science = np.power((wavelength_science_m / wavelength_ref_m), 1.2) * r0_ref_m 
-
 	# These values from Bennet et al. 2012
 	fractional_r0 = [0.4, 0.2, 0.3, 0.1]
 	r0_ref_m = [10e-2 * alpha_i**(-3/5) for alpha_i in fractional_r0]
