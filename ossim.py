@@ -126,6 +126,8 @@ def aoiAoSystem(wave_height_px,
 	}
 
 	# Wave parameters
+	# NOTE: to be able to get the PSF out to the 10th Airy ring, we have to maintain this sampling:
+	# m_per_px = wavefrontPupil['dout'] / wave_height_px
 	m_per_px = wavefrontPupil['dout'] / wave_height_px		# Physical mapping of wave onto primary mirror size
 
 	# AO system parameters
@@ -182,7 +184,7 @@ def aoiAoSystem(wave_height_px,
 		sampling = 1)
 	
 	# The atmosphere is a PHASE SCREEN
-	atm = atmosphere.Atmosphere(sz = 4 * wave_height_px, 
+	atm = atmosphere.Atmosphere(sz = 4*wave_height_px, 
 		m_per_px = m_per_px,
 		elevations = elevation_m, 
 		r_0 = r0_ref_m, 
