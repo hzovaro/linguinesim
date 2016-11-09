@@ -1,4 +1,4 @@
-####################################################################################################
+################################################################################
 #
 # 	File:		etcutils.py
 #	Author:		Anna Zovaro
@@ -9,7 +9,7 @@
 #
 #	Copyright (C) 2016 Anna Zovaro
 #
-####################################################################################################
+################################################################################
 #
 #	This file is part of linguinesim.
 #
@@ -26,7 +26,7 @@
 #	You should have received a copy of the GNU General Public License
 #	along with linguinesim.  If not, see <http://www.gnu.org/licenses/>.
 #
-####################################################################################################
+################################################################################
 from __future__ import division, print_function
 import numpy as np
 import ipdb
@@ -36,7 +36,7 @@ import scipy.integrate
 # linguine modules 
 from linguineglobals import *
 
-########################################################################################
+###################################################################################
 def thermalEmissionIntensity(		
 	T,					# Emission source temperature
 	wavelength_min,		# Integrand interval lower limit
@@ -73,7 +73,7 @@ def thermalEmissionIntensity(
 
 	return I
 
-####################################################################################################
+################################################################################
 def surface_brightness2countRate(mu, A_tel, 
 	plate_scale_as_px = 1,
 	tau = 1,
@@ -112,7 +112,7 @@ def surface_brightness2countRate(mu, A_tel,
 	Sigma_electrons = flux2countRate(F=F, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain, magnitude_system=magnitude_system, wavelength_m=wavelength_m,bandwidth_m=bandwidth_m, band=band)                                                             
 	return Sigma_electrons
 
-####################################################################################################
+################################################################################
 # This routine is independent of telescope, detector geometry.
 def surface_brightness2flux(mu, 
 	wavelength_m = None,
@@ -129,7 +129,7 @@ def surface_brightness2flux(mu,
 	return Fnucgs2flux(F_nu_cgs, wavelength_m)
 
 
-####################################################################################################
+################################################################################
 def Fnucgs2flux(F_nu_cgs,
 	wavelength_m = None
 	):
@@ -154,7 +154,7 @@ def Fnucgs2flux(F_nu_cgs,
 
 	return F
 
-####################################################################################################
+################################################################################
 def flux2photonRate(F, wavelength_m, bandwidth_m):
 	"""
 		Convert a given flux from a source (in a dictionary format output by surface_brightness2flux) into photons/s/m^2/arcsec^2 (or in photons/s/m^2 depending on the units of F) given a central wavelength_m and bandwidth of a filter.
@@ -163,7 +163,7 @@ def flux2photonRate(F, wavelength_m, bandwidth_m):
 	Sigma_photons = F['F_lambda_si'] * bandwidth_m / E_photon	# W/m^2/arcsec^2/m * m/J = photons/s/m^2/arcsec^2
 	return Sigma_photons
 
-####################################################################################################
+################################################################################
 def photonRate2countRate(Sigma_photons, A_tel, 
 	tau, 
 	qe, 
@@ -178,7 +178,7 @@ def photonRate2countRate(Sigma_photons, A_tel,
 	Sigma_electrons = Sigma_photons * A_tel * plate_scale_as_px * plate_scale_as_px * tau * qe * gain # photons/s/px
 	return Sigma_electrons
 
-####################################################################################################
+################################################################################
 def flux2countRate(F, 
 	A_tel = 1, 
 	plate_scale_as_px = 1, 
@@ -205,7 +205,7 @@ def flux2countRate(F,
 	Sigma_electrons = photonRate2countRate(Sigma_photons=Sigma_photons, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain)
 	return Sigma_electrons
 
-####################################################################################################
+################################################################################
 def expectedCount2count(arg,
 	detectorSaturation = np.inf, 
 	t_exp = None):

@@ -1,4 +1,4 @@
-############################################################################################
+################################################################################
 #
 # 	File:		galsim.py
 #	Author:		Anna Zovaro
@@ -9,7 +9,7 @@
 #
 #	Copyright (C) 2016 Anna Zovaro
 #
-############################################################################################
+################################################################################
 #
 #	This file is part of linguinesim.
 #
@@ -26,7 +26,7 @@
 #	You should have received a copy of the GNU General Public License
 #	along with linguinesim.  If not, see <http://www.gnu.org/licenses/>.
 #
-############################################################################################
+################################################################################
 from __future__ import division, print_function
 
 import miscutils as mu
@@ -43,9 +43,9 @@ from linguineglobals import *
 import etcutils
 import imutils
 
-############################################################################################
+################################################################################
 # The following functions are for use with GALFIT.
-############################################################################################
+################################################################################
 def simulateSersicGalaxy(im_out_fname, # Output FITS file name
 	height_px, 	# Height of output file
 	width_px, 	# Width of output file
@@ -97,7 +97,7 @@ def simulateSersicGalaxy(im_out_fname, # Output FITS file name
 
 	return im_raw
 
-############################################################################################
+################################################################################
 from subprocess import call
 def callGALFIT(galfit_input_fname):
 	""" 
@@ -106,7 +106,7 @@ def callGALFIT(galfit_input_fname):
 	print("Calling GALFIT...")
 	call(["galfit", galfit_input_fname])
 
-############################################################################################
+################################################################################
 def writeGALFITparamsFile(
 	galfit_input_fname,	# Name of GALFIT input parameters file
 	im_out_fname, 		# Output FITS file name
@@ -162,9 +162,9 @@ def writeGALFITparamsFile(
 
 	return galfit_input_fname, im_out_fname
 
-############################################################################################
+################################################################################
 # The following functions are for generating an image of a galaxy without GALFIT (not recommended for now)
-############################################################################################
+################################################################################
 def sersic(n, R_e, R, mu_e,
 	zeropoint = 0,
 	wavelength_m = None
@@ -196,7 +196,7 @@ def sersic(n, R_e, R, mu_e,
 
 	return R, mu, F
 
-############################################################################################
+################################################################################
 def sersic2D(n, R_e, mu_e,
 	theta_rad = 0,		# Angle between major axis and detector horizontal (radians)
 	i_rad = 0,			# Inclination angle (radians; face-on corresponds to i = 0)
@@ -247,7 +247,7 @@ def sersic2D(n, R_e, mu_e,
 
 	return R, dR, F_map, mu_map
 
-############################################################################################
+################################################################################
 def exportGalaxyFITSFile(image_in_array, n, R_e, mu_e, z, R_trunc, i_deg, band, seeing_as, t_exp, N_exp,
 	overwriteExisting = True,
 	relpath = None

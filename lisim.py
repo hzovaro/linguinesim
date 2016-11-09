@@ -1,4 +1,4 @@
-####################################################################################################
+################################################################################
 #
 # 	File:		lisim.py
 #	Author:		Anna Zovaro
@@ -20,7 +20,7 @@
 #		- Cross-correlate the ideal PSF (say, Airy disc) with a subsection of the image containing a guide star--peak of the x-corr indicates the correlation (basically the Strehl) whilst its position gives the shift that needs to be applied 
 #		- Rank in order of the fraction of light concentrated in the brightest pixel of the guide star PSF
 #
-####################################################################################################
+################################################################################
 #
 #	This file is part of linguinesim.
 #
@@ -37,7 +37,7 @@
 #	You should have received a copy of the GNU General Public License
 #	along with linguinesim.  If not, see <http://www.gnu.org/licenses/>.
 #
-####################################################################################################
+################################################################################
 from __future__ import division, print_function
 import miscutils as mu
 import numpy as np
@@ -68,7 +68,7 @@ import fftwconvolve, obssim, etcutils, imutils
 CENTROID_THRESHOLD = 0.33
 
 
-####################################################################################################
+################################################################################
 def luckyImage(
 	im, 							# In electron counts/s.
 	psf, 							# Normalised.
@@ -153,7 +153,7 @@ def luckyImage(
 
 	return im_noisy
 
-####################################################################################################
+################################################################################
 def shift_pp(image, img_ref_peak_idx, fsr, bid_area):
 	if type(image) == list:
 		image = np.array(image)	
@@ -173,7 +173,7 @@ def shift_pp(image, img_ref_peak_idx, fsr, bid_area):
 
 	return image_shifted, -rel_shift_idx, peak_pixel_val
 
-####################################################################################################
+################################################################################
 def shift_centroid(image, img_ref_peak_idx):
 	if type(image) == list:
 		image = np.array(image)
@@ -194,7 +194,7 @@ def shift_centroid(image, img_ref_peak_idx):
 
 	return image_shifted, -rel_shift_idx
 
-####################################################################################################
+################################################################################
 def shift_xcorr(image, image_ref, buff, sub_pixel_shift):
 	if type(image) == list:
 		image = np.array(image)
@@ -238,7 +238,7 @@ def shift_xcorr(image, image_ref, buff, sub_pixel_shift):
 
 	return image_shifted, tuple(-x for x in rel_shift_idx)
 
-####################################################################################################
+################################################################################
 def shift_gaussfit(image, img_ref_peak_idx):
 	if type(image) == list:
 		image = np.array(image)
@@ -254,7 +254,7 @@ def shift_gaussfit(image, img_ref_peak_idx):
 
 	return image_shifted, tuple(-x for x in rel_shift_idx)
 
-####################################################################################################
+################################################################################
 def luckyImaging(images, li_method, 
 	mode = 'serial',		# whether or not to process images in parallel
 	image_ref = None,		# reference image
@@ -403,7 +403,7 @@ def luckyImaging(images, li_method,
 
 	return image_stacked, rel_shift_idxs
 
-####################################################################################################
+################################################################################
 def alignmentError(in_idxs, out_idxs, opticalsystem,
 	li_method='',
 	plotHist=True,
@@ -435,7 +435,7 @@ def alignmentError(in_idxs, out_idxs, opticalsystem,
 	
 	return errs_as
 
-####################################################################################################
+################################################################################
 def plotErrorHistogram(errs_as,
 	li_method=''):
 	x_errs_as = errs_as[:,0]
@@ -473,7 +473,7 @@ def plotErrorHistogram(errs_as,
 	plt.legend()	
 	plt.show()
 
-####################################################################################################
+################################################################################
 def _li_error_check(images, 
 	image_ref = None,
 	N = None):
@@ -515,7 +515,7 @@ def _li_error_check(images,
 
 	return images, image_ref, N
 
-####################################################################################################
+################################################################################
 def _centroid(image):
 	""" Returns the centroid coordinates of an image. """
 	height = image.shape[0]
@@ -531,7 +531,7 @@ def _centroid(image):
 
 	return centroid
 
-####################################################################################################
+################################################################################
 def _gaussfit_peak(image):
 	""" Returns the coordinates of the peak of a 2D Gaussian fitted to the image. """
 	height, width = image.shape

@@ -1,4 +1,4 @@
-####################################################################################################
+################################################################################
 #
 # 	File:		obssim.py
 #	Author:		Anna Zovaro
@@ -9,7 +9,7 @@
 #
 #	Copyright (C) 2016 Anna Zovaro
 #
-####################################################################################################
+################################################################################
 #
 #	This file is part of linguinesim.
 #
@@ -26,7 +26,7 @@
 #	You should have received a copy of the GNU General Public License
 #	along with linguinesim.  If not, see <http://www.gnu.org/licenses/>.
 #
-####################################################################################################
+################################################################################
 from __future__ import division, print_function 
 import miscutils as mu
 import numpy as np
@@ -57,7 +57,7 @@ import etc, etcutils, fftwconvolve, imutils
 # aosim modules
 # from aosim import pyxao
 
-####################################################################################################
+################################################################################
 def addTipTilt(images, 
 	sigma_tt_px=None,
 	tt_input_idxs=None,
@@ -97,7 +97,7 @@ def addTipTilt(images,
 
 	return np.squeeze(images_tt), tt_idxs
 
-####################################################################################################
+################################################################################
 def addTipTilt_single(image, 
 	sigma_tt_px=None, 
 	tt_idxs=None):
@@ -121,12 +121,12 @@ def addTipTilt_single(image,
 
 	return image_tt, tt_idxs
 
-####################################################################################################
+################################################################################
 def strehl(psf, psf_dl):
 	""" Calculate the Strehl ratio of an aberrated input PSF given the diffraction-limited PSF. """
 	return np.amax(psf) / np.amax(psf_dl)
 
-####################################################################################################
+################################################################################
 def airyDisc(wavelength_m, f_ratio, l_px_m, 
 	detector_size_px=None,
 	trapz_oversampling=8,	# Oversampling used in the trapezoidal rule approximation.
@@ -210,7 +210,7 @@ def airyDisc(wavelength_m, f_ratio, l_px_m,
 
 	return count_cumtrapz, I, P_0, P_sum, I_0
 
-####################################################################################################
+################################################################################
 def fieldStar(band, 
 	coords_as, 
 	opticalsystem, 
@@ -306,7 +306,7 @@ def fieldStar(band,
 
 	return star_tt_conv
 
-####################################################################################################
+################################################################################
 def psfKernel(wavelength_m, 
 	l_px_m=None, 
 	f_ratio=None,
@@ -341,7 +341,7 @@ def psfKernel(wavelength_m,
 
 	return kernel
 
-####################################################################################################
+################################################################################
 def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_as,
 	dest_detector_size_px=None,
 	plotit=False):
@@ -410,7 +410,7 @@ def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_a
 
 	return np.squeeze(images)
 
-####################################################################################################
+################################################################################
 def resizeImageToDetector(image_raw, source_plate_scale_as, dest_plate_scale_as,
 	dest_detector_size_px=None,
 	conserve_pixel_sum=False,
@@ -563,7 +563,7 @@ def getDiffractionLimitedImage(image_truth, l_px_m, f_ratio, wavelength_m,
 
 	return np.squeeze(image_difflim)
 
-####################################################################################################
+################################################################################
 def getSeeingLimitedImage(images, seeing_diameter_as, 
 	plate_scale_as=1,
 	padFactor=1,
@@ -629,7 +629,7 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 
 	return np.squeeze(image_seeing_limited_cropped)
 
-####################################################################################################
+################################################################################
 def convolvePSF(image, psf, 
 	padFactor=1,
 	plotit=False):
@@ -679,7 +679,7 @@ def convolvePSF(image, psf,
 	return image_conv_cropped
 
 
-####################################################################################################
+################################################################################
 def addNoise(images,
 	noise_frames=None, 
 	band=None,	
@@ -700,7 +700,7 @@ def addNoise(images,
 		# Otherwise, we just add the input. The ETC output is none since we didn't use it.
 		return images + noise_frames, noise_frames, None		
 
-####################################################################################################
+################################################################################
 def noiseFramesFromEtc(N, height_px, width_px, 
 	gain=1,
 	band=None,
@@ -760,7 +760,7 @@ def noiseFramesFromEtc(N, height_px, width_px,
 
 	return noise_frames_dict, etc_output
 
-##########################################################################################
+#####################################################################################
 def darkAndSkyMasterFrames(N, height_px, width_px,
 	band=None,
 	t_exp=None,
@@ -779,7 +779,7 @@ def darkAndSkyMasterFrames(N, height_px, width_px,
 
 	return master_dark_and_sky, master_dark
 
-##########################################################################################
+#####################################################################################
 def noiseFrame(height_px, width_px, lam,
 	N_frames = 1):
 	""" Generate an array of integers drawn from a Poisson distribution with an expected value lam in each entry. """
@@ -788,13 +788,13 @@ def noiseFrame(height_px, width_px, lam,
 	else:
 		return np.random.poisson(lam=lam, size=(N_frames, height_px, width_px)).astype(int)
 
-##########################################################################################
+#####################################################################################
 def medianCombine(images):
 	""" Median-combine the input images. """
 	# TODO: implement robust median (sigma clipping?)
 	return np.median(images, axis=0)
 
-##########################################################################################
+#####################################################################################
 def strehl(psf, psf_dl):
 	""" Calculate the Strehl ratio of an aberrated input PSF given the diffraction-limited PSF. """
 	return np.amax(psf) / np.amax(psf_dl)

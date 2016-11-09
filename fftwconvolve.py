@@ -29,7 +29,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGE.
 
-##########################################################################################
+#####################################################################################
 
 # Author: Travis Oliphant
 # 1999 -- 2002
@@ -39,7 +39,7 @@
 
 # I have edited the SciPy source to increase the speed of 2D convolutions using the pyfftw library instead of numpy.
 
-##########################################################################################
+#####################################################################################
 
 from __future__ import division, print_function, absolute_import
 

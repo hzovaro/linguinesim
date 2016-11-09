@@ -1,4 +1,4 @@
-####################################################################################################
+################################################################################
 #
 # 	File:		etc.py
 #	Author:		Anna Zovaro
@@ -15,7 +15,7 @@
 #
 #	Copyright (C) 2016 Anna Zovaro
 #
-####################################################################################################
+################################################################################
 #
 #	This file is part of linguinesim.
 #
@@ -32,7 +32,7 @@
 #	You should have received a copy of the GNU General Public License
 #	along with linguinesim.  If not, see <http://www.gnu.org/licenses/>.
 #
-####################################################################################################
+################################################################################
 from __future__ import division, print_function
 import miscutils as mu
 import numpy as np
@@ -49,7 +49,7 @@ import json
 
 from linguineglobals import *
 import etcutils
-####################################################################################################
+################################################################################
 def exposureTimeCalc(band, t_exp, optical_system,
 		surface_brightness = None,
 		magnitude_system = None,
@@ -82,9 +82,9 @@ def exposureTimeCalc(band, t_exp, optical_system,
 	wavelength_min = FILTER_BANDS_M[band][2]
 	wavelength_max = FILTER_BANDS_M[band][3]
 
-	################################################################################################
+	####################################################################################
 	# Noise terms in the SNR calculation
-	################################################################################################
+	####################################################################################
 	
 	""" Signal photon flux """
 	# Given the surface brightness of the object, calculate the source electrons/s/pixel.
@@ -140,9 +140,9 @@ def exposureTimeCalc(band, t_exp, optical_system,
 	# Be careful about gain compensation! 
 	Sigma_dark = detector.dark_current
 
-	################################################################################################
+	####################################################################################
 	# Calculating the SNR
-	################################################################################################
+	####################################################################################
 	N_source = Sigma_source_e * t_exp
 	N_dark = Sigma_dark * t_exp
 	N_cryo = Sigma_cryo * t_exp
@@ -154,7 +154,7 @@ def exposureTimeCalc(band, t_exp, optical_system,
 
 	SNR_unity_gain = N_source / np.sqrt(N_source + N_dark + N_cryo + N_sky + N_RN)
 	SNR_gain_multiplied = N_source * detector.gain / np.sqrt(N_source* detector.gain + N_dark* detector.gain + N_cryo* detector.gain + N_sky* detector.gain + N_RN)
-	################################################################################################
+	####################################################################################
 
 	etc_output = {
 		# Input parameters
@@ -234,7 +234,7 @@ def exposureTimeCalc(band, t_exp, optical_system,
 
 	return etc_output
 
-####################################################################################################
+################################################################################
 def getCryostatTE(optical_system):
 	"""
 		Return the expected counts/second/pixel on a detector resulting from thermal emission from the cryostat walls.
@@ -264,7 +264,7 @@ def getCryostatTE(optical_system):
 
 
 
-####################################################################################################
+################################################################################
 
 def getSkyTE(optical_system,
 	plotit=True):
@@ -321,7 +321,7 @@ def getSkyTE(optical_system,
 
 	return I_sky
 
-####################################################################################################
+################################################################################
 def getTelescopeTE(optical_system,
 	plotit=True):
 
@@ -412,7 +412,7 @@ def getTelescopeTE(optical_system,
 
 	return I_tel
 
-########################################################################################
+###################################################################################
 def plotBackgroundNoiseSources(optical_system):
 	" Plot the empirical sky brightness, thermal sky emission, thermal telescope emission and dark current as a function of wavelength_m "
 
@@ -463,7 +463,7 @@ def plotBackgroundNoiseSources(optical_system):
 	plt.title(r'Expected background noise levels (gain-multiplied by %d)' % detector.gain)
 	plt.show()
 
-####################################################################################################
+################################################################################
 def findCryostatTemp(optical_system, plotit=True):
 	"""
 		Determine what temperature the cryostat given in the optical system must be so that the detector counts resulting from the thermal emission from the cryostat walls is equivalent to the dark current.
@@ -545,7 +545,7 @@ def findCryostatTemp(optical_system, plotit=True):
 	
 	return T[idx]
 
-########################################################################################
+###################################################################################
 def getSkyEps():
 	# Atmospheric properties	
 	fname = 'cptrans_zm_23_10.dat'

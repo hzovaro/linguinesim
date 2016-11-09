@@ -1,4 +1,4 @@
-############################################################################################
+################################################################################
 #
 # 	File:		imutils.py
 #	Author:		Anna Zovaro
@@ -9,7 +9,7 @@
 #
 #	Copyright (C) 2016 Anna Zovaro
 #
-############################################################################################
+################################################################################
 #
 #	This file is part of linguinesim.
 #
@@ -26,7 +26,7 @@
 #	You should have received a copy of the GNU General Public License
 #	along with linguinesim.  If not, see <http://www.gnu.org/licenses/>.
 #
-############################################################################################
+################################################################################
 from __future__ import division, print_function
 import miscutils as mu
 import numpy as np
@@ -69,7 +69,7 @@ def imageFromFitsFile(fname,
 
 	return np.squeeze(images_raw), hdulist
 
-####################################################################################################
+################################################################################
 def imageToArray(im):
 	" Convert an Image object im into an array. "
 	width, height = im.size
@@ -77,7 +77,7 @@ def imageToArray(im):
 	image_map = np.array(image_map).reshape(height, width)
 	return image_map
 
-####################################################################################################
+################################################################################
 # def rotateAndCrop(image_in_array, 
 # 	angle = None, 
 # 	cropArg = None, 
@@ -135,7 +135,7 @@ def imageToArray(im):
 
 # 	return np.squeeze(image_out_array)
 
-############################################################################################
+################################################################################
 def centreCrop(im, sz_final, 
 		units = 'px',
 		plate_scale_as_px = 1,
@@ -176,7 +176,7 @@ def centreCrop(im, sz_final,
 
 	return np.squeeze(im_cropped)
 
-#########################################################################################################
+################################################################################
 def getImageSize(image_in_array):
 	" This function takes as input an image array which is either 2- or 3-dimensional. It returns an new array with dimensions (N, height, width). This function is basically to ensure consistency in this module in how images are stored (to eliminate the need to constantly check the dimensions of input image arguments) "
 	if len(image_in_array.shape) == 3:
@@ -195,7 +195,7 @@ def getImageSize(image_in_array):
 		return -1
 	return (image_out_array, N, height, width)
 
-#########################################################################################################
+################################################################################
 def exportFitsFile(image_in_array, fname,
 	otherHeaderData = None, 
 	overwriteExisting = False):

@@ -1,4 +1,4 @@
-git s############################################################################################
+git s################################################################################
 #
 # 	File:		starsim.py
 #	Author:		Anna Zovaro
@@ -9,7 +9,7 @@ git s###########################################################################
 #
 #	Copyright (C) 2016 Anna Zovaro
 #
-############################################################################################
+################################################################################
 #
 #	This file is part of linguinesim.
 #
@@ -26,7 +26,7 @@ git s###########################################################################
 #	You should have received a copy of the GNU General Public License
 #	along with linguinesim.  If not, see <http://www.gnu.org/licenses/>.
 #
-############################################################################################
+################################################################################
 from __future__ import division, print_function
 import miscutils as mu
 import numpy as np
@@ -40,7 +40,7 @@ rc('image', interpolation='none', cmap = 'binary_r')
 from linguineglobals import *
 import obssim, etcutils
 
-############################################################################################
+################################################################################
 def getStarField(A_tel, f_ratio, l_px_m, detector_size_px,
 	t_exp = 1,			# Exposure time (s).
 	N_stars = None,			# Number of random stars to generate.

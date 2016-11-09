@@ -1,4 +1,4 @@
-############################################################################################
+################################################################################
 
 Organisational stuff:
 - Make a Wiki - discuss preferred format with Francis. Preferably somewhere with LaTeX formatting
@@ -6,7 +6,7 @@ Organisational stuff:
 - Make short-term and long-term plans
 - Astro computing course?
 
-############################################################################################
+################################################################################
 
 Coding stuff:
 - Top-level work/data flow
@@ -16,14 +16,14 @@ Coding stuff:
 - get some results: plots of LI success rate vs. magnitude for a centred star in all 3 bands
 - window down on star: get some really bright magnitude images so that we can see Airy rings
 
-############################################################################################
+################################################################################
 
 Galfit simulations:
 - better way of calculating b_n
 - weird pixelation effect: occurs during call to image.rotate()
 - modify sersic2D function to take as input z, R_trunc, detector width & detector plate scale instead
 
-############################################################################################
+################################################################################
  
 Things to ask:
 - Check the cryostat temperature: confirm with Rob which dark current value to use. dependence on temperature?

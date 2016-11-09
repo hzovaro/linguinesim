@@ -1,4 +1,4 @@
-############################################################################################
+################################################################################
 #
 # 	File:		ossim.py
 #	Author:		Anna Zovaro
@@ -9,7 +9,7 @@
 #
 #	Copyright (C) 2016 Anna Zovaro
 #
-############################################################################################
+################################################################################
 #
 #	This file is part of linguinesim.
 #
@@ -26,7 +26,7 @@
 #	You should have received a copy of the GNU General Public License
 #	along with linguinesim.  If not, see <http://www.gnu.org/licenses/>.
 #
-############################################################################################
+################################################################################
 from __future__ import division, print_function
 import numpy as np
 
@@ -41,7 +41,7 @@ import ipdb
 
 import etc
 
-############################################################################################
+################################################################################
 def aoiOpticalSystem():
 
 	opticalsystem = OpticalSystem(
@@ -53,7 +53,7 @@ def aoiOpticalSystem():
 
 	return opticalsystem
 
-############################################################################################
+################################################################################
 def eos18mTelescope():
 	tel = Telescope(
 		efl_m = np.inf, 		# For AOI, the plate scale is determined by the optics just before the imager, not by the diameter of the telescope itself (which is afocal anyway)
@@ -72,7 +72,7 @@ def eos18mTelescope():
 
 	return tel
 
-############################################################################################
+################################################################################
 def nuvuDetector():
 	return Detector(
 		height_px = 512,				# height (pixels)
@@ -89,7 +89,7 @@ def nuvuDetector():
 		fps = 60						# framerate
 		)
 
-############################################################################################
+################################################################################
 def msoSky():
 	return Sky(
 		magnitude_system = 'AB',
@@ -102,7 +102,7 @@ def msoSky():
 			eps = etc.getSkyEps()
 		)
 
-############################################################################################
+################################################################################
 def aoiAoSystem(wave_height_px,
 	compute_response_matrix = True,
 	compute_reconstructor = True,
@@ -219,7 +219,7 @@ def aoiAoSystem(wave_height_px,
 
 	return aoi_ao_system
 
-############################################################################################
+################################################################################
 def anu23mTelescope():
 	"""
 		Make a TelescopeClass instance corresponding to the ANU 2.3 m.
@@ -259,7 +259,7 @@ def anu23mTelescope():
 
 	return tel
 
-############################################################################################
+################################################################################
 def saphiraDetector():
 	"""
 		Make a DetectorClass instance corresponding to the ANU 2.3 m.
@@ -280,7 +280,7 @@ def saphiraDetector():
 		qe = 0.9						# quantum efficiency
 		)
 
-############################################################################################
+################################################################################
 def saphiraCryostat():
 	print("TODO: Cryostat temperature needs updating!")
 	
@@ -291,7 +291,7 @@ def saphiraCryostat():
 		eps_wall = 1.0
 		)
 
-############################################################################################
+################################################################################
 def ssoSky():
 	return Sky(
 			magnitude_system = 'AB',
@@ -305,7 +305,7 @@ def ssoSky():
 			eps = etc.getSkyEps()
 		)
 
-############################################################################################
+################################################################################
 def linguineOpticalSystem():
 	"""
 		Make an OpticalSystemClass instance corresponding to the ANU 2.3 m.
@@ -320,7 +320,7 @@ def linguineOpticalSystem():
 		sky = ssoSky()
 		)
 
-############################################################################################
+################################################################################
 def linguineAoSystem(wave_height_px,
 	rng_seed = 1
 	):
