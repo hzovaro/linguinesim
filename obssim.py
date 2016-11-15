@@ -760,7 +760,7 @@ def noiseFramesFromEtc(N, height_px, width_px,
 
 	return noise_frames_dict, etc_output
 
-#####################################################################################
+################################################################################
 def darkAndSkyMasterFrames(N, height_px, width_px,
 	band=None,
 	t_exp=None,
@@ -771,7 +771,13 @@ def darkAndSkyMasterFrames(N, height_px, width_px,
 		The individual noise frames used to generate the master frames are NOT returned here; this is deliberate as it prevents one from generating the master frames from the same frames that are added to the image.
 
 	"""
-	noise_frames_dict = noiseFramesFromEtc(N=N, height_px=height_px, width_px=width_px, band=band, t_exp=t_exp, etc_input=etc_input)[0]
+	noise_frames_dict = noiseFramesFromEtc(
+		N=N, 
+		height_px=height_px, 
+		width_px=width_px, 
+		band=band, 
+		t_exp=t_exp, 
+		etc_input=etc_input)[0]
 
 	# Generating the master dark and sky frames.
 	master_dark = medianCombine(noise_frames_dict['total'] - noise_frames_dict['sky'])
@@ -779,22 +785,24 @@ def darkAndSkyMasterFrames(N, height_px, width_px,
 
 	return master_dark_and_sky, master_dark
 
-#####################################################################################
+################################################################################
 def noiseFrame(height_px, width_px, lam,
 	N_frames = 1):
 	""" Generate an array of integers drawn from a Poisson distribution with an expected value lam in each entry. """
 	if N_frames == 1:
-		return np.random.poisson(lam=lam, size=(height_px, width_px)).astype(int)
+		return np.random.poisson(lam=lam, 
+			size=(height_px, width_px)).astype(int)
 	else:
-		return np.random.poisson(lam=lam, size=(N_frames, height_px, width_px)).astype(int)
+		return np.random.poisson(lam=lam, 
+			size=(N_frames, height_px, width_px)).astype(int)
 
-#####################################################################################
+################################################################################
 def medianCombine(images):
 	""" Median-combine the input images. """
 	# TODO: implement robust median (sigma clipping?)
 	return np.median(images, axis=0)
 
-#####################################################################################
+################################################################################
 def strehl(psf, psf_dl):
 	""" Calculate the Strehl ratio of an aberrated input PSF given the diffraction-limited PSF. """
 	return np.amax(psf) / np.amax(psf_dl)
