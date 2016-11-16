@@ -264,6 +264,7 @@ def luckyImaging(images, li_method,
 	sub_pixel_shift = True,	# for xcorr/FAS method
 	buff = 25, 				# for xcorr/FAS method
 	cutoff_freq_frac = 1,	# for FAS method
+	use_vals_outside_cutoff_freq = True,	# for FAS method
 	stacking_method = 'average',
 	timeit = True
 	):
@@ -366,18 +367,43 @@ def luckyImaging(images, li_method,
 			image_stacked = obssim.medianCombine(np.concatenate((image_ref, images_shifted[sorted_idx[:N]])))
 		elif stacking_method == 'average':
 			image_stacked = (image_ref + np.sum(images_shifted[sorted_idx[:N]], 0)) / (N + 1)
+
 	elif li_method == 'fourier amplitude sampling' or li_method =='fas':
-		# Step 2a: Take the FFT.
-		images_fft = pyfftw.interfaces.numpy_fft.fftshift(pyfftw.interfaces.numpy_fft.fft2(images_shifted), axes=(1,2))
-		# Step 2b: Compute the Fourier amplitudes.
-		images_fft_amp = np.abs(images_fft)
-		# For now, don't worry about parallelisation.
+		# From Mackay 2013: within the cutoff spatial frequency radius, we 
+		# select (u,v) pixels by using the Fourier amplitude. Outside this 
+		# cutoff frequency, we select (u,v) pixels by using the peak pixel value 
+		# in the image.
 		h, w = image_ref.shape
 		N_frames_to_keep = int(np.round(fsr * N))
+		images_fft = pyfftw.interfaces.numpy_fft.fftshift(
+			pyfftw.interfaces.numpy_fft.fft2(images_shifted), 
+			axes=(1,2))
+
 		cutoff_freq_px = int(np.round(cutoff_freq_frac * min(h,w)))
 		U,V = np.meshgrid(np.linspace(-h/2,h/2-1,h),np.linspace(-w/2,w/2-1,w))
 		uv_map = np.zeros( (h,w) )
 		uv_map[np.sqrt(U**2 + V**2) < cutoff_freq_px]=1
+
+		fft_sum = np.zeros( (h, w), dtype=complex )
+		
+		# OUTSIDE THE CUTOFF FREQUENCY
+		if use_vals_outside_cutoff_freq:			
+			# Step 1. Sort the images in order of peak pixel value.
+			max_pixel_vals = np.max(images_shifted,axis=(1,2))
+			idxs_to_keep = np.argsort(max_pixel_vals)[-N_frames_to_keep:]
+			# Step 2. 
+			vals_to_keep=np.zeros( (h, w, N_frames_to_keep), dtype=complex )
+			for u, v in zip(U[uv_map==0],V[uv_map==0]):
+				# For these coordinates, grab the indices of the N highest values in the data cube.
+				try:
+					vals_to_keep[u+h/2,v+w/2] = images_fft[idxs_to_keep,u+h/2,v+w/2]
+				except:
+					ipdb.set_trace()
+			fft_sum += np.sum(vals_to_keep, axis=2)
+
+		# WITHIN THE CUTOFF FREQUENCY
+		images_fft_amp = np.abs(images_fft)
+		# For now, don't worry about parallelisation.		
 		vals_to_keep=np.zeros( (h, w, N_frames_to_keep), dtype=complex )
 		idxs_to_keep=np.zeros( (h, w, N_frames_to_keep), dtype=int)	# Indices along the zeroth axis of the datacube indicating which frames' data we want to keep for the whole image
 		for u, v in zip(U[uv_map==1],V[uv_map==1]):
@@ -385,7 +411,10 @@ def luckyImaging(images, li_method,
 			idxs_to_keep[u+h/2,v+w/2] = np.argsort(images_fft_amp[:,u+h/2,v+w/2])[-N_frames_to_keep:]
 			vals_to_keep[u+h/2,v+w/2] = images_fft[idxs_to_keep[u+h/2,v+w/2],u+h/2,v+w/2]
 		# Take the sum along the zeroth axis and IFFT to get the reassembled image.
-		fft_sum = np.sum(vals_to_keep, axis=2)
+		fft_sum += np.sum(vals_to_keep, axis=2)
+		
+
+
 		image_stacked = np.abs(pyfftw.interfaces.numpy_fft.ifft2(pyfftw.interfaces.numpy_fft.fftshift(fft_sum/N_frames_to_keep)))
 	else:
 		# Now, stacking the images. Need to change N if FSR < 1.
