@@ -85,9 +85,13 @@ def surface_brightness2countRate(mu, A_tel,
 	band = None
 	):
 	""" 
-		Return the electron count (e/pixel/s) from a source with a given surface brightness OR magnitude (mu) imaged through a system with collecting area A_tel, throughput tau, quantum efficiency qe, internal gain gain and a detector plate scale (plate_scale_as) in arcsec/pixel.
+		Return the electron count (e/pixel/s) from a source with a given surface 
+		brightness OR magnitude (mu) imaged through a system with collecting 
+		area A_tel, throughput tau, quantum efficiency qe, internal gain gain 
+		and a detector plate scale (plate_scale_as) in arcsec/pixel.
 
-		If mu is given in magnitudes, then the plate scale is irrelevant to the calculation.
+		If mu is given in magnitudes, then the plate scale is irrelevant to the 
+		calculation.
 	"""
 	if (band == None and (wavelength_m == None or bandwidth_m == None)) or (band != None and (wavelength_m != None or bandwidth_m != None)):
 		raise UserWarning('ERROR: you must specify either a band (J, H or K) OR a wavelength_m and bandwidth!')
@@ -108,8 +112,21 @@ def surface_brightness2countRate(mu, A_tel,
 	else:
 		zeropoint = 0
 
-	F = surface_brightness2flux(mu=mu, wavelength_m=wavelength_m, zeropoint=zeropoint)
-	Sigma_electrons = flux2countRate(F=F, A_tel=A_tel, plate_scale_as_px=plate_scale_as_px, tau=tau, qe=qe, gain=gain, magnitude_system=magnitude_system, wavelength_m=wavelength_m,bandwidth_m=bandwidth_m, band=band)                                                             
+	F = surface_brightness2flux(
+		mu=mu, 
+		wavelength_m=wavelength_m, 
+		zeropoint=zeropoint)
+	Sigma_electrons = flux2countRate(
+		F=F, 
+		A_tel=A_tel, 
+		plate_scale_as_px=plate_scale_as_px, 
+		tau=tau, 
+		qe=qe, 
+		gain=gain, 
+		magnitude_system=magnitude_system, 
+		wavelength_m=wavelength_m,
+		bandwidth_m=bandwidth_m, 
+		band=band)                                                             
 	return Sigma_electrons
 
 ################################################################################
