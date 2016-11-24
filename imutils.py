@@ -36,6 +36,8 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm 
 from matplotlib import rc
 rc('image', interpolation='none', cmap = 'binary_r')
+import pyfftw
+import fftwconvolve
 
 import astropy.io.fits
 
@@ -173,4 +175,41 @@ def exportFitsFile(image_in_array, fname,
 	hdu.writeto(fname, clobber = overwriteExisting)
 
 
+################################################################################
+def fourier_resize(im, scale_factor,
+	conserve_pixel_sum=True):
 
+	# Resize an image using a Fourier transform.
+	h,w = im.shape
+	h_s = h/scale_factor
+	w_s = w/scale_factor
+
+	# Take the Fourier transform & shift so that low frequency components are in
+	# the centre.
+	im_fft = np.fft.fftshift(pyfftw.interfaces.numpy_fft.fft2(im))
+
+	# Crop it.
+	im_fft_cropped = centreCrop(im_fft,sz_final=(h_s,w_s))
+
+	# Inverse transform.
+	im_resized = np.abs(pyfftw.interfaces.numpy_fft.ifft2(
+		np.fft.fftshift(im_fft_cropped)))
+
+	if conserve_pixel_sum:
+		sum_before = sum(im.flatten())
+		sum_after = sum(im_resized.flatten())
+		im_resized = im_resized / sum_after * sum_before
+
+	return im_resized
+
+################################################################################
+def gaussian_smooth(im, sigma):
+	# Smooth an image by convolving it with a Gaussian kernel.
+	# Generate a Gaussian kernel.
+	# Make it extend out to 5sigma.
+	x = np.arange(-5*sigma, +5*sigma, dtype='float')
+	y = x
+	X, Y = np.meshgrid(x,y)
+	kernel = 1 / (2 * np.pi * sigma**2) * \
+	np.exp( -(X**2 + Y**2) / (2 * sigma**2) )
+	return fftwconvolve.fftconvolve(im, kernel, mode='same')
