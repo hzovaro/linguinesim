@@ -41,6 +41,7 @@ rc('image', interpolation='none', cmap = 'binary_r')
 import scipy.integrate
 import scipy.special
 import scipy.ndimage.interpolation
+from scipy.signal import convolve2d
 
 # Image processing library
 import PIL
@@ -643,7 +644,11 @@ def convolvePSF(image, psf,
 	pad_lr = width // padFactor // 2
 	
 	# If the image dimensions are odd, need to ad an extra row/column of zeros.
-	image_padded = np.pad(image, ((pad_ud,pad_ud + height % 2),(pad_lr,pad_lr + width % 2)), mode='constant')
+	image_padded = np.pad(
+		image, 
+		((pad_ud,pad_ud + height % 2),
+		(pad_lr,pad_lr + width % 2)), 
+		mode='constant')
 	conv_height = 2 * pad_ud + height + (height % 2)
 	conv_width = 2 * pad_lr + width + (width % 2)
 
@@ -652,7 +657,9 @@ def convolvePSF(image, psf,
 	image_conv_cropped = np.ndarray((height, width))
 
 	image_padded = np.pad(image, ((pad_ud,pad_ud + height % 2),(pad_lr,pad_lr + width % 2)), mode='constant')
-	image_conv = fftwconvolve.fftconvolve(image_padded, psf, mode='same')	
+	
+	image_conv = fftwconvolve.fftconvolve(image_padded, psf, mode='same')
+
 	image_conv_cropped = image_conv[pad_ud : height + pad_ud, pad_lr : width + pad_lr]		
 
 	if plotit:
