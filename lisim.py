@@ -65,9 +65,6 @@ import time
 from linguineglobals import *
 import fftwconvolve, obssim, etcutils, imutils
 
-CENTROID_THRESHOLD = 0.33
-
-
 ################################################################################
 def luckyImage(
 	im, 							# In electron counts/s.
@@ -92,7 +89,7 @@ def luckyImage(
 	# Convolve with PSF.
 	im_raw = im
 	im_convolved = obssim.convolvePSF(im_raw, psf)
-		
+
 	# Add a star to the field. We need to add the star at the convolution plate scale BEFORE we resize down because of the tip-tilt adding step!
 	if is_numlike(im_star):
 		if im_star.shape != im_convolved.shape:
@@ -101,7 +98,11 @@ def luckyImage(
 		im_convolved += im_star
 
 	# Resize to detector (+ edge buffer).
-	im_resized = obssim.resizeImageToDetector(image_raw = im_convolved, source_plate_scale_as = 1, dest_plate_scale_as = scale_factor, conserve_pixel_sum=True)	
+	im_resized = imutils.fourier_resize(
+		im = im_convolved,
+		scale_factor = scale_factor,
+		conserve_pixel_sum = True)
+
 	# Add tip and tilt. To avoid edge effects, max(tt) should be less than or equal to the edge buffer.
 	edge_buffer_px = (im.shape[0] - final_sz[0]) / 2
 	if edge_buffer_px > 0 and max(tt) > edge_buffer_px:
@@ -110,9 +111,11 @@ def luckyImage(
 	# Crop back down to the detector size.
 	if edge_buffer_px > 0:
 		im_tt = imutils.centreCrop(im_tt, final_sz)	
-	# Convert to counts. Note that we apply the gain AFTER we convert to integer counts.
+	# Convert to counts. Note that we apply the gain AFTER we convert to integer
+	# counts.
 	im_counts = etcutils.expectedCount2count(im_tt, t_exp = t_exp) * gain
-	# Add the pre-gain noise. Here, we assume that the noise frame has already been multiplied by the gain before being passed into this function.
+	# Add the pre-gain noise. Here, we assume that the noise frame has already 
+	# been multiplied by the gain before being passed into this function.
 	im_noisy = im_counts + noise_frame_gain_multiplied
 	# Add the post-gain noise (i.e. read noise)
 	im_noisy += noise_frame_post_gain
@@ -174,7 +177,7 @@ def shift_pp(image, img_ref_peak_idx, fsr, bid_area):
 	return image_shifted, -rel_shift_idx, peak_pixel_val
 
 ################################################################################
-def shift_centroid(image, img_ref_peak_idx):
+def shift_centroid(image, img_ref_peak_idx, centroid_threshold):
 	if type(image) == list:
 		image = np.array(image)
 
@@ -183,10 +186,8 @@ def shift_centroid(image, img_ref_peak_idx):
 	# image_subtracted_bg[image<1.5*np.mean(image.flatten())] = 0
 	# image -= min(image.flatten())
 
-	image_subtracted_bg[image < CENTROID_THRESHOLD * max(image.flatten())] = 0
-	# ipdb.set_trace()
+	image_subtracted_bg[image < centroid_threshold * max(image.flatten())] = 0
 	img_peak_idx = _centroid(image_subtracted_bg)
-	# img_peak_idx = center_of_mass(image)
 
 	# Shift the image by the relative amount.
 	rel_shift_idx = (img_ref_peak_idx - img_peak_idx)
@@ -195,7 +196,7 @@ def shift_centroid(image, img_ref_peak_idx):
 	return image_shifted, -rel_shift_idx
 
 ################################################################################
-def shift_xcorr(image, image_ref, buff, sub_pixel_shift):
+def shift_xcorr(image, image_ref, buff_xcorr, sub_pixel_shift):
 	if type(image) == list:
 		image = np.array(image)
 	
@@ -212,14 +213,14 @@ def shift_xcorr(image, image_ref, buff, sub_pixel_shift):
 	
 	if sub_pixel_shift: 
 		# Fitting a Gaussian.
-		Y, X = np.mgrid[-(height-2*buff)/2:(height-2*buff)/2, -(width-2*buff)/2:(width-2*buff)/2]
+		Y, X = np.mgrid[-(height-2*buff_xcorr)/2:(height-2*buff_xcorr)/2, -(width-2*buff_xcorr)/2:(width-2*buff_xcorr)/2]
 		x_peak, y_peak = np.unravel_index(np.argmax(corr), corr.shape)
 		try:		
 			p_init = astropy.modeling.models.Gaussian2D(x_mean=X[x_peak,y_peak],y_mean=Y[x_peak,y_peak],x_stddev=5.,y_stddev=5.,amplitude=np.max(corr.flatten()))
 		except:			
 			p_init = astropy.modeling.models.Gaussian2D(x_mean=x_peak,y_mean=y_peak,x_stddev=1.,y_stddev=1.,amplitude=1.)
 		fit_p = astropy.modeling.fitting.LevMarLSQFitter()
-		p_fit = fit_p(p_init, X, Y, corr[buff:height-buff, buff:width-buff])
+		p_fit = fit_p(p_init, X, Y, corr[buff_xcorr:height-buff_xcorr, buff_xcorr:width-buff_xcorr])
 		rel_shift_idx = (p_fit.y_mean.value, p_fit.x_mean.value)	# NOTE: the indices have to be swapped around here for some reason!		
 	else:
 		rel_shift_idx = np.unravel_index(np.argmax(corr), corr.shape)
@@ -261,9 +262,12 @@ def luckyImaging(images, li_method,
 	fsr = 1,				# for peak pixel/FAS method
 	bid_area = None,		# for peak pixel method
 	N = None,
+	centroid_threshold = 0.25,	# for centroiding method
 	sub_pixel_shift = True,	# for xcorr/FAS method
-	buff = 25, 				# for xcorr/FAS method
+	buff_xcorr = 25, 		# for xcorr/FAS method
+	buff_fas = 32,			# for FAS method (edge ramp buffer)
 	cutoff_freq_frac = 1,	# for FAS method
+	sigma_kernel = 0,		# for FAS method (sigma of Gaussian filter)
 	use_vals_outside_cutoff_freq = True,	# for FAS method
 	stacking_method = 'average',
 	timeit = True
@@ -281,10 +285,11 @@ def luckyImaging(images, li_method,
 	#	image_shifted, rel_shift_idxs	
 	li_method = li_method.lower()
 	if li_method == 'cross-correlation':
-		shift_fun = partial(shift_xcorr, image_ref=image_ref, buff=buff, sub_pixel_shift=sub_pixel_shift)	
+		shift_fun = partial(shift_xcorr, image_ref=image_ref, buff_xcorr=buff_xcorr, sub_pixel_shift=sub_pixel_shift)	
 	elif li_method == 'gaussian fit':
 		img_ref_peak_idx = _gaussfit_peak(image_ref - np.mean(image_ref.flatten()))
-		shift_fun = partial(shift_gaussfit, img_ref_peak_idx=img_ref_peak_idx)
+		shift_fun = partial(shift_gaussfit, 
+			img_ref_peak_idx=img_ref_peak_idx)
 
 	elif li_method == 'peak pixel':
 		# Determining the reference coordinates.
@@ -293,13 +298,18 @@ def luckyImaging(images, li_method,
 		else:
 			sub_image_ref = image_ref
 		img_ref_peak_idx = np.asarray(np.unravel_index(np.argmax(sub_image_ref), sub_image_ref.shape)) 
-		shift_fun = partial(shift_pp, img_ref_peak_idx=img_ref_peak_idx, bid_area=bid_area, fsr=fsr)
+		shift_fun = partial(shift_pp, 
+			img_ref_peak_idx=img_ref_peak_idx, 
+			bid_area=bid_area, 
+			fsr=fsr)
 
 	elif li_method == 'centroid':
 		image_ref_subtracted_bg = np.copy(image_ref)
-		image_ref_subtracted_bg[image_ref < CENTROID_THRESHOLD * max(image_ref.flatten())] = 0
+		image_ref_subtracted_bg[image_ref < centroid_threshold * max(image_ref.flatten())] = 0
 		img_ref_peak_idx = _centroid(image_ref_subtracted_bg)
-		shift_fun = partial(shift_centroid, img_ref_peak_idx=img_ref_peak_idx)	
+		shift_fun = partial(shift_centroid, 
+			img_ref_peak_idx=img_ref_peak_idx, 
+			centroid_threshold=centroid_threshold)	
 
 	elif li_method == 'blind stack':
 		if stacking_method == 'median combine':			
@@ -314,13 +324,18 @@ def luckyImaging(images, li_method,
 
 	elif li_method == 'fourier amplitude sampling' or li_method =='fas':
 		# Need to shift each image.
-		shift_fun = partial(shift_xcorr, image_ref=image_ref, buff=buff, sub_pixel_shift=sub_pixel_shift)
+		shift_fun = partial(shift_xcorr, 
+			image_ref=image_ref, 
+			buff_xcorr=buff_xcorr, 
+			sub_pixel_shift=sub_pixel_shift)
 		# THEN we need to apply the Fourier amplitude selection technique.
 	else:
 		print("ERROR: invalid Lucky Imaging method '{}' specified; must be 'cross-correlation', 'peak pixel', 'centroid' or 'Gaussian fit' for now...".format(li_method))
 		raise UserWarning
 
-	# In here, want to parallelise the processing for *each image*. So make shift functions that work on a single image and return the shifted image, then stack it out here.
+	# In here, want to parallelise the processing for *each image*. So make 
+	# shift functions that work on a single image and return the shifted image, 
+	# then stack it out here.
 	if mode == 'parallel':
 		# Setting up to execute in parallel.
 		images = images.tolist()	# Need to convert the image array to a list.
@@ -364,17 +379,23 @@ def luckyImaging(images, li_method,
 			arr = np.ndarray((1, image_ref.shape[0], image_ref.shape[1]))
 			arr[0,:] = image_ref
 			image_ref = arr
-			image_stacked = obssim.medianCombine(np.concatenate((image_ref, images_shifted[sorted_idx[:N]])))
+			image_stacked = obssim.medianCombine(
+				np.concatenate((image_ref, images_shifted[sorted_idx[:N]])))
 		elif stacking_method == 'average':
-			image_stacked = (image_ref + np.sum(images_shifted[sorted_idx[:N]], 0)) / (N + 1)
+			image_stacked = (image_ref + \
+				np.sum(images_shifted[sorted_idx[:N]], 0)) / (N + 1)
 
 	elif li_method == 'fourier amplitude sampling' or li_method =='fas':
 		# From Mackay 2013: within the cutoff spatial frequency radius, we 
 		# select (u,v) pixels by using the Fourier amplitude. Outside this 
 		# cutoff frequency, we select (u,v) pixels by using the peak pixel value 
 		# in the image.
+
+		# Linearly ramp the images to zero.
+		images_shifted = edge_ramp(images_shifted, buff_fas)
+
 		h, w = image_ref.shape
-		N_frames_to_keep = int(np.round(fsr * N))
+		N_frames_to_keep = max(1, int(np.round(fsr * N)))
 		images_fft = pyfftw.interfaces.numpy_fft.fftshift(
 			pyfftw.interfaces.numpy_fft.fft2(images_shifted), 
 			axes=(1,2))
@@ -394,35 +415,52 @@ def luckyImaging(images, li_method,
 			# Step 2. 
 			vals_to_keep=np.zeros( (h, w, N_frames_to_keep), dtype=complex )
 			for u, v in zip(U[uv_map==0],V[uv_map==0]):
-				# For these coordinates, grab the indices of the N highest values in the data cube.
+				# For these coordinates, grab the indices of the N highest 
+				# values in the data cube.
 				try:
-					vals_to_keep[u+h/2,v+w/2] = images_fft[idxs_to_keep,u+h/2,v+w/2]
+					vals_to_keep[u+h/2,v+w/2] = images_fft[
+						idxs_to_keep,
+						u+h/2,
+						v+w/2]
 				except:
 					ipdb.set_trace()
 			fft_sum += np.sum(vals_to_keep, axis=2)
 
 		# WITHIN THE CUTOFF FREQUENCY
 		images_fft_amp = np.abs(images_fft)
+
+		# Smoothing with a Gaussian kernel
+		if sigma_kernel != 0:
+			for k in range(images_fft_amp.shape[0]):
+				images_fft_amp[k] = imutils.gaussian_smooth(
+					im=images_fft_amp[k],
+					sigma=sigma_kernel
+					)
+
 		# For now, don't worry about parallelisation.		
 		vals_to_keep=np.zeros( (h, w, N_frames_to_keep), dtype=complex )
 		idxs_to_keep=np.zeros( (h, w, N_frames_to_keep), dtype=int)	# Indices along the zeroth axis of the datacube indicating which frames' data we want to keep for the whole image
 		for u, v in zip(U[uv_map==1],V[uv_map==1]):
 			# For these coordinates, grab the indices of the N highest values in the data cube.
-			idxs_to_keep[u+h/2,v+w/2] = np.argsort(images_fft_amp[:,u+h/2,v+w/2])[-N_frames_to_keep:]
-			vals_to_keep[u+h/2,v+w/2] = images_fft[idxs_to_keep[u+h/2,v+w/2],u+h/2,v+w/2]
+			idxs_to_keep[u+h/2,v+w/2] = np.argsort(
+				images_fft_amp[:,u+h/2,v+w/2])[-N_frames_to_keep:]
+			vals_to_keep[u+h/2,v+w/2] = images_fft[
+				idxs_to_keep[u+h/2,v+w/2],
+				u+h/2,
+				v+w/2]
 		# Take the sum along the zeroth axis and IFFT to get the reassembled image.
 		fft_sum += np.sum(vals_to_keep, axis=2)
-		
 
-
-		image_stacked = np.abs(pyfftw.interfaces.numpy_fft.ifft2(pyfftw.interfaces.numpy_fft.fftshift(fft_sum/N_frames_to_keep)))
+		image_stacked = np.abs(pyfftw.interfaces.numpy_fft.ifft2(
+			pyfftw.interfaces.numpy_fft.fftshift(fft_sum/N_frames_to_keep)))
 	else:
 		# Now, stacking the images. Need to change N if FSR < 1.
 		if stacking_method == 'median combine':			
 			arr = np.ndarray((1, image_ref.shape[0], image_ref.shape[1]))
 			arr[0,:] = image_ref
 			image_ref = arr
-			image_stacked = obssim.medianCombine(np.concatenate((image_ref, images_shifted)))
+			image_stacked = obssim.medianCombine(np.concatenate(
+				(image_ref, images_shifted)))
 		elif stacking_method == 'average':
 			image_stacked = (image_ref + np.sum(images_shifted, 0)) / (N + 1)	
 
@@ -455,7 +493,9 @@ def alignmentError(in_idxs, out_idxs, opticalsystem,
 		print('Tip/tilt coordinates\nInput\t\tOutput\t\tError\tError (arcsec)')
 		print('------------------------------------------------')
 		for k in range(N):
-			print('(%6.2f,%6.2f)\t(%6.2f,%6.2f)\t%4.2f\t%4.2f' % (in_idxs[k,0],in_idxs[k,1],out_idxs[k,0],out_idxs[k,1],errs_px[k,2],errs_as[k,2]))
+			print('(%6.2f,%6.2f)\t(%6.2f,%6.2f)\t%4.2f\t%4.2f' % (in_idxs[k,0],
+				in_idxs[k,1],out_idxs[k,0],out_idxs[k,1],errs_px[k,2],
+				errs_as[k,2]))
 		print('------------------------------------------------')
 		print('\t\t\tMean\t%4.2f' % np.mean(errs_as))
 
@@ -562,7 +602,8 @@ def _centroid(image):
 
 ################################################################################
 def _gaussfit_peak(image):
-	""" Returns the coordinates of the peak of a 2D Gaussian fitted to the image. """
+	""" Returns the coordinates of the peak of a 2D Gaussian fitted to the 
+		image. """
 	height, width = image.shape
 
 	# Fitting a Gaussian.
@@ -577,3 +618,24 @@ def _gaussfit_peak(image):
 	peak_idx = np.array([p_fit.y_mean.value, p_fit.x_mean.value])	# NOTE: the indices have to be swapped around here for some reason!		
 
 	return peak_idx
+
+################################################################################
+def edge_ramp(im, buff_xcorr):
+	""" Linearly ramps the values of an image to zero over a buffer with width 
+		buff_xcorr at the edges of the each image. """
+	buff_xcorr = int(buff_xcorr)
+
+	# Crop the images by an amount buff_xcorr.
+	if len(im.shape) == 3:
+		_, h, w = im.shape
+	else:
+		h, w = im.shape
+	im = imutils.centreCrop(im, (h-2*buff_xcorr,w-2*buff_xcorr))
+
+	# Pad.
+	if len(im.shape) == 3:
+		im = np.pad(im, ( (0,0), (buff_xcorr,buff_xcorr), (buff_xcorr,buff_xcorr) ), mode='linear_ramp')	
+	else:
+		im = np.pad(im, buff_xcorr, mode='linear_ramp')
+
+	return im
