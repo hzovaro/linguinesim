@@ -620,22 +620,22 @@ def _gaussfit_peak(image):
 	return peak_idx
 
 ################################################################################
-def edge_ramp(im, buff_xcorr):
+def edge_ramp(im, buff):
 	""" Linearly ramps the values of an image to zero over a buffer with width 
-		buff_xcorr at the edges of the each image. """
-	buff_xcorr = int(buff_xcorr)
+		buff at the edges of the each image. """
+	buff = int(buff)
 
 	# Crop the images by an amount buff_xcorr.
 	if len(im.shape) == 3:
 		_, h, w = im.shape
 	else:
 		h, w = im.shape
-	im = imutils.centreCrop(im, (h-2*buff_xcorr,w-2*buff_xcorr))
+	im = imutils.centreCrop(im, (h-2*buff,w-2*buff))
 
 	# Pad.
 	if len(im.shape) == 3:
-		im = np.pad(im, ( (0,0), (buff_xcorr,buff_xcorr), (buff_xcorr,buff_xcorr) ), mode='linear_ramp')	
+		im = np.pad(im, ( (0,0), (buff,buff), (buff,buff) ), mode='linear_ramp')	
 	else:
-		im = np.pad(im, buff_xcorr, mode='linear_ramp')
+		im = np.pad(im, buff, mode='linear_ramp')
 
 	return im
