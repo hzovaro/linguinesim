@@ -212,100 +212,56 @@ def airyDisc(wavelength_m, f_ratio, l_px_m,
 	return count_cumtrapz, I, P_0, P_sum, I_0
 
 ################################################################################
-def fieldStar(band, 
-	coords_as, 
-	opticalsystem, 
-	aosystem,	
-	magnitude_AB,
-	final_sz = None,
-	plate_scale_as_px_conv = None,
+def field_star(psf, band, mag, optical_system, star_coords_as, final_sz, plate_scale_as_px,
+	gain = 1,
+	magnitude_system = 'AB',
 	plotit = False
 	):
 	"""
-		Return an image of a star with magnitude_AB at a plate scale plate_scale_as_px_conv with coordinates coords given relative to the centre of the image. 
+		Returns an image of a star in a field with a specified position offset
+		(specified w.r.t. the centre of the image).
 
-		Pixel values are given in units of electrons per second.
-
-		Important note: due to computational time constraints, we can't generate the PSF at final_sz if it is large. Instead, the PSF is produced at a size wave_height_px * 2 * N_OS = wave_height_px * FWHM (measured in pixels) and then is padded with zeros to achieve the desired size. For e.g. wave_height_px = 256 and N_OS = 2 this easily enables us to encapsulate all of the energy in the PSF (as this extent is far greater than the 10th Airy ring)
-
-		psf_sz_cropped = size of PSF we generate at the convolution plate scale
-
-		final_sz = size of star image we return at the convolution plate scale
+		The returned image IS NOT gain-multiplied by default. Be careful!
 	"""
+	# Scale up to the correct magnitude
+	star = psf * etcutils.surface_brightness2countRate(
+		mu = mag, 
+		A_tel = optical_system.telescope.A_collecting_m2, 
+		tau = optical_system.telescope.tau,
+		qe = optical_system.detector.qe,
+		gain = gain,
+		magnitude_system = magnitude_system,
+		band = band)
 
-	# Generating the PSF.
-	# A note on the size of the PSF produced by the below line:
-	# The size of the image returned in wavefront.image() (which is what is used to generate the below PSF) is given by 
-	#		wave_height_px * 2 * N_OS = wave_height_px * FWHM (measured in pixels)
-	# We have been using a wave height of 256 pixels and a FHWM of 4 pixels. Hence the final size is 1024 pixels. 
-	# How many Airy rings is this? Well, the 10th Airy ring is at 10.25 * 2 * N_OS = 41 pixels. Hence this PSF size is definitely sufficient.
-	# If psf_sz_cropped below is larger than this, then the image is not changed at all.
-	star_dl_conv = aosystem.psf_dl(
-		plate_scale_as_px = plate_scale_as_px_conv, 
-		band = band, 
-		crop = False,
-		plotit = False)
-
-	# Padding the star with zeros if it's too small.
-	if final_sz != None:
-		if star_dl_conv.shape != final_sz:
-			
-			# If star_dl_conv is too big...
-			if star_dl_conv.shape[0] > final_sz[0] or star_dl_conv.shape[1] > final_sz[1]:
-				if star_dl_conv.shape[0] <= final_sz[0]:
-					final_sz[0] = star_dl_conv.shape[0]
-				if star_dl_conv.shape[1] <= final_sz[1]:
-					final_sz[1] = star_dl_conv.shape[1]
-				star_dl_conv = imutils.centreCrop(star_dl_conv, final_sz)
-			
-			# If star_dl_conv is too small...
-			else:
-				pad_height = 0
-				pad_width = 0
-				delta_height = 0
-				delta_width = 0
-				# Height
-				if star_dl_conv.shape[0] < final_sz[0]:
-					delta_height = final_sz[0] - star_dl_conv.shape[0]
-					pad_height = delta_height//2
-				# Width
-				if star_dl_conv.shape[1] < final_sz[1]:
-					delta_width = final_sz[1] - star_dl_conv.shape[1]
-					pad_width = delta_width//2
-
-				# Then pad with zeros.
-				star_dl_conv = np.pad(
-				star_dl_conv, 
-				(
-					(pad_height, pad_height + np.mod(delta_height,2)), 
-					(pad_width, pad_width + np.mod(delta_width,2))
-				), 
-				mode='constant'
-				)
-
-	# Shifting the centre of the PSF to the specified coordinates.
-	coords_px = coords_as / plate_scale_as_px_conv
-	star_tt_conv = addTipTilt_single(image = star_dl_conv, tt_idxs = coords_px)[0]
-
-	# Scaling to the appropriate magnitude.
-	star_tt_conv *= etcutils.surface_brightness2countRate(
-			mu = magnitude_AB,
-			magnitude_system = 'AB',
-			A_tel = opticalsystem.telescope.A_collecting_m2,
-			tau = opticalsystem.telescope.tau,
-			qe = opticalsystem.detector.qe,
-			band = band
-		)
+	# Pad the sides appropriately.
+	star_coords_px = [int(x/plate_scale_as_px) for x in star_coords_as]
+	pad_ud, pad_lr = ( int((x - y) // 2) for x, y in zip(final_sz, psf.shape) )
+	star_padded = np.pad(
+		array = star, 
+		pad_width = (
+			(pad_ud + star_coords_px[0], pad_ud - star_coords_px[0]), 
+			(pad_lr + star_coords_px[1], pad_lr - star_coords_px[1])
+			),
+		mode='constant')
 
 	if plotit:
 		mu.newfigure(1,2)
-		plt.suptitle("Generating a background star image")
-		mu.astroimshow(im = star_dl_conv, plate_scale_as_px = plate_scale_as_px_conv, title="At the convolution plate scale", subplot=121)
-		mu.astroimshow(im = star_tt_conv, plate_scale_as_px = plate_scale_as_px_conv, title='Moved to coordinates ({:.2f}",{:.2f}")'.format(coords_as[0], coords_as[1]), subplot=122)
+		plt.suptitle("Field star image")
+		mu.astroimshow(
+			im = psf, 
+			plate_scale_as_px = plate_scale_as_px, 
+			title="PSF", 
+			subplot=121)
+		mu.astroimshow(
+			im = star_padded, 
+			plate_scale_as_px = plate_scale_as_px, 
+			title='Moved to coordinates ({:.2f}",{:.2f}")'.format(
+				star_coords_as[0], 
+				star_coords_as[1]), 
+			subplot=122)
 		plt.show()
 
-
-	return star_tt_conv
+	return star_padded
 
 ################################################################################
 def psfKernel(wavelength_m, 
