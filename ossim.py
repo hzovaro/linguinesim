@@ -194,7 +194,11 @@ def aoiAoSystem(wave_height_px,
 		airmass = airmass, 
 		seed = rng_seed)
 
-	aoi_ao_system = ao_system.SCFeedBackAO(dm=dm, wfs=sh_wfs, atm=atm, image_ixs=psf_ix)
+	aoi_ao_system = ao_system.SCFeedBackAO(
+		dm=dm, 
+		wfs=sh_wfs, 
+		atm=atm, 
+		image_ixs=psf_ix)
 
 	# Either a full path can be given, or else the file is assumed to be located in the same directory from which the script calling this method is being called.
 	if not compute_response_matrix:
@@ -273,7 +277,7 @@ def saphiraDetector():
 		l_px_m = 24e-6,					# pixel width (m)
 		wavelength_cutoff = 2.5e-6,		# cutoff wavelength (m)
 		RN = 9,							# ? sqrt(e/pixel) rms
-		gain = 50,					# ? avalanche gain
+		gain = 50,						# ? avalanche gain
 		dark_current = 0.03,			# ? MULTIPLY BY GAIN!! e/second/pixel; worst-case
 		saturation = 2**16 - 1,			# ? detector saturation limit
 		adu_gain = 1/2.9,				# electrons per ADU at readout
@@ -310,7 +314,8 @@ def linguineOpticalSystem():
 	"""
 		Make an OpticalSystemClass instance corresponding to the ANU 2.3 m.
 
-		TODO: make an optical system using this function, compare all of its parameters to that made in the sysparams class (to be removed)
+		TODO: make an optical system using this function, compare all of its 
+		parameters to that made in the sysparams class (to be removed)
 	"""
 
 	return OpticalSystem(
@@ -325,7 +330,9 @@ def linguineAoSystem(wave_height_px,
 	rng_seed = 1
 	):
 	"""
-		Make an AO system instance for the SAPHIRA-2.3 m telescope system. This is only used to generate seeing-limited and diffraction-limited PSFs as the telescope doesn't have an AO system.
+		Make an AO system instance for the SAPHIRA-2.3 m telescope system. 
+		This is only used to generate seeing-limited and diffraction-limited 
+		PSFs as the telescope doesn't have an AO system.
 	"""
 	try:
 		from aosim.pyxao import wavefront, deformable_mirror, wfs, ao_system, atmosphere, seeing_limited_system
@@ -340,30 +347,37 @@ def linguineAoSystem(wave_height_px,
 	}
 
 	# Wave parameters
-	m_per_px = wavefront_pupil['dout'] / wave_height_px		# Physical mapping of wave onto primary mirror size
+	# NOTE: to be able to get the PSF out to the 10th Airy ring, we have to 
+	# maintain this sampling:
+	# 	m_per_px = wavefrontPupil['dout'] / wave_height_px
+	m_per_px = wavefront_pupil['dout'] / wave_height_px		
 
 	# Atmospheric conditions at SSO
-	wavelength_ref_m = 500e-9		# Wavelength reference for Fried parameter
-	r0_ref_m = 10e-2
+	# Fractional r0 values, wind speeds/directions, layer altitudes taken from 
+	# Bennet et al. 2012
+	# r0 value in I band (12.2 cm) taken from Smith et al. 2009
 
-	v_wind_m = 10			# Turbulent layer wind speed (m/s)
-	wind_angle_deg = 0.0	# Turbulent layer wind direction (rad)
-	elevation_m = 1000		# Turbulent layer elevation (m)
+	wavelength_ref_m = FILTER_BANDS_M['I'][0]		# Wavelength reference for Fried parameter 
+	# These values from Bennet et al. 2012
+	fractional_r0 = [0.4, 0.2, 0.3, 0.1]
+	r0_ref_m = [12.2e-2 * alpha_i**(-3/5) for alpha_i in fractional_r0]
+	v_wind_m = [10, 5, 60, 90]				# Turbulent layer wind speed (m/s)
+	wind_angle_deg = [0.0, np.pi/6, 0, 0]	# Turbulent layer wind direction (rad)
+	elevation_m = [0, 400, 6000, 19000]		# Turbulent layer elevation (m)
 	airmass = 1.0			# Airmass
 
-	wavelengths_science_m = []
-	wavelength_ixs = {}
-	r0_science_m = []
+	# List of wavefronts at which to observe
+	wavelength_ixs = {}	# A dictionary mapping bands to indices in the list of wavefronts.
 	wavefronts = []
 	bands = ['J', 'H', 'K']
 	for k in range(len(bands)):
 		band = bands[k]
+		wave = FILTER_BANDS_M[band][0]
 		wavelength_ixs[band] = k
-		wavelengths_science_m.append(FILTER_BANDS_M[band][0])
-		r0_science_m.append(np.power((FILTER_BANDS_M[band][0] / wavelength_ref_m), 1.2) * r0_ref_m)
 		# Making a wavefront instance
 		wavefronts.append(
-			wavefront.Wavefront(wave = FILTER_BANDS_M[band][0],
+			wavefront.Wavefront(
+				wave = wave,
 				m_per_px = m_per_px,
 				sz = wave_height_px,
 				pupil = wavefront_pupil)
@@ -380,6 +394,9 @@ def linguineAoSystem(wave_height_px,
 		airmass = airmass, 
 		seed = rng_seed)
 
-	linguine_ao_system = seeing_limited_system.SeeingLimitedOpticalSystem(wavefronts = wavefronts, wavelength_ixs = wavelength_ixs, atm=atm)
+	linguine_ao_system = seeing_limited_system.SeeingLimitedOpticalSystem(
+		wavefronts = wavefronts, 
+		wavelength_ixs = wavelength_ixs, 
+		atm = atm)
 
 	return linguine_ao_system
