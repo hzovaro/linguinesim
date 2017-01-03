@@ -121,28 +121,59 @@ def luckyImage(
 	im_noisy += noise_frame_post_gain
 
 	if plotit:
+		plate_scale_as_px = plate_scale_as_px_conv * scale_factor
 		# Plotting
-		mu.newfigure(1,4)
+		mu.newfigure(1,3)
 		plt.suptitle('Convolving input image with PSF and resizing to detector')
-		mu.astroimshow(im=im_raw, title='Raw input image (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=141)
-		mu.astroimshow(im=psf, title='Point spread function (normalised)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=142)
-		mu.astroimshow(im=im_convolved, title='Star added, convolved with PSF (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=143)
-		mu.astroimshow(im=im_resized, title='Resized to detector plate scale (electrons/s)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=144)
+		mu.astroimshow(im=im_raw, 
+			title='Truth image (electrons/s)', 
+			plate_scale_as_px = plate_scale_as_px_conv, 
+			colorbar_on=True, 
+			subplot=131)
+		mu.astroimshow(im=psf, 
+			title='Point spread function (normalised)', 
+			plate_scale_as_px = plate_scale_as_px_conv, 
+			colorbar_on=True, 
+			subplot=132)
+		# mu.astroimshow(im=im_convolved, 
+		# 	title='Star added, convolved with PSF (electrons/s)', 
+		# 	plate_scale_as_px = plate_scale_as_px_conv, 
+		# 	colorbar_on=True, 
+		# 	subplot=143)
+		mu.astroimshow(im=im_resized, 
+			title='Resized to detector plate scale (electrons/s)', 
+			plate_scale_as_px=plate_scale_as_px, 
+			colorbar_on=True, 
+			subplot=133)
 
 		# Zooming in on the galaxy
-		mu.newfigure(1,4)
-		plt.suptitle('Convolving input image with PSF and resizing to detector')
-		mu.astroimshow(im=imutils.centreCrop(im=im_raw, units='arcsec', plate_scale_as_px=plate_scale_as_px_conv, sz_final=(6, 6)), title='Raw input image (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=141)
-		mu.astroimshow(im=psf, title='Point spread function (normalised)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=142)
-		mu.astroimshow(im=imutils.centreCrop(im=im_convolved, units='arcsec', plate_scale_as_px=plate_scale_as_px_conv, sz_final=(6, 6)), title='Star added, convolved with PSF (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=143)
-		mu.astroimshow(im=imutils.centreCrop(im=im_resized, units='arcsec', plate_scale_as_px=plate_scale_as_px, sz_final=(6, 6)), title='Resized to detector plate scale (electrons/s)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=144)
+		# mu.newfigure(1,4)
+		# plt.suptitle('Convolving input image with PSF and resizing to detector')
+		# mu.astroimshow(im=imutils.centreCrop(im=im_raw, units='arcsec', plate_scale_as_px=plate_scale_as_px_conv, sz_final=(6, 6)), title='Raw input image (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=141)
+		# mu.astroimshow(im=psf, title='Point spread function (normalised)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=142)
+		# mu.astroimshow(im=imutils.centreCrop(im=im_convolved, units='arcsec', plate_scale_as_px=plate_scale_as_px_conv, sz_final=(6, 6)), title='Star added, convolved with PSF (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=143)
+		# mu.astroimshow(im=imutils.centreCrop(im=im_resized, units='arcsec', plate_scale_as_px=plate_scale_as_px, sz_final=(6, 6)), title='Resized to detector plate scale (electrons/s)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=144)
 
-		mu.newfigure(1,4)
-		plt.suptitle('Adding tip and tilt, converting to integer counts and adding noise')		
-		mu.astroimshow(im=im_tt, title='Atmospheric tip and tilt added (electrons/s)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=141)
-		mu.astroimshow(im=im_counts, title=r'Converted to integer counts and gain-multiplied by %d (electrons)' % gain, plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=142)
-		mu.astroimshow(im=im_noisy, title='Noise added (electrons)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=143)
-		plt.subplot(1,4,4)
+		mu.newfigure(1,3)
+		plt.suptitle('Adding tip and tilt, converting to integer counts and adding noise')
+		mu.astroimshow(im=im_tt, 
+			title='Atmospheric tip and tilt added (electrons/s)', 
+			plate_scale_as_px=plate_scale_as_px, 
+			colorbar_on=True,
+			subplot=131)
+		mu.astroimshow(im=im_counts, 
+			title=r'Converted to integer counts and gain-multiplied by %d (electrons)' % gain, 
+			plate_scale_as_px=plate_scale_as_px, 
+			colorbar_on=True, 
+			subplot=132)
+		mu.astroimshow(im=im_noisy, 
+			title='Noise added (electrons)', 
+			plate_scale_as_px=plate_scale_as_px, 
+			colorbar_on=True, 
+			subplot=133)
+
+		# plt.subplot(1,4,4)
+		plt.figure()
 		x = np.linspace(-im_tt.shape[0]/2, +im_tt.shape[0]/2, im_tt.shape[0]) * plate_scale_as_px
 		plt.plot(x, im_tt[:, im_tt.shape[1]/2], 'g', label='Electron count rate')
 		plt.plot(x, im_counts[:, im_tt.shape[1]/2], 'b', label='Converted to integer counts ($t_{exp} = %.2f$ s)' % t_exp)
@@ -226,14 +257,12 @@ def shift_xcorr(image, image_ref, buff_xcorr, sub_pixel_shift):
 		rel_shift_idx = np.unravel_index(np.argmax(corr), corr.shape)
 		rel_shift_idx = (rel_shift_idx[0] - height/2, rel_shift_idx[1] - width/2)
 	
-	# mu.newfigure(1,5)
-	# mu.astroimshow(im=image, title='Input image', subplot=151)
-	# mu.astroimshow(im=image_ref, title='Reference image', subplot=152)
-	# mu.astroimshow(im=corr, title='Cross-correlation', subplot=153)
-	# mu.astroimshow(im=p_init(X,Y), title='p_init', subplot=154)
-	# mu.astroimshow(im=p_fit(X,Y), title='p_fit', subplot=155)
+	# mu.newfigure(2,2)
+	# mu.astroimshow(im=image, title='Input image', subplot=221)
+	# mu.astroimshow(im=image_ref, title='Reference image', subplot=222)
+	# mu.astroimshow(im=corr, title='Cross-correlation', subplot=223)
+	# mu.astroimshow(im=p_fit(X,Y), title='Gaussian fit', subplot=224)
 	# plt.show()
-	# ipdb.set_trace()
 
 	image_shifted = scipy.ndimage.interpolation.shift(image, rel_shift_idx)	
 
@@ -322,7 +351,7 @@ def luckyImaging(images, li_method,
 		rel_shift_idxs = np.zeros( (N, 2) )
 		return image_stacked, rel_shift_idxs
 
-	elif li_method == 'fourier amplitude sampling' or li_method =='fas':
+	elif li_method == 'fourier amplitude selection' or li_method =='fas':
 		# Need to shift each image.
 		shift_fun = partial(shift_xcorr, 
 			image_ref=image_ref, 
@@ -385,7 +414,7 @@ def luckyImaging(images, li_method,
 			image_stacked = (image_ref + \
 				np.sum(images_shifted[sorted_idx[:N]], 0)) / (N + 1)
 
-	elif li_method == 'fourier amplitude sampling' or li_method =='fas':
+	elif li_method == 'fourier amplitude selection' or li_method =='fas':
 		# From Mackay 2013: within the cutoff spatial frequency radius, we 
 		# select (u,v) pixels by using the Fourier amplitude. Outside this 
 		# cutoff frequency, we select (u,v) pixels by using the peak pixel value 
