@@ -46,7 +46,7 @@ import imutils
 ################################################################################
 # The following functions are for use with GALFIT.
 ################################################################################
-def simulateSersicGalaxy(im_out_fname, # Output FITS file name
+def simulate_sersic_galaxy(im_out_fname, # Output FITS file name
 	height_px, 	# Height of output file
 	width_px, 	# Width of output file
 	mu_e,		# Surface brightness magnitude at effective radius
@@ -57,8 +57,8 @@ def simulateSersicGalaxy(im_out_fname, # Output FITS file name
 	zeropoint = -AB_MAGNITUDE_ZEROPOINT, # Careful of the minus sign!
 	pos_px = None, # Position of galaxy in frame 
 	PA_deg = 0,	# Rotation angle
-	object_type = 'sersic2',
-	galfit_input_fname = "galfit_input.txt",
+	object_type = 'sersic/2',
+	galfit_input_fname = None,
 	plotit = False,
 	overwriteExisting = False
 	):
@@ -66,14 +66,32 @@ def simulateSersicGalaxy(im_out_fname, # Output FITS file name
 		Return a simulated image of a galaxy (made using GALFIT) given the inputs.
 	"""
 	
+	if galfit_input_fname == None:
+		if not os.path.exists("galfit"):
+			os.makedirs("galfit")
+		galfit_input_fname = "galfit/galfit_input.txt"
+
 	if not im_out_fname.endswith('.fits'):
 		im_out_fname += '.fits'
 
 	# Writing the parameters file.
 	if not os.path.isfile(im_out_fname) or overwriteExisting:		
-		galfit_input_fname, im_out_fname = writeGALFITparamsFile(galfit_input_fname, im_out_fname, height_px, width_px, mu_e, R_e_px, n, plate_scale_as_px, axis_ratio, zeropoint, pos_px, PA_deg, object_type)
+		galfit_input_fname, im_out_fname = write_GALFIT_params_file(
+			galfit_input_fname, 
+			im_out_fname, 
+			height_px, 
+			width_px, 
+			mu_e, 
+			R_e_px, 
+			n, 
+			plate_scale_as_px, 
+			axis_ratio, 
+			zeropoint, 
+			pos_px, 
+			PA_deg, 
+			object_type)
 		# Calling GALFIT.
-		callGALFIT(galfit_input_fname)
+		call_GALFIT(galfit_input_fname)
 	else:
 		print("WARNING: I found a GALFIT .fits file '{}' with the same name as the input filename, so I am using that instead of calling GALFIT again!".format(im_out_fname))
 
@@ -99,7 +117,7 @@ def simulateSersicGalaxy(im_out_fname, # Output FITS file name
 
 ################################################################################
 from subprocess import call
-def callGALFIT(galfit_input_fname):
+def call_GALFIT(galfit_input_fname):
 	""" 
 		Call GALFIT on the file galfit_input_fname.
 	"""
@@ -107,7 +125,7 @@ def callGALFIT(galfit_input_fname):
 	call(["galfit", galfit_input_fname])
 
 ################################################################################
-def writeGALFITparamsFile(
+def write_GALFIT_params_file(
 	galfit_input_fname,	# Name of GALFIT input parameters file
 	im_out_fname, 		# Output FITS file name
 	height_px, 			# Height of output file
@@ -248,7 +266,7 @@ def sersic2D(n, R_e, mu_e,
 	return R, dR, F_map, mu_map
 
 ################################################################################
-def exportGalaxyFITSFile(image_in_array, n, R_e, mu_e, z, R_trunc, i_deg, band, seeing_as, t_exp, N_exp,
+def export_galaxy_FITS_file(image_in_array, n, R_e, mu_e, z, R_trunc, i_deg, band, seeing_as, t_exp, N_exp,
 	overwriteExisting = True,
 	relpath = None
 	):
