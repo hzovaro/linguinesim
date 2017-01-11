@@ -31,7 +31,9 @@ from __future__ import division, print_function
 import astropy.constants
 
 ################################################################################
-# Vega band magnitudes calculated using data from https://www.astro.umd.edu/~ssm/ASTR620/mags.html
+# Vega band magnitudes calculated using data from 
+# https://www.astro.umd.edu/~ssm/ASTR620/mags.html
+# See also http://www.astronomy.ohio-state.edu/~martini/usefuldata.html
 VEGA_MAGNITUDE_ZEROPOINT = {
 	'J' : 49.46953099,
 	'H' : 49.95637318,
