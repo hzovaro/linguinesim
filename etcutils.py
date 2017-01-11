@@ -60,17 +60,19 @@ def thermalEmissionIntensity(
 	"""
 
 	# Planck function
-	B = lambda wavelength_m, T: 2 * scipy.constants.h * np.power(scipy.constants.c,2) / np.power(wavelength_m,5) * 1 / (np.exp(scipy.constants.h * scipy.constants.c / (wavelength_m * scipy.constants.Boltzmann * T)) - 1)
+	B = lambda wavelength_m, T: 2 * scipy.constants.h * np.power(scipy.constants.c,2) \
+	 	/ np.power(wavelength_m,5) * 1 / (np.exp(scipy.constants.h * \
+	 		scipy.constants.c / (wavelength_m * scipy.constants.Boltzmann * T)) - 1)
 	
 	# Integrand
-	integrand = lambda wavelength_m, Omega, eta, A, T, eps: Omega * A * eta * 
-	B(wavelength_m, T) * wavelength_m / (scipy.constants.h * scipy.constants.c) 
+	integrand = lambda wavelength_m, Omega, eta, A, T, eps: Omega * A * eta * \
+	B(wavelength_m, T) * wavelength_m / (scipy.constants.h * scipy.constants.c) \
 	* eps
 	
 	# Integrating to find the total irradiance incident upon the pupil
 	if hasattr(eps, '__call__'):
 		# if the emissivity is a function of wavelength_m
-		integrand_prime = lambda wavelength_m, Omega, eta, A, T: 
+		integrand_prime = lambda wavelength_m, Omega, eta, A, T: \
 		integrand(wavelength_m, Omega, eta, A, T, eps(wavelength_m))
 		I = scipy.integrate.quad(
 			integrand_prime, 
@@ -178,7 +180,7 @@ def Fnucgs2flux(F_nu_cgs,
 
 	F_nu_si = F_nu_cgs * 1e-7 * 1e4 # W/m^2/Hz
 	if wavelength_m != None:
-		F_lambda_cgs = F_nu_cgs * scipy.constants.c / np.power(wavelength_m, 2) 
+		F_lambda_cgs = F_nu_cgs * scipy.constants.c / np.power(wavelength_m, 2) \
 			* 1e-10	# ergs/s/cm^2/angstrom
 		F_lambda_si = F_lambda_cgs * 1e-7 * 1e4	* 1e10 # W/m^2/m
 	else:
@@ -267,8 +269,7 @@ def flux2countRate(F,
 	return Sigma_electrons
 
 ################################################################################
-def expectedCount2count(arg,
-	detectorSaturation = np.inf, 
+def expectedCount2count(arg, 
 	t_exp = None):
 	"""
 		Convert an expected photon count (in photons) OR expected photon count 
@@ -293,8 +294,5 @@ def expectedCount2count(arg,
 		 values to zero...".format(
 			len(expectedCount[expectedCount<0].flatten())))
 		expectedCount = expectedCount.clip(0)
-
-	if detectorSaturation == np.inf:
-		return np.random.poisson(lam=expectedCount, size=expectedCount.shape)
-	else:
-		return np.maximum(np.random.poisson(lam=expectedCount, size=expectedCount.shape), detectorSaturation)
+		
+	return np.random.poisson(lam=expectedCount, size=expectedCount.shape)
