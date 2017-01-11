@@ -119,9 +119,9 @@ def surface_brightness2countRate(mu, A_tel,
 		bandwidth_m = FILTER_BANDS_M[band][1]
 
 	# Getting the magnitude zero points.
-	if magnitude_system == 'AB':
+	if magnitude_system.lower() == 'ab':
 		zeropoint = AB_MAGNITUDE_ZEROPOINT
-	elif magnitude_system == 'VEGA':
+	elif magnitude_system.lower() == 'vega':
 		if band != None:
 			zeropoint = VEGA_MAGNITUDE_ZEROPOINT[band]
 		else:
