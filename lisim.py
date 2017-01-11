@@ -77,6 +77,7 @@ def luckyImage(
 	noise_frame_gain_multiplied = 0,		# Noise injected into the system that is multiplied up by the detector gain after conversion to counts via a Poisson distribution, e.g. sky background, emission from telescope, etc. Must have shape final_sz. It is assumed that this noise frame has already been multiplied up by the detector gain!
 	noise_frame_post_gain = 0,		# Noise injected into the system after gain multiplication, e.g. read noise. Must have shape final_sz.
 	gain = 1,						# Detector gain.
+	detector_saturation=np.inf,	
 	plate_scale_as_px_conv = 1,		# Only used for plotting.
 	plate_scale_as_px = 1,			# Only used for plotting.
 	plotit=False):
@@ -119,6 +120,8 @@ def luckyImage(
 	im_noisy = im_counts + noise_frame_gain_multiplied
 	# Add the post-gain noise (i.e. read noise)
 	im_noisy += noise_frame_post_gain
+	# Account for detector saturation
+	im_noisy = np.clip(im_noisy, a_min=0, a_max=detector_saturation)
 
 	if plotit:
 		plate_scale_as_px = plate_scale_as_px_conv * scale_factor
@@ -430,10 +433,9 @@ def luckyImaging(images, li_method,
 			axes=(1,2))
 
 		cutoff_freq_px = int(np.round(cutoff_freq_frac * min(h,w)))
-		U,V = np.meshgrid(np.linspace(-h/2,h/2-1,h),np.linspace(-w/2,w/2-1,w))
+		U,V = np.meshgrid(np.linspace(-w/2,w/2-1,w),np.linspace(-h/2,h/2-1,h))
 		uv_map = np.zeros( (h,w) )
 		uv_map[np.sqrt(U**2 + V**2) < cutoff_freq_px]=1
-
 		fft_sum = np.zeros( (h, w), dtype=complex )
 		
 		# OUTSIDE THE CUTOFF FREQUENCY
@@ -443,7 +445,7 @@ def luckyImaging(images, li_method,
 			idxs_to_keep = np.argsort(max_pixel_vals)[-N_frames_to_keep:]
 			# Step 2. 
 			vals_to_keep=np.zeros( (h, w, N_frames_to_keep), dtype=complex )
-			for u, v in zip(U[uv_map==0],V[uv_map==0]):
+			for u, v in zip(V[uv_map==0],U[uv_map==0]):
 				# For these coordinates, grab the indices of the N highest 
 				# values in the data cube.
 				try:
@@ -469,7 +471,7 @@ def luckyImaging(images, li_method,
 		# For now, don't worry about parallelisation.		
 		vals_to_keep=np.zeros( (h, w, N_frames_to_keep), dtype=complex )
 		idxs_to_keep=np.zeros( (h, w, N_frames_to_keep), dtype=int)	# Indices along the zeroth axis of the datacube indicating which frames' data we want to keep for the whole image
-		for u, v in zip(U[uv_map==1],V[uv_map==1]):
+		for u, v in zip(V[uv_map==1],U[uv_map==1]):
 			# For these coordinates, grab the indices of the N highest values in the data cube.
 			idxs_to_keep[u+h/2,v+w/2] = np.argsort(
 				images_fft_amp[:,u+h/2,v+w/2])[-N_frames_to_keep:]
