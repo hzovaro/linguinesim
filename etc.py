@@ -109,7 +109,7 @@ def exposure_time_calc(band, t_exp, optical_system,
 		Sigma_source_e = 0
 
 	""" Cryostat photon flux """
-	Sigma_cryo = getCryostatTE(optical_system=optical_system)
+	Sigma_cryo = get_cryo_TE(optical_system=optical_system)
 
 	""" Telescope thermal background photon flux """
 	Sigma_tel = get_telescope_TE(optical_system=optical_system, plotit=False)[band]
@@ -118,7 +118,6 @@ def exposure_time_calc(band, t_exp, optical_system,
 	Sigma_sky_thermal = get_sky_TE(optical_system=optical_system, plotit=False)[band]
 
 	""" Empirical sky background flux """
-	ipdb.set_trace()
 	Sigma_sky_emp = etcutils.surface_brightness_to_count_rate(mu = sky.brightness[band], 
 		band = band,
 		# wavelength_m = wavelength_eff, 
@@ -238,7 +237,7 @@ def exposure_time_calc(band, t_exp, optical_system,
 	return etc_output
 
 ################################################################################
-def getCryostatTE(optical_system):
+def get_cryo_TE(optical_system):
 	"""
 		Return the expected counts/second/pixel on a detector resulting from thermal emission from the cryostat walls.
 
