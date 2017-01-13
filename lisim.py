@@ -66,7 +66,7 @@ from linguineglobals import *
 import fftwconvolve, obssim, etcutils, imutils
 
 ################################################################################
-def luckyImage(
+def lucky_frame(
 	im, 							# In electron counts/s.
 	psf, 							# Normalised.
 	scale_factor, 					
@@ -77,7 +77,7 @@ def luckyImage(
 	noise_frame_gain_multiplied = 0,		# Noise injected into the system that is multiplied up by the detector gain after conversion to counts via a Poisson distribution, e.g. sky background, emission from telescope, etc. Must have shape final_sz. It is assumed that this noise frame has already been multiplied up by the detector gain!
 	noise_frame_post_gain = 0,		# Noise injected into the system after gain multiplication, e.g. read noise. Must have shape final_sz.
 	gain = 1,						# Detector gain.
-	detector_saturation=np.inf,	
+	detector_saturation=np.inf,		# Detector saturation.
 	plate_scale_as_px_conv = 1,		# Only used for plotting.
 	plate_scale_as_px = 1,			# Only used for plotting.
 	plotit=False):
@@ -89,7 +89,7 @@ def luckyImage(
 	"""	
 	# Convolve with PSF.
 	im_raw = im
-	im_convolved = obssim.convolvePSF(im_raw, psf)
+	im_convolved = obssim.convolve_psf(im_raw, psf)
 
 	# Add a star to the field. We need to add the star at the convolution plate scale BEFORE we resize down because of the tip-tilt adding step!
 	if is_numlike(im_star):
@@ -108,13 +108,13 @@ def luckyImage(
 	edge_buffer_px = (im.shape[0] - final_sz[0]) / 2
 	if edge_buffer_px > 0 and max(tt) > edge_buffer_px:
 		print("WARNING: the edge buffer is less than the supplied tip and tilt by a margin of {:.2f} pixels! Shifted image will be clipped.".format(np.abs(edge_buffer_px - max(tt))))
-	im_tt = obssim.addTipTilt_single(image = im_resized, tt_idxs = tt)[0]	
+	im_tt = obssim.add_tt(image = im_resized, tt_idxs = tt)[0]	
 	# Crop back down to the detector size.
 	if edge_buffer_px > 0:
-		im_tt = imutils.centreCrop(im_tt, final_sz)	
+		im_tt = imutils.centre_crop(im_tt, final_sz)	
 	# Convert to counts. Note that we apply the gain AFTER we convert to integer
 	# counts.
-	im_counts = etcutils.expectedCount2count(im_tt, t_exp = t_exp) * gain
+	im_counts = etcutils.expected_count_to_count(im_tt, t_exp = t_exp) * gain
 	# Add the pre-gain noise. Here, we assume that the noise frame has already 
 	# been multiplied by the gain before being passed into this function.
 	im_noisy = im_counts + noise_frame_gain_multiplied
@@ -152,10 +152,10 @@ def luckyImage(
 		# Zooming in on the galaxy
 		# mu.newfigure(1,4)
 		# plt.suptitle('Convolving input image with PSF and resizing to detector')
-		# mu.astroimshow(im=imutils.centreCrop(im=im_raw, units='arcsec', plate_scale_as_px=plate_scale_as_px_conv, sz_final=(6, 6)), title='Raw input image (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=141)
+		# mu.astroimshow(im=imutils.centre_crop(im=im_raw, units='arcsec', plate_scale_as_px=plate_scale_as_px_conv, sz_final=(6, 6)), title='Raw input image (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=141)
 		# mu.astroimshow(im=psf, title='Point spread function (normalised)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=142)
-		# mu.astroimshow(im=imutils.centreCrop(im=im_convolved, units='arcsec', plate_scale_as_px=plate_scale_as_px_conv, sz_final=(6, 6)), title='Star added, convolved with PSF (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=143)
-		# mu.astroimshow(im=imutils.centreCrop(im=im_resized, units='arcsec', plate_scale_as_px=plate_scale_as_px, sz_final=(6, 6)), title='Resized to detector plate scale (electrons/s)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=144)
+		# mu.astroimshow(im=imutils.centre_crop(im=im_convolved, units='arcsec', plate_scale_as_px=plate_scale_as_px_conv, sz_final=(6, 6)), title='Star added, convolved with PSF (electrons/s)', plate_scale_as_px = plate_scale_as_px_conv, colorbar_on=True, subplot=143)
+		# mu.astroimshow(im=imutils.centre_crop(im=im_resized, units='arcsec', plate_scale_as_px=plate_scale_as_px, sz_final=(6, 6)), title='Resized to detector plate scale (electrons/s)', plate_scale_as_px=plate_scale_as_px, colorbar_on=True, subplot=144)
 
 		mu.newfigure(1,3)
 		plt.suptitle('Adding tip and tilt, converting to integer counts and adding noise')
@@ -288,7 +288,7 @@ def shift_gaussfit(image, img_ref_peak_idx):
 	return image_shifted, tuple(-x for x in rel_shift_idx)
 
 ################################################################################
-def luckyImaging(images, li_method, 
+def lucky_imaging(images, li_method, 
 	mode = 'serial',		# whether or not to process images in parallel
 	image_ref = None,		# reference image
 	fsr = 1,				# for peak pixel/FAS method
@@ -326,7 +326,7 @@ def luckyImaging(images, li_method,
 	elif li_method == 'peak pixel':
 		# Determining the reference coordinates.
 		if bid_area:			
-			sub_image_ref = imutils.centreCrop(image_ref, bid_area)
+			sub_image_ref = imutils.centre_crop(image_ref, bid_area)
 		else:
 			sub_image_ref = image_ref
 		img_ref_peak_idx = np.asarray(np.unravel_index(np.argmax(sub_image_ref), sub_image_ref.shape)) 
@@ -348,7 +348,7 @@ def luckyImaging(images, li_method,
 			arr = np.ndarray((1, image_ref.shape[0], image_ref.shape[1]))
 			arr[0,:] = image_ref
 			image_ref = arr
-			image_stacked = obssim.medianCombine(np.concatenate((image_ref, images)))
+			image_stacked = obssim.median_combine(np.concatenate((image_ref, images)))
 		elif stacking_method == 'average':
 			image_stacked = (image_ref + np.sum(images, axis=0)) / (N + 1)	
 		rel_shift_idxs = np.zeros( (N, 2) )
@@ -411,7 +411,7 @@ def luckyImaging(images, li_method,
 			arr = np.ndarray((1, image_ref.shape[0], image_ref.shape[1]))
 			arr[0,:] = image_ref
 			image_ref = arr
-			image_stacked = obssim.medianCombine(
+			image_stacked = obssim.median_combine(
 				np.concatenate((image_ref, images_shifted[sorted_idx[:N]])))
 		elif stacking_method == 'average':
 			image_stacked = (image_ref + \
@@ -490,7 +490,7 @@ def luckyImaging(images, li_method,
 			arr = np.ndarray((1, image_ref.shape[0], image_ref.shape[1]))
 			arr[0,:] = image_ref
 			image_ref = arr
-			image_stacked = obssim.medianCombine(np.concatenate(
+			image_stacked = obssim.median_combine(np.concatenate(
 				(image_ref, images_shifted)))
 		elif stacking_method == 'average':
 			image_stacked = (image_ref + np.sum(images_shifted, 0)) / (N + 1)	
@@ -502,7 +502,7 @@ def luckyImaging(images, li_method,
 	return image_stacked, rel_shift_idxs
 
 ################################################################################
-def alignmentError(in_idxs, out_idxs, opticalsystem,
+def alignment_err(in_idxs, out_idxs, opticalsystem,
 	li_method='',
 	plotHist=True,
 	verbose=True):
@@ -531,12 +531,12 @@ def alignmentError(in_idxs, out_idxs, opticalsystem,
 		print('\t\t\tMean\t%4.2f' % np.mean(errs_as))
 
 	if plotHist:
-		plotErrorHistogram(errs_as, li_method)
+		plot_alignment_err_histogram(errs_as, li_method)
 	
 	return errs_as
 
 ################################################################################
-def plotErrorHistogram(errs_as,
+def plot_alignment_err_histogram(errs_as,
 	li_method=''):
 	x_errs_as = errs_as[:,0]
 	y_errs_as = errs_as[:,1]
@@ -661,7 +661,7 @@ def edge_ramp(im, buff):
 		_, h, w = im.shape
 	else:
 		h, w = im.shape
-	im = imutils.centreCrop(im, (h-2*buff,w-2*buff))
+	im = imutils.centre_crop(im, (h-2*buff,w-2*buff))
 
 	# Pad.
 	if len(im.shape) == 3:

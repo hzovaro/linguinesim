@@ -60,7 +60,7 @@ def simulate_sersic_galaxy(im_out_fname, # Output FITS file name
 	object_type = 'sersic/2',
 	galfit_input_fname = None,
 	plotit = False,
-	overwriteExisting = False
+	overwrite_existing = False
 	):
 	"""
 		Return a simulated image of a galaxy (made using GALFIT) given the inputs.
@@ -75,7 +75,7 @@ def simulate_sersic_galaxy(im_out_fname, # Output FITS file name
 		im_out_fname += '.fits'
 
 	# Writing the parameters file.
-	if not os.path.isfile(im_out_fname) or overwriteExisting:		
+	if not os.path.isfile(im_out_fname) or overwrite_existing:		
 		galfit_input_fname, im_out_fname = write_GALFIT_params_file(
 			galfit_input_fname, 
 			im_out_fname, 
@@ -97,7 +97,7 @@ def simulate_sersic_galaxy(im_out_fname, # Output FITS file name
 
 	# Editing the header to include the input parameters.
 	hdulist = astropy.io.fits.open(im_out_fname, mode='update')
-	if overwriteExisting:
+	if overwrite_existing:
 		hdulist[0].header['R_E_PX'] = R_e_px
 		hdulist[0].header['MU_E'] = mu_e
 		hdulist[0].header['SER_IDX'] = n
@@ -173,7 +173,7 @@ def write_GALFIT_params_file(
 		text_file.write("1)\t{:.10f}\t{:.10f}\n".format(pos_px[0], pos_px[1]))
 		text_file.write("3)\t{:.10f}\n".format(mu_e))
 		text_file.write("4)\t{:.10f}\n".format(R_e_px))
-		text_file.write("5)\t{:d}\n".format(n))
+		text_file.write("5)\t{:.10f}\n".format(n))
 		text_file.write("9)\t{:.10f}\n".format(axis_ratio))
 		text_file.write("10)\t{:.10f}\n".format(PA_deg))
 		text_file.write("Z)\t0\n")
@@ -181,7 +181,8 @@ def write_GALFIT_params_file(
 	return galfit_input_fname, im_out_fname
 
 ################################################################################
-# The following functions are for generating an image of a galaxy without GALFIT (not recommended for now)
+# The following functions are for generating an image of a galaxy without GALFIT 
+# (not recommended for now)
 ################################################################################
 def sersic(n, R_e, R, mu_e,
 	zeropoint = 0,
@@ -193,7 +194,7 @@ def sersic(n, R_e, R, mu_e,
 		with Sersic index n given half-light radius R_e and mu(R=R_e) = mu_e.
 	"""
 	# Calculating the constraining parameter.
-	F_e = etcutils.surface_brightness2flux(mu = mu_e, zeropoint=zeropoint, wavelength_m=wavelength_m)
+	F_e = etcutils.surface_brightness_to_flux(mu = mu_e, zeropoint=zeropoint, wavelength_m=wavelength_m)
 
 	# Calculating b_n given the Sersic index n.
 	if n > 0.5 and n < 8:
@@ -215,7 +216,7 @@ def sersic(n, R_e, R, mu_e,
 	return R, mu, F
 
 ################################################################################
-def sersic2D(n, R_e, mu_e,
+def sersic_2D(n, R_e, mu_e,
 	theta_rad = 0,		# Angle between major axis and detector horizontal (radians)
 	i_rad = 0,			# Inclination angle (radians; face-on corresponds to i = 0)
 	R_max = None,		# Plotting limit. Default is 20 * R_e
@@ -267,7 +268,7 @@ def sersic2D(n, R_e, mu_e,
 
 ################################################################################
 def export_galaxy_FITS_file(image_in_array, n, R_e, mu_e, z, R_trunc, i_deg, band, seeing_as, t_exp, N_exp,
-	overwriteExisting = True,
+	overwrite_existing = True,
 	relpath = None
 	):
 	""" 
@@ -286,4 +287,4 @@ def export_galaxy_FITS_file(image_in_array, n, R_e, mu_e, z, R_trunc, i_deg, ban
 	if relpath != None:
 		fname = relpath + '/' + fname
 	print("Exporting image data to file: ", fname,".fits")
-	imutils.exportFitsFile(image_in_array = image_in_array, fname = fname, otherHeaderData = headerData, overwriteExisting = overwriteExisting)
+	imutils.export_fits(image_in_array = image_in_array, fname = fname, otherHeaderData = headerData, overwrite_existing = overwrite_existing)

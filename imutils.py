@@ -51,7 +51,7 @@ from linguineglobals import *
 		- Other header keys:
 			- ATODGAIN, BANDWID, CENTRWV, INSTRUME, TELESCOP, OBJECT, NAXIS, NAXIS1, NAXIS2,
 """
-def imageFromFitsFile(fname, 
+def image_from_fits(fname, 
 	plotit=False,
 	idx=0):
 	" Return an array of the image(s) stored in the FITS file fname. "
@@ -61,7 +61,7 @@ def imageFromFitsFile(fname,
 	images_raw = hdulist[idx].data
 	hdulist.close()
 
-	images_raw, N, height, width = getImageSize(images_raw)
+	images_raw, N, height, width = get_image_size(images_raw)
 	if plotit:
 		for k in range(N):
 			plt.imshow(images_raw[k])
@@ -72,7 +72,7 @@ def imageFromFitsFile(fname,
 	return np.squeeze(images_raw), hdulist
 
 ################################################################################
-def imageToArray(im):
+def image_obj_to_array(im):
 	" Convert an Image object im into an array. "
 	width, height = im.size
 	image_map = list(im.getdata())
@@ -80,12 +80,12 @@ def imageToArray(im):
 	return image_map
 
 ################################################################################
-def centreCrop(im, sz_final, 
+def centre_crop(im, sz_final, 
 		units = 'px',
 		plate_scale_as_px = 1,
 		centre_coords_rel = np.array([0,0])):
 	"""
-		Crop an array by equal amounts on each side. A simpler (and faster) alternative to rotateAndCrop() if only cropping is required. 
+		Crop an array by equal amounts on each side. 
 
 		If desired, the input units can be specified in arcsec. 
 	"""
@@ -100,7 +100,7 @@ def centreCrop(im, sz_final,
 		centre_coords_rel[0] = int(np.round(centre_coords_rel[0] / plate_scale_as_px))
 		centre_coords_rel[1] = int(np.round(centre_coords_rel[1] / plate_scale_as_px))
 
-	im = getImageSize(im)[0]
+	im = get_image_size(im)[0]
 
 	if matplotlib.cbook.is_scalar(sz_final):
 		sz_height = sz_final
@@ -121,7 +121,7 @@ def centreCrop(im, sz_final,
 	return np.squeeze(im_cropped)
 
 ################################################################################
-def getImageSize(image_in_array):
+def get_image_size(image_in_array):
 	" This function takes as input an image array which is either 2- or 3-dimensional. It returns an new array with dimensions (N, height, width). This function is basically to ensure consistency in this module in how images are stored (to eliminate the need to constantly check the dimensions of input image arguments) "
 	if len(image_in_array.shape) == 3:
 		N = image_in_array.shape[0]
@@ -140,13 +140,13 @@ def getImageSize(image_in_array):
 	return (image_out_array, N, height, width)
 
 ################################################################################
-def exportFitsFile(image_in_array, fname,
+def export_fits(image_in_array, fname,
 	otherHeaderData = None, 
-	overwriteExisting = False):
+	overwrite_existing = False):
 	"""
 		Exports a FITS file containing the image data contained in image_in_array and optional header 
 		data stored in the dictionary otherHeaderData. Does not overwrite existing file fname.fits 
-		by default, but will if overwriteExisting is set to True.
+		by default, but will if overwrite_existing is set to True.
 
 		Some notes: 
 		- It is generally better to give the pixel values in terms of ADU count units instead of flux 
@@ -172,7 +172,7 @@ def exportFitsFile(image_in_array, fname,
 	# Write to disk.
 	if fname.endswith('.fits') == False:
 		fname += '.fits'
-	hdu.writeto(fname, clobber = overwriteExisting)
+	hdu.writeto(fname, clobber = overwrite_existing)
 
 
 ################################################################################
@@ -189,7 +189,7 @@ def fourier_resize(im, scale_factor,
 	im_fft = np.fft.fftshift(pyfftw.interfaces.numpy_fft.fft2(im))
 
 	# Crop it.
-	im_fft_cropped = centreCrop(im_fft,sz_final=(h_s,w_s))
+	im_fft_cropped = centre_crop(im_fft,sz_final=(h_s,w_s))
 
 	# Inverse transform.
 	im_resized = np.abs(pyfftw.interfaces.numpy_fft.ifft2(

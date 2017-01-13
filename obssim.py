@@ -55,51 +55,8 @@ except:
 from linguineglobals import *
 import etc, etcutils, fftwconvolve, imutils
 
-# aosim modules
-# from aosim import pyxao
-
 ################################################################################
-def addTipTilt(images, 
-	sigma_tt_px=None,
-	tt_input_idxs=None,
-	N_tt=1):
-	""" 
-		Add tip and tilt to an input `truth' image. Returns N_tt copies of the input image with randomised turbulence added. 
-		Just tip and tilt for now with a standard deviation of sigma_tt_px in both dimensions.
-
-		The tip and tilt values are either random numbers drawn from a Gaussian distribution with standard deviation sigma_tt_px, or shifts specified in the input vector with shape (N, 2).
-	"""
-
-	# Tip and tilt for now	
-	images, N, height, width = imutils.getImageSize(images)
-	if N != 1:		
-		N_tt = N # Then we add a randomised tip and tilt to each of the N input images.		
-	# Otherwise, we make N_tt copies of the image and add a randomised tip and tilt to each.
-
-	print("Adding tip/tilt to {:d} images".format(N_tt))	
-	
-	if not plt.is_numlike(tt_idxs):
-		tt_idxs = np.ndarray((N_tt, 2))
-		tt_idx = None
-	else:
-		sigma_tt_px = None
-
-	# PARALLELISE
-	for j in range(N_tt):
-		if N == 1:			
-			image = images[0]	# If the user only inputs 1 image, then we use the same image each time.
-		else:
-			image = images[j]
-
-		if plt.is_numlike(tt_input_idxs):
-			tt_idx = tt_input_idxs[j]			
-
-		images_tt[j], tt_idxs[j] = addTipTilt_single(image, sigma_tt_px, tt_idx)
-
-	return np.squeeze(images_tt), tt_idxs
-
-################################################################################
-def addTipTilt_single(image, 
+def add_tt(image, 
 	sigma_tt_px=None, 
 	tt_idxs=None):
 
@@ -128,7 +85,7 @@ def strehl(psf, psf_dl):
 	return np.amax(psf) / np.amax(psf_dl)
 
 ################################################################################
-def airyDisc(wavelength_m, f_ratio, l_px_m, 
+def airy_disc(wavelength_m, f_ratio, l_px_m, 
 	detector_size_px=None,
 	trapz_oversampling=8,	# Oversampling used in the trapezoidal rule approximation.
 	coords=None,
@@ -224,7 +181,7 @@ def field_star(psf, band, mag, optical_system, star_coords_as, final_sz, plate_s
 		The returned image IS NOT gain-multiplied by default. Be careful!
 	"""
 	# Scale up to the correct magnitude
-	star = psf * etcutils.surface_brightness2countRate(
+	star = psf * etcutils.surface_brightness_to_count_rate(
 		mu = mag, 
 		A_tel = optical_system.telescope.A_collecting_m2, 
 		tau = optical_system.telescope.tau,
@@ -264,7 +221,7 @@ def field_star(psf, band, mag, optical_system, star_coords_as, final_sz, plate_s
 	return star_padded
 
 ################################################################################
-def psfKernel(wavelength_m, 
+def psf_airy_disk_kernel(wavelength_m, 
 	l_px_m=None, 
 	f_ratio=None,
 	N_OS=None, 
@@ -294,87 +251,87 @@ def psfKernel(wavelength_m,
 		detector_size_px = (psf_size,psf_size)	
 
 	# In the inputs to this function, do we need to specify the oversampling factor AND the f ratio and/or pixel widths?
-	kernel = airyDisc(wavelength_m=wavelength_m, f_ratio=f_ratio, l_px_m=l_px_m, detector_size_px=detector_size_px, trapz_oversampling=T_OS, plotit=plotit)[0]	
+	kernel = airy_disc(wavelength_m=wavelength_m, f_ratio=f_ratio, l_px_m=l_px_m, detector_size_px=detector_size_px, trapz_oversampling=T_OS, plotit=plotit)[0]	
 
 	return kernel
 
-################################################################################
-def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_as,
-	dest_detector_size_px=None,
-	plotit=False):
-	" Resize the images stored in array images_raw with a given plate scale to a detector with given dimensions and plate scale. "
-	print("Resizing image(s) to detector...")
+# ################################################################################
+# def resizeImagesToDetector(images_raw, source_plate_scale_as, dest_plate_scale_as,
+# 	dest_detector_size_px=None,
+# 	plotit=False):
+# 	" Resize the images stored in array images_raw with a given plate scale to a detector with given dimensions and plate scale. "
+# 	print("Resizing image(s) to detector...")
 
-	# 1. Get the original size and shape of the input images.
-	images_raw, N, source_height_px, source_width_px = getImageSize(images_raw)
-	source_width_as = source_width_px * source_plate_scale_as
-	source_height_as = source_height_px * source_plate_scale_as
+# 	# 1. Get the original size and shape of the input images.
+# 	images_raw, N, source_height_px, source_width_px = get_image_size(images_raw)
+# 	source_width_as = source_width_px * source_plate_scale_as
+# 	source_height_as = source_height_px * source_plate_scale_as
 
-	# If the destination plate scale is not specified, then we simply scale the dimensions of the input image appropriately.
-	if not dest_detector_size_px:
-		dest_detector_size_px = tuple(np.round(source_plate_scale_as / dest_plate_scale_as * x) for x in (source_height_px, source_width_px))
+# 	# If the destination plate scale is not specified, then we simply scale the dimensions of the input image appropriately.
+# 	if not dest_detector_size_px:
+# 		dest_detector_size_px = tuple(np.round(source_plate_scale_as / dest_plate_scale_as * x) for x in (source_height_px, source_width_px))
 
-	# Getting the angular extent of the source image:
-	# 	size(pixels on our detector) = size(of source, in as) / plate scale
-	detector_height_px = dest_detector_size_px[0]
-	detector_width_px = dest_detector_size_px[1]
-	dest_width_px = source_width_as / dest_plate_scale_as
-	dest_height_px = source_height_as / dest_plate_scale_as
+# 	# Getting the angular extent of the source image:
+# 	# 	size(pixels on our detector) = size(of source, in as) / plate scale
+# 	detector_height_px = dest_detector_size_px[0]
+# 	detector_width_px = dest_detector_size_px[1]
+# 	dest_width_px = source_width_as / dest_plate_scale_as
+# 	dest_height_px = source_height_as / dest_plate_scale_as
 
-	# Rescaling images to the appropriate size for our detector.
-	images = np.ndarray((N, int(np.ceil(dest_height_px)), int(np.ceil(dest_width_px))))
-	for k in range(N):
-		im = Image.fromarray(images_raw[k])
-		# NOTE: due to the way the Image package works, height and width indices are swapped
-		im = im.resize((int(np.ceil(dest_width_px)), int(np.ceil(dest_height_px))), resample=RESAMPLE_FILTER)
-		images[k] = imageToArray(im)
+# 	# Rescaling images to the appropriate size for our detector.
+# 	images = np.ndarray((N, int(np.ceil(dest_height_px)), int(np.ceil(dest_width_px))))
+# 	for k in range(N):
+# 		im = Image.fromarray(images_raw[k])
+# 		# NOTE: due to the way the Image package works, height and width indices are swapped
+# 		im = im.resize((int(np.ceil(dest_width_px)), int(np.ceil(dest_height_px))), resample=RESAMPLE_FILTER)
+# 		images[k] = image_obj_to_array(im)
 
-	height_idx = 1	# Array index corresponding to image height.
-	width_idx = 2	# Array index corresponding to image width.
+# 	height_idx = 1	# Array index corresponding to image height.
+# 	width_idx = 2	# Array index corresponding to image width.
 		
-	# Resizing to the size of the detector.
-	if dest_height_px > detector_height_px:
-		images = images[:, images.shape[height_idx]//2-detector_height_px//2:images.shape[height_idx]//2+detector_height_px//2, :]
-		pad_height_top = 0
-		pad_height_bottom = 0
-	else:
-		pad_height_top = np.floor((detector_height_px - images.shape[height_idx])/2.).astype(np.int)
-		pad_height_bottom = np.ceil((detector_height_px - images.shape[height_idx])/2.).astype(np.int)
+# 	# Resizing to the size of the detector.
+# 	if dest_height_px > detector_height_px:
+# 		images = images[:, images.shape[height_idx]//2-detector_height_px//2:images.shape[height_idx]//2+detector_height_px//2, :]
+# 		pad_height_top = 0
+# 		pad_height_bottom = 0
+# 	else:
+# 		pad_height_top = np.floor((detector_height_px - images.shape[height_idx])/2.).astype(np.int)
+# 		pad_height_bottom = np.ceil((detector_height_px - images.shape[height_idx])/2.).astype(np.int)
 
-	if dest_width_px > detector_width_px:
-		images = images[:, :, images.shape[width_idx]//2-detector_width_px//2:images.shape[width_idx]//2+detector_width_px//2]
-		pad_width_left = 0
-		pad_width_right = 0
-	else: 
-		pad_width_left = np.floor((detector_width_px - images.shape[width_idx])/2.).astype(np.int)
-		pad_width_right = np.ceil((detector_width_px - images.shape[width_idx])/2.).astype(np.int)
+# 	if dest_width_px > detector_width_px:
+# 		images = images[:, :, images.shape[width_idx]//2-detector_width_px//2:images.shape[width_idx]//2+detector_width_px//2]
+# 		pad_width_left = 0
+# 		pad_width_right = 0
+# 	else: 
+# 		pad_width_left = np.floor((detector_width_px - images.shape[width_idx])/2.).astype(np.int)
+# 		pad_width_right = np.ceil((detector_width_px - images.shape[width_idx])/2.).astype(np.int)
 
-	# Padding the resized images if necessary.
-	images = np.pad(images, ((0, 0), (pad_height_top, pad_height_bottom), (pad_width_left, pad_width_right)), mode='constant')
+# 	# Padding the resized images if necessary.
+# 	images = np.pad(images, ((0, 0), (pad_height_top, pad_height_bottom), (pad_width_left, pad_width_right)), mode='constant')
 
-	if plotit:
-		mu.newfigure(1,2)
-		plt.subplot(1,2,1)
-		plt.imshow(images_raw[0])
-		mu.colorbar()
-		plt.title('Input image')
-		plt.subplot(1,2,2)
-		plt.imshow(images[0])
-		mu.colorbar()
-		plt.title('Resized image')
-		plt.suptitle('Resizing truth image to detector')
-		plt.show()
+# 	if plotit:
+# 		mu.newfigure(1,2)
+# 		plt.subplot(1,2,1)
+# 		plt.imshow(images_raw[0])
+# 		mu.colorbar()
+# 		plt.title('Input image')
+# 		plt.subplot(1,2,2)
+# 		plt.imshow(images[0])
+# 		mu.colorbar()
+# 		plt.title('Resized image')
+# 		plt.suptitle('Resizing truth image to detector')
+# 		plt.show()
 
-	return np.squeeze(images)
+# 	return np.squeeze(images)
 
 ################################################################################
-def resizeImageToDetector(image_raw, source_plate_scale_as, dest_plate_scale_as,
+def resize_image_to_detector(image_raw, source_plate_scale_as, dest_plate_scale_as,
 	dest_detector_size_px=None,
 	conserve_pixel_sum=False,
 	plotit=False):
 	" Resize the images stored in array images_raw with a given plate scale to a detector with given dimensions and plate scale. "
 	if not conserve_pixel_sum:
-		print("WARNING: I am not rescaling pixel values in this call to resizeImageToDetector() - is this OK?")
+		print("WARNING: I am not rescaling pixel values in this call to resize_image_to_detector() - is this OK?")
 
 	# 1. Get the original size and shape of the input images.
 	source_height_px, source_width_px = image_raw.shape
@@ -396,7 +353,7 @@ def resizeImageToDetector(image_raw, source_plate_scale_as, dest_plate_scale_as,
 	im = Image.fromarray(image_raw)
 	# NOTE: due to the way the Image package works, height and width indices are swapped
 	im = im.resize((int(np.ceil(dest_width_px)), int(np.ceil(dest_height_px))), resample=RESAMPLE_FILTER)
-	image = imutils.imageToArray(im)
+	image = imutils.image_obj_to_array(im)
 
 	height_px, width_px = image.shape		
 	# Resizing to the size of the detector.
@@ -439,7 +396,7 @@ def resizeImageToDetector(image_raw, source_plate_scale_as, dest_plate_scale_as,
 	return image
 
 ###################################################################################
-def getDiffractionLimitedImage(image_truth, l_px_m, f_ratio, wavelength_m, 
+def get_diffraction_limited_image(image_truth, l_px_m, f_ratio, wavelength_m, 
 	f_ratio_in=None, wavelength_in_m=None, # f-ratio and imaging wavelength of the input image (if it has N_os > 1)
 	N_OS_psf=4,
 	detector_size_px=None,
@@ -456,7 +413,7 @@ def getDiffractionLimitedImage(image_truth, l_px_m, f_ratio, wavelength_m,
 
 	"""
 	print("Diffraction-limiting truth image(s)...")
-	image_truth, N, height, width = imutils.getImageSize(image_truth)
+	image_truth, N, height, width = imutils.get_image_size(image_truth)
 
 	# If the input image is already sampled by N_os > 1, then the PSF that we convolve with the image needs to add in quadrature with the PSF that has already been convolved with the image to get to the scaling we want.
 	if f_ratio_in != None and wavelength_in_m != None:
@@ -482,7 +439,7 @@ def getDiffractionLimitedImage(image_truth, l_px_m, f_ratio, wavelength_m,
 	N_OS_input = wavelength_m * f_ratio / 2 / l_px_m / (np.deg2rad(206265 / 3600))
 
 	# Calculating the PSF
-	psf = psfKernel(wavelength_m=wavelength_m, N_OS=N_OS_psf, l_px_m=l_px_m)
+	psf = psf_airy_disk_kernel(wavelength_m=wavelength_m, N_OS=N_OS_psf, l_px_m=l_px_m)
 	# TODO need to check that the PSF is not larger than image_truth_large
 
 	# Convolving the PSF and the truth image to obtain the simulated diffraction-limited image
@@ -521,7 +478,7 @@ def getDiffractionLimitedImage(image_truth, l_px_m, f_ratio, wavelength_m,
 	return np.squeeze(image_difflim)
 
 ################################################################################
-def getSeeingLimitedImage(images, seeing_diameter_as, 
+def get_seeing_limited_image(images, seeing_diameter_as, 
 	plate_scale_as=1,
 	padFactor=1,
 	plotit=False):
@@ -530,7 +487,7 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 	"""
 	print("Seeing-limiting image(s)",end="")
 
-	images, N, height, width = getImageSize(images)
+	images, N, height, width = get_image_size(images)
 
 	# Padding the source image.
 	pad_ud = height // padFactor // 2
@@ -587,7 +544,7 @@ def getSeeingLimitedImage(images, seeing_diameter_as,
 	return np.squeeze(image_seeing_limited_cropped)
 
 ################################################################################
-def convolvePSF(image, psf, 
+def convolve_psf(image, psf, 
 	padFactor=1,
 	plotit=False):
 	"""
@@ -643,36 +600,36 @@ def convolvePSF(image, psf,
 
 
 ################################################################################
-def addNoise(images,
-	noise_frames=None, 
-	band=None,	
-	t_exp=None,
-	etc_input=None,
-	plotit=False):
-	""" Add noise to an array of input images assuming an exposure time t_exp. """
-	print ('Adding noise to image(s)...')
+# def addNoise(images,
+# 	noise_frames=None, 
+# 	band=None,	
+# 	t_exp=None,
+# 	etc_input=None,
+# 	plotit=False):
+# 	""" Add noise to an array of input images assuming an exposure time t_exp. """
+# 	print ('Adding noise to image(s)...')
 
-	# Determine whether or not we need to generate new noise frames
-	if not plt.is_numlike(noise_frames):
-		# Then we need to generate new noise frames.
-		images, N, height_px, width_px = getImageSize(images)
-		noise_frames_dict, etc_output = noiseFramesFromEtc(N, height_px, width_px, band, t_exp, etc_input)
-		noise_frames = noise_frames_dict['total']
-		return np.squeeze(images + noise_frames), np.squeeze(noise_frames), etc_output
-	else:
-		# Otherwise, we just add the input. The ETC output is none since we didn't use it.
-		return images + noise_frames, noise_frames, None		
+# 	# Determine whether or not we need to generate new noise frames
+# 	if not plt.is_numlike(noise_frames):
+# 		# Then we need to generate new noise frames.
+# 		images, N, height_px, width_px = get_image_size(images)
+# 		noise_frames_dict, etc_output = noise_frames_from_etc(N, height_px, width_px, band, t_exp, etc_input)
+# 		noise_frames = noise_frames_dict['total']
+# 		return np.squeeze(images + noise_frames), np.squeeze(noise_frames), etc_output
+# 	else:
+# 		# Otherwise, we just add the input. The ETC output is none since we didn't use it.
+# 		return images + noise_frames, noise_frames, None		
 
 ################################################################################
-def noiseFramesFromEtc(N, height_px, width_px, 
+def noise_frames_from_etc(N, height_px, width_px, 
 	gain=1,
 	band=None,
 	t_exp=None,
 	etc_input=None):
 	""" 
-	Generate a series of N noise frames with dimensions (height_px, width_px) based on the output of exposureTimeCalc() (in etc.py). 
+	Generate a series of N noise frames with dimensions (height_px, width_px) based on the output of exposure_time_calc() (in etc.py). 
 
-	A previous ETC output returned by exposureTimeCalc() can be supplied, or can be generated if band and t_exp are specified. 
+	A previous ETC output returned by exposure_time_calc() can be supplied, or can be generated if band and t_exp are specified. 
 
 	The output is returned in the form of a dictionary allowing the sky, dark current, cryostat and read noise contributions to be accessed separately. The frame generated by summing each of these components is also generated. 
 
@@ -701,7 +658,7 @@ def noiseFramesFromEtc(N, height_px, width_px,
 		else:
 			# If no ETC input is given then we generate a new one.
 			if plt.is_numlike(t_exp) and band:
-				etc_output = etc.exposureTimeCalc(optical_system = optical_system, band = band, t_exp = t_exp)
+				etc_output = etc.exposure_time_calc(optical_system = optical_system, band = band, t_exp = t_exp)
 			else:
 				print("ERROR: if no ETC input is specified, then to calculate the noise levels you must also specify t_exp and the imaging band!")
 				raise UserWarning
@@ -711,10 +668,10 @@ def noiseFramesFromEtc(N, height_px, width_px,
 		etc_output = etc_input
 
 	# Adding noise to each image and multiplying by the detector gain where appropriate.
-	noise_frames_dict['sky'] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_sky'], N_frames = N) * gain
-	noise_frames_dict['dark'] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_dark'], N_frames = N) * gain
-	noise_frames_dict['cryo'] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_cryo'], N_frames = N) * gain
-	noise_frames_dict['RN'] = noiseFrame(height_px, width_px, etc_output['unity gain']['N_RN'], N_frames = N)
+	noise_frames_dict['sky'] = noise_frames(height_px, width_px, etc_output['unity gain']['N_sky'], N_frames = N) * gain
+	noise_frames_dict['dark'] = noise_frames(height_px, width_px, etc_output['unity gain']['N_dark'], N_frames = N) * gain
+	noise_frames_dict['cryo'] = noise_frames(height_px, width_px, etc_output['unity gain']['N_cryo'], N_frames = N) * gain
+	noise_frames_dict['RN'] = noise_frames(height_px, width_px, etc_output['unity gain']['N_RN'], N_frames = N)
 	
 	noise_frames_dict['total'] = noise_frames_dict['sky'] + noise_frames_dict['cryo'] + noise_frames_dict['RN'] + noise_frames_dict['dark']
 	noise_frames_dict['gain-multiplied'] = noise_frames_dict['sky'] + noise_frames_dict['cryo'] + noise_frames_dict['dark']
@@ -724,7 +681,7 @@ def noiseFramesFromEtc(N, height_px, width_px,
 	return noise_frames_dict, etc_output
 
 ################################################################################
-def darkAndSkyMasterFrames(N, height_px, width_px,
+def dark_sky_master_frames(N, height_px, width_px,
 	band=None,
 	t_exp=None,
 	etc_input=None):
@@ -734,7 +691,7 @@ def darkAndSkyMasterFrames(N, height_px, width_px,
 		The individual noise frames used to generate the master frames are NOT returned here; this is deliberate as it prevents one from generating the master frames from the same frames that are added to the image.
 
 	"""
-	noise_frames_dict = noiseFramesFromEtc(
+	noise_frames_dict = noise_frames_from_etc(
 		N=N, 
 		height_px=height_px, 
 		width_px=width_px, 
@@ -743,13 +700,13 @@ def darkAndSkyMasterFrames(N, height_px, width_px,
 		etc_input=etc_input)[0]
 
 	# Generating the master dark and sky frames.
-	master_dark = medianCombine(noise_frames_dict['total'] - noise_frames_dict['sky'])
-	master_dark_and_sky = medianCombine(noise_frames_dict['total'])
+	master_dark = median_combine(noise_frames_dict['total'] - noise_frames_dict['sky'])
+	master_dark_and_sky = median_combine(noise_frames_dict['total'])
 
 	return master_dark_and_sky, master_dark
 
 ################################################################################
-def noiseFrame(height_px, width_px, lam,
+def noise_frames(height_px, width_px, lam,
 	N_frames = 1):
 	""" Generate an array of integers drawn from a Poisson distribution with an expected value lam in each entry. """
 	if N_frames == 1:
@@ -760,7 +717,7 @@ def noiseFrame(height_px, width_px, lam,
 			size=(N_frames, height_px, width_px)).astype(int)
 
 ################################################################################
-def medianCombine(images):
+def median_combine(images):
 	""" Median-combine the input images. """
 	# TODO: implement robust median (sigma clipping?)
 	return np.median(images, axis=0)

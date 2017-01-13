@@ -61,14 +61,14 @@ def eos18mTelescope():
 		)
 
 	# M1
-	tel.addMirror(
+	tel.add_mirror(
 		R_outer_m = 1.752 / 2,
 		R_inner_m = 0.250 / 2
 		)
 
 	# M2 through M7
 	for k in range(6):		
-		tel.addMirror(R_outer_m = 0.250 / 2)
+		tel.add_mirror(R_outer_m = 0.250 / 2)
 
 	return tel
 
@@ -99,7 +99,7 @@ def msoSky():
 				'K' : 12.5
 			},
 			T = 273,
-			eps = etc.getSkyEps()
+			eps = etc.get_sky_emissivity()
 		)
 
 ################################################################################
@@ -236,26 +236,26 @@ def anu23mTelescope():
 		)
 	
 	# M1
-	tel.addMirror(
+	tel.add_mirror(
 		R_outer_m = 2.337 / 2,
 		R_inner_m = 0.229 / 2
 		) # Check that the effective emissivity works correctly.
 
 	# M2 
 	# For now, don't worry about the baffle. Talk to Rob first
-	tel.addMirror(
+	tel.add_mirror(
 		R_outer_m = 0.355 / 2,
 		eps_eff = 1.0
 		)
 
 	# M3
 	# We don't really care about the radius of M3 since it never gets used. 
-	tel.addMirror(
+	tel.add_mirror(
 		R_outer_m = 0.355 / 2
 		)
 
 	# For the spider, we pretend that it's a mirror. 
-	tel.addSpider(
+	tel.add_spider(
 		A_spider_m2 = 4 * 0.012 * (tel.mirrors[0].R_outer_m - tel.mirrors[1].R_outer_m),	# Total area of spider (m^2)
 		eps_spider = 1.0
 		# eps_spider = AL_EMISSIVITY
@@ -298,7 +298,7 @@ def saphiraCryostat():
 ################################################################################
 def ssoSky():
 	return Sky(
-			magnitude_system = 'AB',
+			magnitude_system = 'Vega',
 			# Source: GMTIFS On-line Exposure Time Calculator (ETC) and GMTIFSsim input data, rev 1.1
 			brightness = {
 				'J' : 16.61,
@@ -306,11 +306,11 @@ def ssoSky():
 				'K' : 14.45	# 15.35/14.45 for winter/summer
 			},
 			T = 273,
-			eps = etc.getSkyEps()
+			eps = etc.get_sky_emissivity()
 		)
 
 ################################################################################
-def linguineOpticalSystem():
+def linguine_optical_system():
 	"""
 		Make an OpticalSystemClass instance corresponding to the ANU 2.3 m.
 

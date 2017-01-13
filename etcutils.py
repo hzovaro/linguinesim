@@ -37,7 +37,7 @@ import scipy.integrate
 from linguineglobals import *
 
 ###################################################################################
-def thermalEmissionIntensity(		
+def thermal_emission_intensity(		
 	T,					# Emission source temperature
 	wavelength_min,		# Integrand interval lower limit
 	wavelength_max,		# Integrand interval upper limit
@@ -90,7 +90,7 @@ def thermalEmissionIntensity(
 	return I
 
 ################################################################################
-def surface_brightness2countRate(mu, A_tel, 
+def surface_brightness_to_count_rate(mu, A_tel, 
 	plate_scale_as_px = 1,
 	tau = 1,
 	qe = 1,
@@ -130,11 +130,11 @@ def surface_brightness2countRate(mu, A_tel,
 	else:
 		zeropoint = 0
 
-	F = surface_brightness2flux(
+	F = surface_brightness_to_flux(
 		mu=mu, 
 		wavelength_m=wavelength_m, 
 		zeropoint=zeropoint)
-	Sigma_electrons = flux2countRate(
+	Sigma_electrons = flux_to_count_rate(
 		F=F, 
 		A_tel=A_tel, 
 		plate_scale_as_px=plate_scale_as_px, 
@@ -149,7 +149,7 @@ def surface_brightness2countRate(mu, A_tel,
 
 ################################################################################
 # This routine is independent of telescope, detector geometry.
-def surface_brightness2flux(mu, 
+def surface_brightness_to_flux(mu, 
 	wavelength_m = None,
 	zeropoint = AB_MAGNITUDE_ZEROPOINT	# Default: mu is given in AB magnitudes
 	):
@@ -165,11 +165,11 @@ def surface_brightness2flux(mu,
 		frequency is returned.
 	"""
 	F_nu_cgs = np.power(10, - (zeropoint + mu) / 2.5) # ergs/s/cm^2/arcsec^2/Hz
-	return Fnucgs2flux(F_nu_cgs, wavelength_m)
+	return F_nu_CGS_to_flux(F_nu_cgs, wavelength_m)
 
 
 ################################################################################
-def Fnucgs2flux(F_nu_cgs,
+def F_nu_CGS_to_flux(F_nu_cgs,
 	wavelength_m = None
 	):
 	"""
@@ -200,7 +200,7 @@ def Fnucgs2flux(F_nu_cgs,
 def flux2photonRate(F, wavelength_m, bandwidth_m):
 	"""
 		Convert a given flux from a source (in a dictionary format output 
-		by surface_brightness2flux) into photons/s/m^2/arcsec^2 (or in 
+		by surface_brightness_to_flux) into photons/s/m^2/arcsec^2 (or in 
 		photons/s/m^2 depending on the units of F) given a central wavelength_m 
 		and bandwidth of a filter.
 	"""
@@ -209,7 +209,7 @@ def flux2photonRate(F, wavelength_m, bandwidth_m):
 	return Sigma_photons
 
 ################################################################################
-def photonRate2countRate(Sigma_photons, A_tel, 
+def photon_rate_to_count_rate(Sigma_photons, A_tel, 
 	tau, 
 	qe, 
 	gain,
@@ -229,7 +229,7 @@ def photonRate2countRate(Sigma_photons, A_tel,
 	return Sigma_electrons
 
 ################################################################################
-def flux2countRate(F, 
+def flux_to_count_rate(F, 
 	A_tel = 1, 
 	plate_scale_as_px = 1, 
 	tau = 1,
@@ -259,7 +259,7 @@ def flux2countRate(F,
 		F=F, 
 		wavelength_m=wavelength_m, 
 		bandwidth_m=bandwidth_m)
-	Sigma_electrons = photonRate2countRate(
+	Sigma_electrons = photon_rate_to_count_rate(
 		Sigma_photons=Sigma_photons,
 		A_tel=A_tel, 
 		plate_scale_as_px=plate_scale_as_px, 
@@ -269,7 +269,7 @@ def flux2countRate(F,
 	return Sigma_electrons
 
 ################################################################################
-def expectedCount2count(arg, 
+def expected_count_to_count(arg, 
 	t_exp = None):
 	"""
 		Convert an expected photon count (in photons) OR expected photon count 

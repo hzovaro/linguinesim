@@ -56,9 +56,9 @@ class Telescope(object):
 		self._N_mirrors = 0
 
 		# Spider
-		self.hasSpider = False
+		self.has_spider = False
 
-	def addMirror(self,
+	def add_mirror(self,
 		R_outer_m,
 		R_inner_m=0.0,
 		reflectivity=AL_REFLECTIVITY,
@@ -83,11 +83,11 @@ class Telescope(object):
 		# Update the throughput.
 		self.tau *= newmirror.reflectivity
 
-	def addSpider(self,
+	def add_spider(self,
 		A_spider_m2,
 		eps_spider=AL_EMISSIVITY):
 
-		self.hasSpider = True
+		self.has_spider = True
 		# The spider will be eps_spider emissive at telescope temp, and (1 - eps_spider) * eps_sky emissive at the sky temp.
 		self.A_spider_m2 = A_spider_m2
 		self.eps_spider = eps_spider

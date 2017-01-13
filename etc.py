@@ -50,7 +50,7 @@ import json
 from linguineglobals import *
 import etcutils
 ################################################################################
-def exposureTimeCalc(band, t_exp, optical_system,
+def exposure_time_calc(band, t_exp, optical_system,
 		surface_brightness = None,
 		magnitude_system = None,
 		printIt = True
@@ -91,9 +91,10 @@ def exposureTimeCalc(band, t_exp, optical_system,
 	if surface_brightness != None:
 		if magnitude_system != None:
 			# Here, if the input is given in mag/arcsec^2, then we need Sigma_source_e to be returned in units of electrons/s/pixel. 
-			Sigma_source_e = etcutils.surface_brightness2countRate(mu = surface_brightness, 
-				wavelength_m = wavelength_eff, 
-				bandwidth_m = bandwidth, 
+			Sigma_source_e = etcutils.surface_brightness_to_count_rate(mu = surface_brightness, 
+				band = band,
+				# wavelength_m = wavelength_eff, 
+				# bandwidth_m = bandwidth, 
 				plate_scale_as_px = optical_system.plate_scale_as_px, 
 				A_tel = telescope.A_collecting_m2, 
 				tau = telescope.tau * cryostat.Tr_win,
@@ -111,15 +112,17 @@ def exposureTimeCalc(band, t_exp, optical_system,
 	Sigma_cryo = getCryostatTE(optical_system=optical_system)
 
 	""" Telescope thermal background photon flux """
-	Sigma_tel = getTelescopeTE(optical_system=optical_system, plotit=False)[band]
+	Sigma_tel = get_telescope_TE(optical_system=optical_system, plotit=False)[band]
 
 	""" Sky thermal background photon flux """
-	Sigma_sky_thermal = getSkyTE(optical_system=optical_system, plotit=False)[band]
+	Sigma_sky_thermal = get_sky_TE(optical_system=optical_system, plotit=False)[band]
 
 	""" Empirical sky background flux """
-	Sigma_sky_emp = etcutils.surface_brightness2countRate(mu = sky.brightness[band], 
-		wavelength_m = wavelength_eff, 
-		bandwidth_m = bandwidth, 
+	ipdb.set_trace()
+	Sigma_sky_emp = etcutils.surface_brightness_to_count_rate(mu = sky.brightness[band], 
+		band = band,
+		# wavelength_m = wavelength_eff, 
+		# bandwidth_m = bandwidth, 
 		plate_scale_as_px = optical_system.plate_scale_as_px, 
 		A_tel = telescope.A_collecting_m2, 
 		tau = telescope.tau * cryostat.Tr_win,
@@ -252,7 +255,7 @@ def getCryostatTE(optical_system):
 	detector = optical_system.detector
 	cryostat = optical_system.cryostat
 
-	return etcutils.thermalEmissionIntensity(
+	return etcutils.thermal_emission_intensity(
 			T = cryostat.T,
 			A = detector.A_px_m2,
 			wavelength_min = 0.0,
@@ -266,7 +269,7 @@ def getCryostatTE(optical_system):
 
 ################################################################################
 
-def getSkyTE(optical_system,
+def get_sky_TE(optical_system,
 	plotit=True):
 
 	" Sky thermal background photon flux in the J, H and K bands "
@@ -283,12 +286,12 @@ def getSkyTE(optical_system,
 	}
 
 	# Atmospheric properties	
-	# eps_sky = getSkyEps()
+	# eps_sky = get_sky_emissivity()
 
 	for key in I_sky:
 		wavelength_min = FILTER_BANDS_M[key][2]
 		wavelength_max = FILTER_BANDS_M[key][3]
-		I_sky[key] = etcutils.thermalEmissionIntensity(
+		I_sky[key] = etcutils.thermal_emission_intensity(
 			T = sky.T, 
 			wavelength_min = wavelength_min, 
 			wavelength_max = wavelength_max, 
@@ -322,7 +325,7 @@ def getSkyTE(optical_system,
 	return I_sky
 
 ################################################################################
-def getTelescopeTE(optical_system,
+def get_telescope_TE(optical_system,
 	plotit=True):
 
 	detector = optical_system.detector
@@ -347,7 +350,7 @@ def getTelescopeTE(optical_system,
 		#	3. We are not assuming the worst case for the spider (i.e. it is still substantially reflective). But you should see how substantial of a difference it makes. Always lean towards the worst-case. 
 		I_mirrors = 0
 		for mirror in telescope.mirrors:
-			I_mirrors += etcutils.thermalEmissionIntensity(
+			I_mirrors += etcutils.thermal_emission_intensity(
 				T = telescope.T, 
 				wavelength_min = wavelength_min, 
 				wavelength_max = wavelength_max, 
@@ -358,8 +361,8 @@ def getTelescopeTE(optical_system,
 				)
 		
 		# Spider 
-		if telescope.hasSpider:
-			I_spider = etcutils.thermalEmissionIntensity(
+		if telescope.has_spider:
+			I_spider = etcutils.thermal_emission_intensity(
 					T = telescope.T, 
 					wavelength_min = wavelength_min, 
 					wavelength_max = wavelength_max, 
@@ -367,7 +370,7 @@ def getTelescopeTE(optical_system,
 					A = telescope.A_collecting_m2, 
 					eps = telescope.eps_spider_eff,
 					eta = telescope.tau * detector.qe * cryostat.Tr_win)\
-			  + etcutils.thermalEmissionIntensity(
+			  + etcutils.thermal_emission_intensity(
 			  		T = sky.T, 	
 			  		wavelength_min = wavelength_min, 
 			  		wavelength_max = wavelength_max, 
@@ -377,7 +380,7 @@ def getTelescopeTE(optical_system,
 			  		eta = telescope.tau * detector.qe * cryostat.Tr_win)
 		
 		# Cryostat window 
-		I_window = etcutils.thermalEmissionIntensity(
+		I_window = etcutils.thermal_emission_intensity(
 			T = cryostat.T, 
 			wavelength_min = wavelength_min, 
 			wavelength_max = wavelength_max, 
@@ -413,8 +416,11 @@ def getTelescopeTE(optical_system,
 	return I_tel
 
 ###################################################################################
-def plotBackgroundNoiseSources(optical_system):
-	" Plot the empirical sky brightness, thermal sky emission, thermal telescope emission and dark current as a function of wavelength_m "
+def plot_noise_sources(optical_system):
+	"""
+	Plot the empirical sky brightness, thermal sky emission, thermal telescope 
+	emission and dark current as a function of wavelength_m 
+	"""
 
 	detector = optical_system.detector
 	telescope = optical_system.telescope
@@ -426,9 +432,9 @@ def plotBackgroundNoiseSources(optical_system):
 		'J' : 0,
 		'K' : 0
 	}
-	counts['H'] = exposureTimeCalc(band='H', t_exp=1, optical_system=optical_system)
-	counts['J'] = exposureTimeCalc(band='J', t_exp=1, optical_system=optical_system)
-	counts['K'] = exposureTimeCalc(band='K', t_exp=1, optical_system=optical_system)
+	counts['H'] = exposure_time_calc(band='H', t_exp=1, optical_system=optical_system)
+	counts['J'] = exposure_time_calc(band='J', t_exp=1, optical_system=optical_system)
+	counts['K'] = exposure_time_calc(band='K', t_exp=1, optical_system=optical_system)
 	D = np.ones(1000)*detector.dark_current
 	wavelengths = np.linspace(1.0, 2.5, 1000)*1e-6
 
@@ -464,7 +470,7 @@ def plotBackgroundNoiseSources(optical_system):
 	plt.show()
 
 ################################################################################
-def findCryostatTemp(optical_system, plotit=True):
+def find_cryo_temp(optical_system, plotit=True):
 	"""
 		Determine what temperature the cryostat given in the optical system must be so that the detector counts resulting from the thermal emission from the cryostat walls is equivalent to the dark current.
 
@@ -492,7 +498,7 @@ def findCryostatTemp(optical_system, plotit=True):
 
 	# IMPORTANT NOTE: we do NOT multiply by the gain here because (1) it is not yet certain what gain values we will use and (2) the cryostat emission and the dark current are (to first order) both affected by the gain in the same way, so it doesn't matter whether or not we apply the gain here or not AS LONG AS the dark current value stored in the detector instance is the PRE-GAIN value!
 	for k in range(T_cryo.size):
-		I_cryo[k] = etcutils.thermalEmissionIntensity(
+		I_cryo[k] = etcutils.thermal_emission_intensity(
 			T = T_cryo[k],
 			A = detector.A_px_m2,
 			wavelength_min = 0.0,
@@ -507,7 +513,7 @@ def findCryostatTemp(optical_system, plotit=True):
 			idx = k
 
 		# Worst case: increased cutoff wavelength.
-		I_cryo_h[k] = etcutils.thermalEmissionIntensity(
+		I_cryo_h[k] = etcutils.thermal_emission_intensity(
 			T = T_cryo[k],
 			A = detector.A_px_m2,
 			wavelength_min = 0.0,
@@ -546,7 +552,7 @@ def findCryostatTemp(optical_system, plotit=True):
 	return T[idx]
 
 ###################################################################################
-def getSkyEps():
+def get_sky_emissivity():
 	# Atmospheric properties	
 	fname = 'cptrans_zm_23_10.dat'
 	this_dir, this_filename = os.path.split(__file__)
