@@ -186,7 +186,7 @@ def lucky_frame(
 		plt.title('Linear profiles')
 		plt.axis('tight')
 		plt.legend(loc='lower left')
-		plt.show()
+		mu.show_plot()
 
 	return im_noisy
 
@@ -265,7 +265,7 @@ def shift_xcorr(image, image_ref, buff_xcorr, sub_pixel_shift):
 	# mu.astroimshow(im=image_ref, title='Reference image', subplot=222)
 	# mu.astroimshow(im=corr, title='Cross-correlation', subplot=223)
 	# mu.astroimshow(im=p_fit(X,Y), title='Gaussian fit', subplot=224)
-	# plt.show()
+	# mu.show_plot()
 
 	image_shifted = scipy.ndimage.interpolation.shift(image, rel_shift_idx)	
 
@@ -571,7 +571,7 @@ def plot_alignment_err_histogram(errs_as,
 	plt.title(r'$y$ alignment error')
 	plt.xlabel('arcsec')
 	plt.legend()	
-	plt.show()
+	mu.show_plot()
 
 ################################################################################
 def _li_error_check(images, 

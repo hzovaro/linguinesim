@@ -67,7 +67,7 @@ def image_from_fits(fname,
 			plt.imshow(images_raw[k])
 			plt.title('Raw image %d from FITS file' % (k + 1))
 			plt.pause(0.1)
-		plt.show()
+		mu.show_plot()
 
 	return np.squeeze(images_raw), hdulist
 

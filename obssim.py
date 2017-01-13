@@ -132,7 +132,7 @@ def field_star(psf, band, mag, optical_system, star_coords_as, final_sz, plate_s
 				star_coords_as[0], 
 				star_coords_as[1]), 
 			subplot=122)
-		plt.show()
+		mu.show_plot()
 
 	return star_padded
 
@@ -187,7 +187,7 @@ def convolve_psf(image, psf,
 		plt.imshow(image_conv_cropped)
 		mu.colorbar()
 		plt.title('Convolved image (original size)')
-		plt.show()
+		mu.show_plot()
 
 	return image_conv_cropped
 
@@ -373,7 +373,7 @@ def airy_disc(wavelength_m, f_ratio, l_px_m,
 		plt.imshow(count_cumtrapz, norm=LogNorm())
 		mu.colorbar()
 		plt.title('Count (via trapezoidal rule)')
-		plt.show()
+		mu.show_plot()
 
 	return count_cumtrapz, I, P_0, P_sum, I_0
 
@@ -490,7 +490,7 @@ def get_diffraction_limited_image(image_truth, l_px_m, f_ratio, wavelength_m,
 		mu.colorbar()
 		plt.title('Diffraction-limited image')
 		plt.suptitle('Diffraction-limiting image')
-		plt.show()
+		mu.show_plot()
 
 	return np.squeeze(image_difflim)
 
@@ -556,7 +556,7 @@ def get_seeing_limited_image(images, seeing_diameter_as,
 		plt.imshow(image_seeing_limited_cropped[0])
 		mu.colorbar()
 		plt.title('Cropped, convolved image')
-		plt.show()
+		mu.show_plot()
 
 	return np.squeeze(image_seeing_limited_cropped)
 

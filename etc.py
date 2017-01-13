@@ -319,7 +319,7 @@ def get_sky_TE(optical_system,
 		plt.xlabel(r'$\lambda$ ($\mu$m)')
 		plt.ylabel(r'Count ($e^{-}$ s$^{-1}$ pixel$^{-1}$)')
 		plt.title(r'Estimated count from sky thermal emission')
-		plt.show()
+		mu.show_plot()
 
 	return I_sky
 
@@ -410,7 +410,7 @@ def get_telescope_TE(optical_system,
 		plt.xlabel(r'$\lambda$ ($\mu$m)')
 		plt.ylabel(r'Count ($e^{-}$ s$^{-1}$ pixel$^{-1}$)')
 		plt.title(r'Estimated count from telescope thermal emission')
-		plt.show()
+		mu.show_plot()
 
 	return I_tel
 
@@ -466,7 +466,7 @@ def plot_noise_sources(optical_system):
 	plt.xlabel(r'$\lambda$ ($\mu$m)')
 	plt.ylabel(r'Count ($e^{-}$ s$^{-1}$ pixel$^{-1}$)')
 	plt.title(r'Expected background noise levels (gain-multiplied by %d)' % detector.gain)
-	plt.show()
+	mu.show_plot()
 
 ################################################################################
 def find_cryo_temp(optical_system, plotit=True):

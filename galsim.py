@@ -111,7 +111,7 @@ def simulate_sersic_galaxy(im_out_fname, # Output FITS file name
 		plt.imshow(im_raw)
 		plt.title("GALFIT-generated image")
 		mu.colorbar()
-		plt.show()
+		mu.show_plot()
 
 	return im_raw
 
@@ -262,7 +262,7 @@ def sersic_2D(n, R_e, mu_e,
 		mu.colorbar()
 		plt.title('2D surface brightness map')
 		plt.suptitle('2D Sersic profiles')
-		plt.show()
+		mu.show_plot()
 
 	return R, dR, F_map, mu_map
 
